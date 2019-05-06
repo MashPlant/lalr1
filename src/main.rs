@@ -212,22 +212,22 @@ pub enum LexerState {"#).inc();
 
     p.lns(r#"#[derive(Debug, Clone, Copy)]
 pub struct Token<'a> {
-  ty: TokenType,
-  piece: &'a str,
-  line: u32,
-  col: u32,
+  pub ty: TokenType,
+  pub piece: &'a str,
+  pub line: u32,
+  pub col: u32,
 }
 "#).ln("");
 
     p.lns(r#"pub struct Lexer<'a> {
-  string: &'a str,
-  states: Vec<LexerState>,
-  cur_line: u32,
-  cur_col: u32,
-  piece: &'a str,"#).inc();
+  pub string: &'a str,
+  pub states: Vec<LexerState>,
+  pub cur_line: u32,
+  pub cur_col: u32,
+  pub piece: &'a str,"#).inc();
     if let Some(ext) = &self.raw.lexer_field_ext {
       for RawLexerFieldExt { field, type_, init: _ } in ext {
-        p.ln(format!("{}: {},", field, type_));
+        p.ln(format!("pub {}: {},", field, type_));
       }
     }
     p.dec().ln("}\n");
@@ -270,6 +270,7 @@ pub struct Token<'a> {
     }
     let (piece, act) = max?;
     self.piece = piece;
+    let ty = act(self);
     self.string = &self.string[piece.len()..];
     let (line, col) = (self.cur_line, self.cur_col);
     for (i, l) in piece.split('\n').enumerate() {
@@ -280,7 +281,6 @@ pub struct Token<'a> {
         self.cur_col = l.len() as u32;
       }
     }
-    let ty = act(self);
     if ty != TokenType::_Skip {
       break Some(Token { ty, piece, line, col });
     }
@@ -310,7 +310,7 @@ pub struct Token<'a> {
       let mut cnt = 0;
       for lex_state_rules in &self.lex {
         for &(_, act, _) in lex_state_rules {
-          p.ln(format!("fn lex_act{}(l: &mut Lexer) -> TokenType {{", cnt)).inc();
+          p.ln(format!("fn lex_act{}(_l: &mut Lexer) -> TokenType {{", cnt)).inc();
           p.lns(act);
           p.dec().ln("}\n");
           cnt += 1;
@@ -331,35 +331,4 @@ fn main() {
 //  let g: RawGrammar = toml::from_str(&s).unwrap();
 //  let g = g.to_grammar().unwrap();
 //  println!("{}", g.gen());
-//  println!("{:#?}", g);
-//  let g = RawGrammar {
-//    include: r##"#include <iostream>
-//using namespace std;
-//"##.into(),
-//    lexer_state_ext: Some(vec!["S".into()]),
-//    lexer_field_ext: Some(vec![RawLexerFieldExt {
-//      field: "string_builder".into(),
-//      type_: "String".into(),
-//      init: "String::new()".into(),
-//    }]),
-//    token: vec![
-//      RawTokenRow { assoc: Assoc::Token, tokens: vec!["Integer".into(), "Identifier".into()] },
-//      RawTokenRow { assoc: Assoc::Left, tokens: vec!["Add".into(), "Sub".into(), "Le".into(), "Ge".into(), "Lt".into(), "Gt".into()] },
-//      RawTokenRow { assoc: Assoc::Left, tokens: vec!["Mul".into(), "Div".into()] },
-//      RawTokenRow { assoc: Assoc::NoAssoc, tokens: vec!["Else".into()] },
-//    ],
-//    lexical: vec![
-//      RawLexicalRule { state: "S".into(), re: r#"[0-9]+"#.into(), act: r#"return TokenType::Integer;"#.into() },
-//      RawLexicalRule { state: "Initial".into(), re: r#"[A-Za-z][_0-9A-Za-z]*\n"#.into(), act: r#"return TokenType::Identifier;"#.into() },
-//    ],
-//    production: vec![
-//      RawProduction {
-//        rule: "Identifier -> Identifier Integer".into(),
-//        act: r##"{
-//  println!("hello world!");
-//}"##.into(),
-//      }
-//    ],
-//  };
-//  println!("{}", toml::to_string(&g).unwrap());
 }

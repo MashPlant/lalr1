@@ -33,7 +33,7 @@ pub enum TokenType {
   LBracket,
   Dot,
   Default,
-  RParenthes,
+  RParenthesis,
   Empty,
   Else,
   Identifier,
@@ -42,7 +42,7 @@ pub enum TokenType {
   LBrace,
   RBrace,
   RBracket,
-  LParenthes,
+  LParenthesis,
   Comma,
   Semicolon,
   Void,
@@ -89,20 +89,21 @@ macro_rules! map (
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token<'a> {
-  ty: TokenType,
-  piece: &'a str,
-  line: u32,
-  col: u32,
+  pub ty: TokenType,
+  pub piece: &'a str,
+  pub line: u32,
+  pub col: u32,
 }
 
 
 pub struct Lexer<'a> {
-  string: &'a str,
-  states: Vec<LexerState>,
-  cur_line: u32,
-  cur_col: u32,
-  piece: &'a str,
-  string_builder: String,
+  pub string: &'a str,
+  pub states: Vec<LexerState>,
+  pub cur_line: u32,
+  pub cur_col: u32,
+  pub piece: &'a str,
+  pub string_builder: (String, u32, u32),
+  pub errors: Vec<String>,
 }
 
 impl Lexer<'_> {
@@ -113,7 +114,8 @@ impl Lexer<'_> {
       cur_line: 1,
       cur_col: 0,
       piece: "",
-      string_builder: String::new(),
+      string_builder: (String::new(), 0, 0),
+      errors: Vec::new(),
     }
   }
 
@@ -139,6 +141,7 @@ impl Lexer<'_> {
       }
       let (piece, act) = max?;
       self.piece = piece;
+      let ty = act(self);
       self.string = &self.string[piece.len()..];
       let (line, col) = (self.cur_line, self.cur_col);
       for (i, l) in piece.split('\n').enumerate() {
@@ -149,7 +152,6 @@ impl Lexer<'_> {
           self.cur_col = l.len() as u32;
         }
       }
-      let ty = act(self);
       if ty != TokenType::_Skip {
         break Some(Token { ty, piece, line, col });
       }
@@ -158,7 +160,7 @@ impl Lexer<'_> {
 }
 
 lazy_static! {
-  static ref LEX_RULES: [Vec<(Regex, fn(&mut Lexer) -> TokenType)>; 1] = [
+  static ref LEX_RULES: [Vec<(Regex, fn(&mut Lexer) -> TokenType)>; 2] = [
     vec![
       (Regex::new(r#"^void"#).unwrap(), lex_act0),
       (Regex::new(r#"^int"#).unwrap(), lex_act1),
@@ -225,268 +227,341 @@ lazy_static! {
       (Regex::new(r#"^\s+"#).unwrap(), lex_act62),
       (Regex::new(r#"^\d+"#).unwrap(), lex_act63),
       (Regex::new(r#"^[A-Za-z][_0-9A-Za-z]*"#).unwrap(), lex_act64),
+      (Regex::new(r#"^""#).unwrap(), lex_act65),
+      (Regex::new(r#"^//[^\n]*"#).unwrap(), lex_act66),
+    ],
+    vec![
+      (Regex::new(r#"^\n"#).unwrap(), lex_act67),
+      (Regex::new(r#"^\\r"#).unwrap(), lex_act68),
+      (Regex::new(r#"^$"#).unwrap(), lex_act69),
+      (Regex::new(r#"^""#).unwrap(), lex_act70),
+      (Regex::new(r#"^\\n"#).unwrap(), lex_act71),
+      (Regex::new(r#"^\\t"#).unwrap(), lex_act72),
+      (Regex::new(r#"^\\""#).unwrap(), lex_act73),
+      (Regex::new(r#"^\\"#).unwrap(), lex_act74),
+      (Regex::new(r#"^."#).unwrap(), lex_act75),
     ],
   ];
 }
 
-fn lex_act0(l: &mut Lexer) -> TokenType {
+fn lex_act0(_l: &mut Lexer) -> TokenType {
   TokenType::Void
 }
 
-fn lex_act1(l: &mut Lexer) -> TokenType {
+fn lex_act1(_l: &mut Lexer) -> TokenType {
   TokenType::Int
 }
 
-fn lex_act2(l: &mut Lexer) -> TokenType {
+fn lex_act2(_l: &mut Lexer) -> TokenType {
   TokenType::Bool
 }
 
-fn lex_act3(l: &mut Lexer) -> TokenType {
+fn lex_act3(_l: &mut Lexer) -> TokenType {
   TokenType::String
 }
 
-fn lex_act4(l: &mut Lexer) -> TokenType {
+fn lex_act4(_l: &mut Lexer) -> TokenType {
   TokenType::New
 }
 
-fn lex_act5(l: &mut Lexer) -> TokenType {
+fn lex_act5(_l: &mut Lexer) -> TokenType {
   TokenType::Null
 }
 
-fn lex_act6(l: &mut Lexer) -> TokenType {
+fn lex_act6(_l: &mut Lexer) -> TokenType {
   TokenType::True
 }
 
-fn lex_act7(l: &mut Lexer) -> TokenType {
+fn lex_act7(_l: &mut Lexer) -> TokenType {
   TokenType::False
 }
 
-fn lex_act8(l: &mut Lexer) -> TokenType {
+fn lex_act8(_l: &mut Lexer) -> TokenType {
   TokenType::Class
 }
 
-fn lex_act9(l: &mut Lexer) -> TokenType {
+fn lex_act9(_l: &mut Lexer) -> TokenType {
   TokenType::Extends
 }
 
-fn lex_act10(l: &mut Lexer) -> TokenType {
+fn lex_act10(_l: &mut Lexer) -> TokenType {
   TokenType::This
 }
 
-fn lex_act11(l: &mut Lexer) -> TokenType {
+fn lex_act11(_l: &mut Lexer) -> TokenType {
   TokenType::While
 }
 
-fn lex_act12(l: &mut Lexer) -> TokenType {
+fn lex_act12(_l: &mut Lexer) -> TokenType {
   TokenType::Foreach
 }
 
-fn lex_act13(l: &mut Lexer) -> TokenType {
+fn lex_act13(_l: &mut Lexer) -> TokenType {
   TokenType::For
 }
 
-fn lex_act14(l: &mut Lexer) -> TokenType {
+fn lex_act14(_l: &mut Lexer) -> TokenType {
   TokenType::If
 }
 
-fn lex_act15(l: &mut Lexer) -> TokenType {
+fn lex_act15(_l: &mut Lexer) -> TokenType {
   TokenType::Else
 }
 
-fn lex_act16(l: &mut Lexer) -> TokenType {
+fn lex_act16(_l: &mut Lexer) -> TokenType {
   TokenType::Return
 }
 
-fn lex_act17(l: &mut Lexer) -> TokenType {
+fn lex_act17(_l: &mut Lexer) -> TokenType {
   TokenType::Break
 }
 
-fn lex_act18(l: &mut Lexer) -> TokenType {
+fn lex_act18(_l: &mut Lexer) -> TokenType {
   TokenType::Print
 }
 
-fn lex_act19(l: &mut Lexer) -> TokenType {
+fn lex_act19(_l: &mut Lexer) -> TokenType {
   TokenType::ReadInteger
 }
 
-fn lex_act20(l: &mut Lexer) -> TokenType {
+fn lex_act20(_l: &mut Lexer) -> TokenType {
   TokenType::ReadLine
 }
 
-fn lex_act21(l: &mut Lexer) -> TokenType {
+fn lex_act21(_l: &mut Lexer) -> TokenType {
   TokenType::Static
 }
 
-fn lex_act22(l: &mut Lexer) -> TokenType {
+fn lex_act22(_l: &mut Lexer) -> TokenType {
   TokenType::InstanceOf
 }
 
-fn lex_act23(l: &mut Lexer) -> TokenType {
+fn lex_act23(_l: &mut Lexer) -> TokenType {
   TokenType::SCopy
 }
 
-fn lex_act24(l: &mut Lexer) -> TokenType {
+fn lex_act24(_l: &mut Lexer) -> TokenType {
   TokenType::Sealed
 }
 
-fn lex_act25(l: &mut Lexer) -> TokenType {
+fn lex_act25(_l: &mut Lexer) -> TokenType {
   TokenType::Var
 }
 
-fn lex_act26(l: &mut Lexer) -> TokenType {
+fn lex_act26(_l: &mut Lexer) -> TokenType {
   TokenType::Default
 }
 
-fn lex_act27(l: &mut Lexer) -> TokenType {
+fn lex_act27(_l: &mut Lexer) -> TokenType {
   TokenType::In
 }
 
-fn lex_act28(l: &mut Lexer) -> TokenType {
+fn lex_act28(_l: &mut Lexer) -> TokenType {
   TokenType::GuardSplit
 }
 
-fn lex_act29(l: &mut Lexer) -> TokenType {
+fn lex_act29(_l: &mut Lexer) -> TokenType {
   TokenType::Le
 }
 
-fn lex_act30(l: &mut Lexer) -> TokenType {
+fn lex_act30(_l: &mut Lexer) -> TokenType {
   TokenType::Ge
 }
 
-fn lex_act31(l: &mut Lexer) -> TokenType {
+fn lex_act31(_l: &mut Lexer) -> TokenType {
   TokenType::Eq
 }
 
-fn lex_act32(l: &mut Lexer) -> TokenType {
+fn lex_act32(_l: &mut Lexer) -> TokenType {
   TokenType::Ne
 }
 
-fn lex_act33(l: &mut Lexer) -> TokenType {
+fn lex_act33(_l: &mut Lexer) -> TokenType {
   TokenType::And
 }
 
-fn lex_act34(l: &mut Lexer) -> TokenType {
+fn lex_act34(_l: &mut Lexer) -> TokenType {
   TokenType::Or
 }
 
-fn lex_act35(l: &mut Lexer) -> TokenType {
+fn lex_act35(_l: &mut Lexer) -> TokenType {
   TokenType::Repeat
 }
 
-fn lex_act36(l: &mut Lexer) -> TokenType {
+fn lex_act36(_l: &mut Lexer) -> TokenType {
   TokenType::Inc
 }
 
-fn lex_act37(l: &mut Lexer) -> TokenType {
+fn lex_act37(_l: &mut Lexer) -> TokenType {
   TokenType::Dec
 }
 
-fn lex_act38(l: &mut Lexer) -> TokenType {
+fn lex_act38(_l: &mut Lexer) -> TokenType {
   TokenType::Shl
 }
 
-fn lex_act39(l: &mut Lexer) -> TokenType {
+fn lex_act39(_l: &mut Lexer) -> TokenType {
   TokenType::Shr
 }
 
-fn lex_act40(l: &mut Lexer) -> TokenType {
+fn lex_act40(_l: &mut Lexer) -> TokenType {
   TokenType::Add
 }
 
-fn lex_act41(l: &mut Lexer) -> TokenType {
+fn lex_act41(_l: &mut Lexer) -> TokenType {
   TokenType::Sub
 }
 
-fn lex_act42(l: &mut Lexer) -> TokenType {
+fn lex_act42(_l: &mut Lexer) -> TokenType {
   TokenType::Mul
 }
 
-fn lex_act43(l: &mut Lexer) -> TokenType {
+fn lex_act43(_l: &mut Lexer) -> TokenType {
   TokenType::Div
 }
 
-fn lex_act44(l: &mut Lexer) -> TokenType {
+fn lex_act44(_l: &mut Lexer) -> TokenType {
   TokenType::Mod
 }
 
-fn lex_act45(l: &mut Lexer) -> TokenType {
+fn lex_act45(_l: &mut Lexer) -> TokenType {
   TokenType::BAnd
 }
 
-fn lex_act46(l: &mut Lexer) -> TokenType {
+fn lex_act46(_l: &mut Lexer) -> TokenType {
   TokenType::BOr
 }
 
-fn lex_act47(l: &mut Lexer) -> TokenType {
+fn lex_act47(_l: &mut Lexer) -> TokenType {
   TokenType::BXor
 }
 
-fn lex_act48(l: &mut Lexer) -> TokenType {
+fn lex_act48(_l: &mut Lexer) -> TokenType {
   TokenType::Eq
 }
 
-fn lex_act49(l: &mut Lexer) -> TokenType {
+fn lex_act49(_l: &mut Lexer) -> TokenType {
   TokenType::Lt
 }
 
-fn lex_act50(l: &mut Lexer) -> TokenType {
+fn lex_act50(_l: &mut Lexer) -> TokenType {
   TokenType::Gt
 }
 
-fn lex_act51(l: &mut Lexer) -> TokenType {
+fn lex_act51(_l: &mut Lexer) -> TokenType {
   TokenType::Dot
 }
 
-fn lex_act52(l: &mut Lexer) -> TokenType {
+fn lex_act52(_l: &mut Lexer) -> TokenType {
   TokenType::Comma
 }
 
-fn lex_act53(l: &mut Lexer) -> TokenType {
+fn lex_act53(_l: &mut Lexer) -> TokenType {
   TokenType::Semicolon
 }
 
-fn lex_act54(l: &mut Lexer) -> TokenType {
+fn lex_act54(_l: &mut Lexer) -> TokenType {
   TokenType::Not
 }
 
-fn lex_act55(l: &mut Lexer) -> TokenType {
-  TokenType::LParenthes
+fn lex_act55(_l: &mut Lexer) -> TokenType {
+  TokenType::LParenthesis
 }
 
-fn lex_act56(l: &mut Lexer) -> TokenType {
-  TokenType::RParenthes
+fn lex_act56(_l: &mut Lexer) -> TokenType {
+  TokenType::RParenthesis
 }
 
-fn lex_act57(l: &mut Lexer) -> TokenType {
+fn lex_act57(_l: &mut Lexer) -> TokenType {
   TokenType::LBracket
 }
 
-fn lex_act58(l: &mut Lexer) -> TokenType {
+fn lex_act58(_l: &mut Lexer) -> TokenType {
   TokenType::RBracket
 }
 
-fn lex_act59(l: &mut Lexer) -> TokenType {
+fn lex_act59(_l: &mut Lexer) -> TokenType {
   TokenType::LBrace
 }
 
-fn lex_act60(l: &mut Lexer) -> TokenType {
+fn lex_act60(_l: &mut Lexer) -> TokenType {
   TokenType::RBrace
 }
 
-fn lex_act61(l: &mut Lexer) -> TokenType {
+fn lex_act61(_l: &mut Lexer) -> TokenType {
   TokenType::Colon
 }
 
-fn lex_act62(l: &mut Lexer) -> TokenType {
+fn lex_act62(_l: &mut Lexer) -> TokenType {
   TokenType::_Skip
 }
 
-fn lex_act63(l: &mut Lexer) -> TokenType {
+fn lex_act63(_l: &mut Lexer) -> TokenType {
   TokenType::Int
 }
 
-fn lex_act64(l: &mut Lexer) -> TokenType {
+fn lex_act64(_l: &mut Lexer) -> TokenType {
   TokenType::Identifier
+}
+
+fn lex_act65(_l: &mut Lexer) -> TokenType {
+  _l.states.push(LexerState::S);
+  _l.string_builder.0.clear();
+  _l.string_builder.1 = _l.cur_line;
+  _l.string_builder.2 = _l.cur_col + 1;
+  TokenType::_Skip
+}
+
+fn lex_act66(_l: &mut Lexer) -> TokenType {
+  TokenType::_Skip
+}
+
+fn lex_act67(_l: &mut Lexer) -> TokenType {
+//  let loc = Loc(_l.string_builder.1, _l.string_builder.2);
+//  let string = print::quote(&_l.string_builder.0.clone());
+//  _l.report_error(Error::new(loc, NewlineInStr{ string }));
+  TokenType::_Skip
+}
+
+fn lex_act68(_l: &mut Lexer) -> TokenType {
+  TokenType::_Skip
+}
+
+fn lex_act69(_l: &mut Lexer) -> TokenType {
+//  let loc = Loc(_l.string_builder.1, _l.string_builder.2);
+//  let string = print::quote(&_l.string_builder.0.clone());
+//  _l.report_error(Error::new(loc, UnterminatedStr{ string }));
+  TokenType::_Skip
+}
+
+fn lex_act70(_l: &mut Lexer) -> TokenType {
+  _l.states.pop();
+  TokenType::String
+}
+
+fn lex_act71(_l: &mut Lexer) -> TokenType {
+  _l.string_builder.0.push('\n');
+  TokenType::_Skip
+}
+
+fn lex_act72(_l: &mut Lexer) -> TokenType {
+  _l.string_builder.0.push('\t');
+  TokenType::_Skip
+}
+
+fn lex_act73(_l: &mut Lexer) -> TokenType {
+  _l.string_builder.0.push('\"');
+  TokenType::_Skip
+}
+
+fn lex_act74(_l: &mut Lexer) -> TokenType {
+  _l.string_builder.0.push('\\');
+  TokenType::_Skip
+}
+
+fn lex_act75(_l: &mut Lexer) -> TokenType {
+  _l.string_builder.0.push_str(_l.piece);
+  TokenType::_Skip
 }
 
 

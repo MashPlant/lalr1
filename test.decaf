@@ -1,5 +1,5 @@
 class Main {
   static void main() {
-    Print(1);
+    Print("Hello world!");
   }
 }

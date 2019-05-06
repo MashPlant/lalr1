@@ -1,7 +1,8 @@
 include = "#include <iostream>\nusing namespace std },\n"
 lexer_state_ext = ["S"]
 lexer_field_ext = [
-  { field = "string_builder", type = "String", init = "String::new()" },
+  { field = "string_builder", type = "(String, u32, u32)", init = "(String::new(), 0, 0)" },
+  { field = "errors", type = "Vec<String>", init = "Vec::new()" },
 ]
 
 token = [
@@ -18,9 +19,9 @@ token = [
   { assoc = "left", tokens = ["Mul", "Div", "Mod"] },
   { assoc = "no_assoc", tokens = ["UMinus", "Not", "Inc", "Dec"] },
   { assoc = "no_assoc", tokens = ["LBracket", "Dot", "Default"] },
-  { assoc = "no_assoc", tokens = ["RParenthes", "Empty"] },
+  { assoc = "no_assoc", tokens = ["RParenthesis", "Empty"] },
   { assoc = "no_assoc", tokens = ["Else"] },
-  { assoc = "token", tokens = ["Identifier", "GuardSplit", "Colon", "LBrace", "RBrace", "RBracket", "LParenthes", "Comma", "Semicolon", "Void", "Int", "Bool", "String", "New", "Null", "True", "False", "Class", "Extends", "This", "While", "Foreach", "For", "If", "Return", "Break", "Print", "ReadInteger", "ReadLine", "Static", "InstanceOf", "SCopy", "Sealed", "Var", "In" ] }
+  { assoc = "token", tokens = ["Identifier", "GuardSplit", "Colon", "LBrace", "RBrace", "RBracket", "LParenthesis", "Comma", "Semicolon", "Void", "Int", "Bool", "String", "New", "Null", "True", "False", "Class", "Extends", "This", "While", "Foreach", "For", "If", "Return", "Break", "Print", "ReadInteger", "ReadLine", "Static", "InstanceOf", "SCopy", "Sealed", "Var", "In" ] }
 ]
 
 lexical = [
@@ -79,16 +80,43 @@ lexical = [
   { re = ",", act = "TokenType::Comma" },
   { re = ";", act = "TokenType::Semicolon" },
   { re = "!", act = "TokenType::Not" },
-  { re = "(", act = "TokenType::LParenthes" },
-  { re = ")", act = "TokenType::RParenthes" },
+  { re = "(", act = "TokenType::LParenthesis" },
+  { re = ")", act = "TokenType::RParenthesis" },
   { re = "[", act = "TokenType::LBracket" },
   { re = "]", act = "TokenType::RBracket" },
   { re = "{", act = "TokenType::LBrace" },
   { re = "}", act = "TokenType::RBrace" },
   { re = ":", act = "TokenType::Colon" },
-  { re = "\\s+", act = "TokenType::_Skip", escape = false },
-  { re = "\\d+", act = "TokenType::Int", escape = false },
+  { re = '\s+', act = "TokenType::_Skip", escape = false },
+  { re = '\d+', act = "TokenType::Int", escape = false },
   { re = "[A-Za-z][_0-9A-Za-z]*", act = "TokenType::Identifier", escape = false },
+  { re = '"', act = '''_l.states.push(LexerState::S);
+_l.string_builder.0.clear();
+_l.string_builder.1 = _l.cur_line;
+_l.string_builder.2 = _l.cur_col + 1;
+TokenType::_Skip''' },
+  { re = '\n', act = '''let loc = Loc(_l.string_builder.1, _l.string_builder.2);
+let string = print::quote(&_l.string_builder.0.clone());
+_l.report_error(Error::new(loc, NewlineInStr{ string }));
+TokenType::_Skip''', state = "S", escape = false },
+  { re = '\r', act = "TokenType::_Skip", state = "S" },
+  { re = "$", act = '''let loc = Loc(_l.string_builder.1, _l.string_builder.2);
+let string = print::quote(&_l.string_builder.0.clone());
+_l.report_error(Error::new(loc, UnterminatedStr{ string }));
+TokenType::_Skip''', state = "S", escape = false },
+  { re = '"', act = '''_l.states.pop();
+TokenType::String''', state = "S" },
+  { re = '\n', act = '''_l.string_builder.0.push('\n');
+TokenType::_Skip''', state = "S" },
+  { re = '\t', act = '''_l.string_builder.0.push('\t');
+TokenType::_Skip''', state = "S" },
+  { re = '\"', act = '''_l.string_builder.0.push('\"');
+TokenType::_Skip''', state = "S" },
+  { re = '\\', act = '''_l.string_builder.0.push('\\');
+TokenType::_Skip''', state = "S", escape = false },
+  { re = ".", act = '''_l.string_builder.0.push_str(_l.piece);
+TokenType::_Skip''', state = "S", escape = false },
+  { re = '//[^\n]*', act = "TokenType::_Skip", escape = false }
 ]
 
 production = [
