@@ -1,0 +1,5 @@
+class Main {
+  static void main() {
+    Print(1);
+  }
+}

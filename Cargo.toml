@@ -1,0 +1,12 @@
+[package]
+name = "lalr1"
+version = "0.1.0"
+authors = ["MashPlant <740678788@qq.com>"]
+edition = "2018"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_derive = "1.0"
+toml = "0.5"
+regex = "1"
+lazy_static = "0.2.8"
