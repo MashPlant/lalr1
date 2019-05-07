@@ -12,6 +12,7 @@ use std::collections::vec_deque::VecDeque;
 #[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct LRItem<'a> {
   pub prod: &'a [u32],
+  pub prod_id: u32,
   // prod[dot] = the token after dot
   pub dot: u32,
   // look_ahead is the map value in LRState
@@ -45,7 +46,7 @@ impl LRCtx {
       for i in 0..nt_num {
         for prod in g.get_prod(i) {
           let mut all_have_eps = true;
-          for &ch in prod.as_ref() {
+          for &ch in prod.0.as_ref() {
             if ch < nt_num {
               let rhs = &nt_first[ch as usize].borrow();
               if ch != i {
@@ -80,7 +81,7 @@ impl LRCtx {
     }
   }
 
-  // ont beta, and many a
+  // one beta, and many a
   fn first(&mut self, beta: &[u32], a: &BitSet) -> BitSet {
     let mut ret = BitSet::new(self.nt_num);
     for &ch in beta {
@@ -108,7 +109,7 @@ impl LRCtx {
         continue;
       }
       if item.prod[item.dot as usize] == mov {
-        let new_item = LRItem { prod: item.prod, dot: item.dot + 1 };
+        let new_item = LRItem { prod: item.prod, prod_id: item.prod_id, dot: item.dot + 1 };
         match new_items.get_mut(&new_item) {
           None => { new_items.insert(new_item, look_ahead.clone()); }
           Some(old_look_ahead) => { old_look_ahead.or(look_ahead); }
@@ -133,7 +134,7 @@ impl LRCtx {
 //        println!("look_ahead = {:?}", look_ahead);
 //        println!("first = {:?}", first);
         for new_prod in g.get_prod(b) {
-          let new_item = LRItem { prod: new_prod.as_ref(), dot: 0 };
+          let new_item = LRItem { prod: new_prod.0.as_ref(), prod_id: new_prod.1, dot: 0 };
           match items.get_mut(&new_item) {
             None => {
               items.insert(new_item, first.clone());
@@ -150,19 +151,21 @@ impl LRCtx {
       }
     }
     let mut items = items.into_iter().map(|(k, v)| (k, v)).collect::<Vec<_>>();
+    // why sort_unstable_by_key(|x| &x.0) won't work here?
     items.sort_unstable_by(|l, r| l.0.cmp(&r.0));
     LRState { items }
   }
 }
 
-pub fn work<'a>(g: &'a impl AbstractGrammar<'a>, start: &'a [u32]) -> Vec<LRState<'a>> {
+pub type LRResult<'a> = (LRState<'a>, HashMap<u32, u32>);
+
+pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Vec<LRResult<'a>> {
   let mut ctx = LRCtx::new(g);
 //  println!("{:?}", ctx.nt_first);
   let mut ss = HashMap::new();
-  let mut init = HashMap::new();
-  init.insert(LRItem { prod: start, dot: 0 }, g.eof());
   let init = ctx.closure({
-                           let item = LRItem { prod: start, dot: 0 };
+                           let start = g.start();
+                           let item = LRItem { prod: start.0.as_ref(), prod_id: start.1, dot: 0 };
                            let mut look_ahead = BitSet::new(g.token_num());
                            look_ahead.set(g.eof());
                            let mut init = HashMap::new();
@@ -192,11 +195,6 @@ pub fn work<'a>(g: &'a impl AbstractGrammar<'a>, start: &'a [u32]) -> Vec<LRStat
     }
     result.push((cur, link));
   }
-  for (i, state) in result.iter().enumerate() {
-    println!("{} {:?}", i, state);
-  }
+  result
 //  println!("{:?}", result);
-  println!("exited");
-  std::process::exit(0);
-//  unimplemented!()
 }

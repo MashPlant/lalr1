@@ -5,6 +5,8 @@ extern crate serde_derive;
 extern crate regex;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate smallvec;
 
 mod printer;
 mod parser;
@@ -15,17 +17,21 @@ mod lr1;
 mod lalr1;
 mod bitset;
 
-use crate::abstract_grammar::AbstractGrammar;
-
+use crate::abstract_grammar::{AbstractGrammar, AbstractGrammarExt};
+use crate::raw_grammar::Assoc;
 use std::fs::read_to_string;
 
 struct GrammarStub {
-  prod: Vec<Vec<Vec<u32>>>
+  prod: Vec<Vec<(Vec<u32>, u32)>>
 }
 
 impl<'a> AbstractGrammar<'a> for GrammarStub {
   type ProdRef = Vec<u32>;
-  type ProdIter = &'a Vec<Vec<u32>>;
+  type ProdIter = &'a Vec<(Vec<u32>, u32)>;
+
+  fn start(&'a self) -> &'a (Self::ProdRef, u32) {
+    &self.prod[0][0]
+  }
 
   fn eps(&self) -> u32 {
     3
@@ -36,7 +42,7 @@ impl<'a> AbstractGrammar<'a> for GrammarStub {
   }
 
   fn token_num(&self) -> u32 {
-    7
+    8
   }
 
   fn nt_num(&self) -> u32 {
@@ -48,22 +54,42 @@ impl<'a> AbstractGrammar<'a> for GrammarStub {
   }
 }
 
+impl<'a> AbstractGrammarExt<'a> for GrammarStub {
+  fn cmp_priority(&self, a: u32, b: u32) -> std::cmp::Ordering {
+    unimplemented!()
+  }
+
+  fn get_assoc(&self, ch: u32) -> Assoc {
+    unimplemented!()
+  }
+}
+
 fn main() {
   let stub = GrammarStub {
     prod: vec![
       vec![
-        vec![1]
+        (vec![1], 0) // E' -> E
       ],
       vec![
-        vec![1, 5, 2],
-        vec![2],
+        (vec![1, 5, 1], 1), // E -> E + E
+        (vec![1, 6, 1], 2), // E -> E * E
+        (vec![2], 3) // E -> T
       ],
       vec![
-        vec![6]
+        (vec![7], 4) // T -> num
       ]
     ]
   };
-  lr1::work(&stub, &stub.prod[0][0]);
+  let a = lr1::work(&stub);
+  for (i, a) in a.iter().enumerate() {
+    println!("{}: {:?}", i, a);
+  }
+  let a = lalr1::work(&a, &stub);
+//  println!("{:?}", a);
+  for (i, a) in a.action.iter().enumerate() {
+    println!("{}: {:?}", i, a);
+  }
+
 //  let prog = read_to_string("test.decaf").unwrap();
 //  let mut lex = parser::Lexer::new(&prog);
 //  while let Some(tk) = lex.next() {
