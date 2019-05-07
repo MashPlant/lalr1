@@ -14,6 +14,10 @@ pub struct Grammar<'a> {
 
 
 impl Grammar<'_> {
+  pub fn eps(&self) -> u32 {
+    unimplemented!()
+  }
+
   pub fn eof(&self) -> u32 {
     unimplemented!()
   }

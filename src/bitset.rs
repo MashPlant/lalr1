@@ -21,7 +21,7 @@ impl BitSet {
     for (x, y) in self.inner.iter_mut().zip(other.inner.iter()) {
       let ox = *x;
       *x |= *y;
-      changed |= (*x != ox);
+      changed |= *x != ox;
     }
     changed
   }
@@ -46,9 +46,16 @@ impl BitSet {
 
 impl fmt::Debug for BitSet {
   fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-    for i in self.inner.iter() {
-      write!(f, "{:#066b} ", i)?;
+//    for i in self.inner.iter() {
+//      write!(f, "{:#066b} ", i)?;
+//    }
+    let mut l = f.debug_list();
+    for i in 0..self.inner.len() as u32 * 64 {
+      if self.test(i) {
+        l.entry(&i);
+      }
     }
+    l.finish();
     Ok(())
   }
 }
