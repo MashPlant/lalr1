@@ -29,7 +29,7 @@ impl Grammar<'_> {
 //    unimplemented!()
 //  }
 
-  pub fn get_prod(&self, ch: u32) -> Option<&[Vec<u32>]> {
+  pub fn get_prod(&self, ch: u32) -> &[Vec<u32>] {
     unimplemented!()
   }
 

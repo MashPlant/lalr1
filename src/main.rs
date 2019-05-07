@@ -10,9 +10,12 @@ extern crate lazy_static;
 mod printer;
 mod parser;
 mod raw_grammar;
+mod abstract_grammar;
 mod grammar;
 mod lalr1;
 mod bitset;
+
+use crate::abstract_grammar::AbstractGrammar;
 
 use std::fs::read_to_string;
 

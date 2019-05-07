@@ -16,11 +16,13 @@ pub struct LRItem<'a> {
   // look_ahead is the map value in LRState
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct LRState<'a> {
   // item -> look_ahead, which only have [token_num..nt_num] possible to be 1
-  pub items: HashMap<LRItem<'a>, BitSet>,
-  pub link: HashMap<u32, u32>,
+  // when calculation, use HashMap; after calculation, convert it to Vec, and sort it
+  pub items: Vec<(LRItem<'a>, BitSet)>,
+  // link is the map value in ss
+//  pub link: HashMap<u32, u32>,
 }
 
 struct LRCtx<'a> {
@@ -39,7 +41,7 @@ impl LRCtx<'_> {
     while changed {
       changed = false;
       for i in 0..nt_num {
-        for prod in g.get_prod(i).unwrap() {
+        for prod in g.get_prod(i) {
           let prod = &prod[1..];
           let mut all_have_eps = true;
           for &ch in prod {
@@ -124,10 +126,9 @@ impl LRCtx<'_> {
         }
       }
     }
-    LRState {
-      items,
-      link: HashMap::new(),
-    }
+    let mut items = items.into_iter().map(|(k, v)| (k, v)).collect::<Vec<_>>();
+    items.sort_unstable_by(|l, r| l.0.cmp(&r.0));
+    LRState { items }
   }
 }
 
@@ -149,6 +150,7 @@ pub fn work<'a>(g: &'a Grammar, start: &'a [u32]) -> Vec<LRState<'a>> {
   let mut result = Vec::new();
   q.push_back(init);
   while let Some(mut cur) = q.pop_front() {
+    let mut link = HashMap::new();
     for mov in 0..ctx.token_num {
       let mut ns = ctx.go(&cur, mov, g);
       if !ns.items.is_empty() {
@@ -161,10 +163,10 @@ pub fn work<'a>(g: &'a Grammar, start: &'a [u32]) -> Vec<LRState<'a>> {
           }
           Some(id) => *id,
         };
-        cur.link.insert(mov, id);
+        link.insert(mov, id);
       }
     }
-    result.push(cur);
+    result.push((cur, link));
   }
   unimplemented!()
 }
