@@ -3,8 +3,8 @@
 use std::hash::{Hash, Hasher};
 use std::collections::{HashMap, HashSet};
 use std::cmp::Ordering;
-use bitvec::{BitVec, BigEndian};
 use crate::grammar::Grammar;
+use crate::bitset::BitSet;
 use std::cell::RefCell;
 use std::collections::vec_deque::VecDeque;
 
@@ -77,29 +77,102 @@ pub struct LRState<'a> {
 //}
 
 struct LRCtx<'a> {
-  // 0 must present eps
-  first_cache: HashMap<(&'a [u32], u32), BitVec<BigEndian, u64>>,
+  token_num: u32,
+  first_cache: HashMap<&'a [u32], BitSet>,
+  // non-terminal should occupy 0..nt_num
+  nt_first: Vec<BitSet>,
 }
 
-impl<'a> LRCtx<'a> {
-  fn first<'b: 'a>(&mut self, beta_a: (&'b [u32], u32), g: &Grammar) -> &BitVec<BigEndian, u64> {
-    self.first_cache.entry(beta_a).or_insert_with(|| {
-      let mut result = BitVec::new();
-      for &ch in beta_a.0 {
-        // only to save a copy
-        g.add_first(ch, &mut result);
-        if !result[0] {
-          return result;
+impl LRCtx<'_> {
+  fn new<'a>(g: &'a Grammar) -> LRCtx<'a> {
+    let (token_num, nt_num) = (g.token_num(), g.nt_num());
+    let mut nt_first = vec![RefCell::new(BitSet::new(token_num)); nt_num as usize];
+    let mut changed = true;
+    while changed {
+      changed = false;
+      for i in 0..nt_num {
+        for prod in g.get_prod(i).unwrap() {
+          let prod = &prod[1..];
+          let mut all_have_eps = true;
+          for &ch in prod {
+            if ch < nt_num { // should be a nt
+              if ch != i {
+                let rhs = &nt_first[ch as usize].borrow();
+                changed |= nt_first[i as usize].borrow_mut().or(rhs);
+                if !rhs.test(0) {
+                  all_have_eps = false;
+                  break;
+                }
+              }
+            } else {
+              let mut borrow = nt_first[i as usize].borrow_mut();
+              changed |= !borrow.test(ch);
+              borrow.set(ch);
+              break;
+            }
+          }
+          if all_have_eps {
+            nt_first[i as usize].borrow_mut().set(0);
+          }
         }
-        // in lr1 algorithm, first(beta a) can never contain eps, because a is not eps
-        result.set(0, false);
       }
-      g.add_first(beta_a.1, &mut result);
-      result
-    })
+    }
+    unimplemented!()
   }
 
-  fn go<'b>(&mut self, state: &LRState<'b>, mov: u32, g: &Grammar) -> LRState<'b> {
+  fn first(&mut self) {
+
+  }
+//  fn first(&mut self, string: &[u32], g: &Grammar) -> &FixedBitSet {
+//    match self.first_cache.get(string) {
+//      Some(first) => first,
+//      None => {
+//        let string = string.into_vec();
+//        let mut result = FixedBitSet::with_capacity(self.token_num as usize);
+//        for &ch in &string {
+//          match g.get_prod(ch) {
+//            None => {}
+//            Some(prods) => {
+//              for prod in prods {
+//                let prod = &prod[1..];
+//
+//              }
+//            }
+//          }
+//        }
+////        for (i,ch) in string.iter.en {
+////
+////        }
+////        for i in 0..string.len() {
+////          let prefix
+////        }
+//      }
+//    }
+////    self.first_cache.entry(beta_a).or_insert_with(|| {
+//////      let mut result = FixedBitSet::with_capacity(self.token_num as usize);
+////      let mut result = self.first1(beta_a.0, g).clone();
+////      if result[0] {
+//////        result |= self.first1(&[beta_a])
+////      }
+//////      for &ch in beta_a.0 {
+//////        // only to save a copy
+//////        g.add_first(ch, &mut result);
+//////        if !result[0] {
+//////          return result;
+//////        }
+//////        // in lr1 algorithm, first(beta a) can never contain eps, because a is not eps
+//////        result.set(0, false);
+//////      }
+//////      g.add_first(beta_a.1, &mut result);
+////      result
+////    })
+//  }
+
+//  fn first1<'b: 'a>(&mut self, string: &[u32], g: &Grammar) -> &FixedBitSet {
+//    unimplemented!()
+//  }
+
+  fn go<'a>(&mut self, state: &LRState<'a>, mov: u32, g: &Grammar) -> LRState<'a> {
     let mut new_items = HashSet::new();
     for item in &state.items {
       if item.prod[item.dot as usize] == mov {
@@ -109,7 +182,7 @@ impl<'a> LRCtx<'a> {
     self.closure(new_items, g)
   }
 
-  fn closure<'b>(&mut self, mut items: HashSet<LRItem<'b>>, g: &Grammar) -> LRState<'b> {
+  fn closure<'a>(&mut self, mut items: HashSet<LRItem<'a>>, g: &Grammar) -> LRState<'a> {
     let mut q = items.clone().into_iter().collect::<VecDeque<_>>();
     while let Some(cur) = q.pop_front() {
       let b = cur.prod[cur.dot as usize];
@@ -131,7 +204,8 @@ impl<'a> LRCtx<'a> {
 }
 
 pub fn work<'a>(g: &'a Grammar, start: &'a [u32], token_num: u32) -> Vec<LRState<'a>> {
-  let mut ctx = LRCtx { first_cache: HashMap::new() };
+  let mut ctx = LRCtx::new(g);
+//  let mut ctx = LRCtx { token_num, first_cache: HashMap::new(), first_cache1: HashMap::new() };
   let mut ss = HashMap::new();
   let mut init = HashSet::new();
   init.insert(LRItem { prod: start, dot: 1, look_ahead: Vec::new() });

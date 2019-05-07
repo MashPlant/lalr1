@@ -1,3 +1,4 @@
+#![feature(vec_resize_with)]
 #![allow(unused)]
 extern crate toml;
 extern crate serde;
@@ -5,13 +6,14 @@ extern crate serde_derive;
 extern crate regex;
 #[macro_use]
 extern crate lazy_static;
-extern crate bitvec;
+extern crate fixedbitset;
 
 mod printer;
 mod parser;
 mod raw_grammar;
 mod grammar;
 mod lalr1;
+mod bitset;
 
 use std::fs::read_to_string;
 

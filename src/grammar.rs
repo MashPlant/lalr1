@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use crate::raw_grammar::*;
 use crate::printer::*;
-use bitvec::{BitVec, BigEndian};
+use fixedbitset::FixedBitSet;
 
 #[derive(Debug)]
 pub struct Grammar<'a> {
@@ -15,17 +15,24 @@ pub struct Grammar<'a> {
 
 
 impl Grammar<'_> {
+  pub fn token_num(&self) -> u32 {
+    unimplemented!()
+  }
+
+  pub fn nt_num(&self) -> u32 {
+    unimplemented!()
+  }
 //  pub fn is_non_terminal(&self, ch: u32) -> bool {
 //    unimplemented!()
 //  }
 
-  pub fn get_prod(&self, ch: u32) -> Option<&[u32]> {
+  pub fn get_prod(&self, ch: u32) -> Option<&[Vec<u32>]> {
     unimplemented!()
   }
 
-  pub fn add_first(&self, ch: u32, first: &mut BitVec<BigEndian, u64>) {
-    unimplemented!()
-  }
+//  pub fn add_first(&self, ch: u32, first: &mut BitVec<BigEndian, u64>) {
+//    unimplemented!()
+//  }
 
   pub fn gen(&self) -> String {
     let mut p = IdentPrinter::new();
