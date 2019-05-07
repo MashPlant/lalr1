@@ -1,7 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use crate::raw_grammar::*;
 use crate::printer::*;
-use fixedbitset::FixedBitSet;
 
 #[derive(Debug)]
 pub struct Grammar<'a> {
@@ -15,6 +14,10 @@ pub struct Grammar<'a> {
 
 
 impl Grammar<'_> {
+  pub fn eof(&self) -> u32 {
+    unimplemented!()
+  }
+
   pub fn token_num(&self) -> u32 {
     unimplemented!()
   }

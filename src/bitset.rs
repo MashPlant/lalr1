@@ -1,7 +1,7 @@
 use std::fmt;
 use std::iter;
 
-#[derive(Clone)]
+#[derive(Clone, Hash, Eq, PartialEq)]
 pub struct BitSet {
   inner: Box<[u64]>
 }
