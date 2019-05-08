@@ -109,7 +109,6 @@ fn solve_sr<'a>(state: u32, ch: u32, s: u32, r: u32, acts: &mut SmallVec<[Parser
               true
             }
             Assoc::NoAssoc => false, // not retained
-            Assoc::Token => unimplemented!("Why will you have a conflict here???")
           }
         }
       }
@@ -146,7 +145,6 @@ fn try_solve_conflict<'a>(t: &mut Vec<(Vec<&'a LRItem<'a>>, HashMap<u32, SmallVe
         _ => unimplemented!("Why so many conflict???")
       }
     });
-//    state.1.
   }
   reports
 }

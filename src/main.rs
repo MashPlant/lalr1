@@ -1,4 +1,5 @@
 #![allow(unused)]
+#![feature(fn_traits)]
 extern crate toml;
 extern crate serde;
 extern crate serde_derive;
@@ -20,6 +21,8 @@ mod bitset;
 use crate::abstract_grammar::{AbstractGrammar, AbstractGrammarExt};
 use crate::raw_grammar::Assoc;
 use std::fs::read_to_string;
+use std::slice::Iter;
+use std::iter::Map;
 
 struct GrammarStub {
   prod: Vec<Vec<(Vec<u32>, u32)>>

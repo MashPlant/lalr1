@@ -21,7 +21,7 @@ token = [
   { assoc = "no_assoc", tokens = ["LBracket", "Dot", "Default"] },
   { assoc = "no_assoc", tokens = ["RParenthesis", "Empty"] },
   { assoc = "no_assoc", tokens = ["Else"] },
-  { assoc = "token", tokens = ["Identifier", "GuardSplit", "Colon", "LBrace", "RBrace", "RBracket", "LParenthesis", "Comma", "Semicolon", "Void", "Int", "Bool", "String", "New", "Null", "True", "False", "Class", "Extends", "This", "While", "Foreach", "For", "If", "Return", "Break", "Print", "ReadInteger", "ReadLine", "Static", "InstanceOf", "SCopy", "Sealed", "Var", "In" ] }
+  { tokens = ["Identifier", "GuardSplit", "Colon", "LBrace", "RBrace", "RBracket", "LParenthesis", "Comma", "Semicolon", "Void", "Int", "Bool", "String", "New", "Null", "True", "False", "Class", "Extends", "This", "While", "Foreach", "For", "If", "Return", "Break", "Print", "ReadInteger", "ReadLine", "Static", "InstanceOf", "SCopy", "Sealed", "Var", "In" ] }
 ]
 
 lexical = [

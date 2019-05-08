@@ -1,46 +1,65 @@
 use std::collections::{HashMap, HashSet};
 use crate::raw_grammar::*;
 use crate::printer::*;
+use crate::abstract_grammar::{AbstractGrammar, AbstractGrammarExt};
+use std::iter::Map;
+use std::slice::Iter;
+use smallvec::SmallVec;
+
+pub type ProdVec = SmallVec<[u32; 6]>;
 
 #[derive(Debug)]
 pub struct Grammar<'a> {
   pub raw: &'a RawGrammar,
-  pub token2id: HashMap<&'a str, u32>,
-  pub id2token: Vec<(&'a str, Assoc)>,
+  pub terminal: Vec<(&'a str, Option<(u32, Assoc)>)>,
   pub lexer_state: Vec<&'a str>,
   pub lex: Vec<Vec<(&'a str, &'a str, bool)>>,
-  pub prod: Vec<(Vec<u32>, &'a str)>,
+  pub prod: Vec<Vec<(ProdVec, u32)>>,
+  pub prod_pri_assoc: Vec<Option<(u32, Assoc)>>,
 }
 
+impl<'a> AbstractGrammar<'a> for Grammar<'a> {
+  type ProdRef = ProdVec;
+  type ProdIter = &'a Vec<(ProdVec, u32)>;
+
+  fn start(&'a self) -> &'a (Self::ProdRef, u32) {
+    &self.prod.last().unwrap()[0]
+  }
+
+  // first terminal
+  fn eps(&self) -> u32 {
+    self.prod.len() as u32
+  }
+
+  // second terminal
+  fn eof(&self) -> u32 {
+    self.prod.len() as u32 + 1
+  }
+
+  fn token_num(&self) -> u32 {
+    self.terminal.len() as u32 + self.prod.len() as u32
+  }
+
+  fn nt_num(&self) -> u32 {
+    self.prod.len() as u32
+  }
+
+  fn get_prod(&'a self, lhs: u32) -> Self::ProdIter {
+    &self.prod[lhs as usize]
+  }
+}
+
+impl<'a> AbstractGrammarExt<'a> for Grammar<'a> {
+  fn prod_pri_assoc(&self, id: u32) -> Option<(u32, Assoc)> {
+    self.prod_pri_assoc[id as usize]
+  }
+
+  fn term_pri_assoc(&self, ch: u32) -> Option<(u32, Assoc)> {
+    self.terminal[ch as usize].1
+  }
+}
 
 impl Grammar<'_> {
-  pub fn eps(&self) -> u32 {
-    unimplemented!()
-  }
-
-  pub fn eof(&self) -> u32 {
-    unimplemented!()
-  }
-
-  pub fn token_num(&self) -> u32 {
-    unimplemented!()
-  }
-
-  pub fn nt_num(&self) -> u32 {
-    unimplemented!()
-  }
-//  pub fn is_non_terminal(&self, ch: u32) -> bool {
-//    unimplemented!()
-//  }
-
-  pub fn get_prod(&self, ch: u32) -> &[Vec<u32>] {
-    unimplemented!()
-  }
-
-//  pub fn add_first(&self, ch: u32, first: &mut BitVec<BigEndian, u64>) {
-//    unimplemented!()
-//  }
-
   pub fn gen(&self) -> String {
     let mut p = IdentPrinter::new();
     p.ln(r#"#![allow(unused)]
@@ -51,7 +70,7 @@ use std::collections::HashMap;"#).ln("");
 
     p.lns(r#"#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum TokenType {"#).inc();
-    for &(token, _) in &self.id2token {
+    for &(token, _) in &self.terminal {
       p.ln(format!("{},", token));
     }
     p.dec().ln("}\n");
