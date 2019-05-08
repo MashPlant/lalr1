@@ -3,7 +3,7 @@ use serde::{Serialize, Deserialize};
 use regex::Regex;
 use crate::grammar::Grammar;
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum Assoc {
   Left,

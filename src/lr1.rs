@@ -39,12 +39,18 @@ struct LRCtx {
 impl LRCtx {
   fn new<'a>(g: &'a impl AbstractGrammar<'a>) -> LRCtx {
     let (token_num, nt_num, eps) = (g.token_num(), g.nt_num(), g.eps());
+    // todo: replace this with some thing like Vec<usize>, and use some unsafe to avoid such meaningless check
     let mut nt_first = vec![RefCell::new(BitSet::new(token_num)); nt_num as usize];
     let mut changed = true;
     while changed {
       changed = false;
       for i in 0..nt_num {
         for prod in g.get_prod(i) {
+          if prod.0.as_ref().is_empty() {
+            let mut lhs = nt_first[i as usize].borrow_mut();
+            changed |= !lhs.test(eps);
+            lhs.set(eps);
+          }
           let mut all_have_eps = true;
           for &ch in prod.0.as_ref() {
             if ch < nt_num {

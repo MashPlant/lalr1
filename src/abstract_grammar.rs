@@ -22,7 +22,8 @@ pub trait AbstractGrammar<'a> {
 }
 
 pub trait AbstractGrammarExt<'a>: AbstractGrammar<'a> {
-  fn cmp_priority(&self, a: u32, b: u32) -> std::cmp::Ordering;
+  // id is returned from get_prod
+  fn prod_pri_assoc(&self, id: u32) -> Option<(u32, Assoc)>;
 
-  fn get_assoc(&self, ch: u32) -> Assoc;
+  fn term_pri_assoc(&self, ch: u32) -> Option<(u32, Assoc)>;
 }

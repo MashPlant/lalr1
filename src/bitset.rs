@@ -42,13 +42,23 @@ impl BitSet {
   pub fn clear(&mut self, n: u32) {
     self.inner[(n >> 6) as usize] &= !((1 as u64) << (n & 63));
   }
+
+  #[inline]
+  pub unsafe fn or_raw(mut x: *mut u64, mut y: *const u64, len: u32) -> bool {
+    let mut changed = false;
+    for _ in 0..len {
+      let ox = *x;
+      *x |= *y;
+      changed |= *x != ox;
+      x = x.add(1);
+      y = y.add(1);
+    }
+    changed
+  }
 }
 
 impl fmt::Debug for BitSet {
   fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-//    for i in self.inner.iter() {
-//      write!(f, "{:#066b} ", i)?;
-//    }
     let mut l = f.debug_list();
     for i in 0..self.inner.len() as u32 * 64 {
       if self.test(i) {

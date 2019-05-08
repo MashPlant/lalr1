@@ -55,12 +55,26 @@ impl<'a> AbstractGrammar<'a> for GrammarStub {
 }
 
 impl<'a> AbstractGrammarExt<'a> for GrammarStub {
-  fn cmp_priority(&self, a: u32, b: u32) -> std::cmp::Ordering {
-    unimplemented!()
+  fn prod_pri_assoc(&self, id: u32) -> Option<(u32, Assoc)> {
+    match id {
+      0 => None,
+      1 => Some((0, Assoc::Left)),
+      2 => Some((1, Assoc::Left)),
+      3 => None,
+      4 => None,
+      _ => panic!("out of range")
+    }
   }
 
-  fn get_assoc(&self, ch: u32) -> Assoc {
-    unimplemented!()
+  fn term_pri_assoc(&self, ch: u32) -> Option<(u32, Assoc)> {
+    match ch {
+      3 => None,
+      4 => None,
+      5 => Some((0, Assoc::Left)),
+      6 => Some((1, Assoc::Left)),
+      7 => None,
+      _ => panic!("out of range")
+    }
   }
 }
 
@@ -81,14 +95,18 @@ fn main() {
     ]
   };
   let a = lr1::work(&stub);
-  for (i, a) in a.iter().enumerate() {
-    println!("{}: {:?}", i, a);
-  }
+//  for (i, a) in a.iter().enumerate() {
+//    println!("{}: {:?}", i, a);
+//  }
   let a = lalr1::work(&a, &stub);
 //  println!("{:?}", a);
   for (i, a) in a.action.iter().enumerate() {
+//    let print = a.1.iter().any(|(_, act)| act.len() >= 2);
+//    if print {
     println!("{}: {:?}", i, a);
+//    }
   }
+  println!("{}", a.conflict.len());
 
 //  let prog = read_to_string("test.decaf").unwrap();
 //  let mut lex = parser::Lexer::new(&prog);
