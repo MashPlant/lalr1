@@ -6,6 +6,7 @@ use std::iter::Map;
 use std::slice::Iter;
 use smallvec::SmallVec;
 use crate::codegen::Codegen;
+use crate::lalr1::ParseTable;
 
 pub type ProdVec = SmallVec<[u32; 6]>;
 
@@ -64,7 +65,7 @@ impl<'a> AbstractGrammarExt<'a> for Grammar<'a> {
 }
 
 impl Grammar<'_> {
-  pub fn gen<CG: Codegen>(&self, cg: &CG) -> String {
-    cg.gen(self)
+  pub fn gen<CG: Codegen>(&self, cg: &CG, table: &ParseTable) -> String {
+    cg.gen(self, table)
   }
 }

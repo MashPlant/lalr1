@@ -24,7 +24,8 @@ use crate::raw_grammar::{Assoc, RawGrammar};
 use std::fs::read_to_string;
 use std::slice::Iter;
 use std::iter::Map;
-use crate::parser::TokenType;
+//use crate::parser::TokenType;
+use crate::codegen::RustCodegen;
 
 struct GrammarStub {
   prod: Vec<Vec<(Vec<u32>, u32)>>
@@ -124,20 +125,15 @@ fn main() {
   let s = read_to_string("decaf.toml").unwrap();
   let mut g: RawGrammar = toml::from_str(&s).unwrap();
   let g = g.to_grammar().unwrap();
-  println!("{}", g.token_num());
-  println!("{}", g.nt_num());
-  println!("{}", g.eps());
-  println!("{}", g.eof());
-  println!("{:?}", g.prod);
 
   let a = lr1::work(&g);
 //  for (i, a) in a.iter().enumerate() {
 //    println!("{}: {:?}", i, a);
 //  }
   let a = lalr1::work(&a, &g);
-  for (i, a) in a.action.iter().enumerate() {
-    println!("{}: {:?}", i, a);
-  }
-  println!("{:?}", a.conflict);
-//  println!("{}", g.gen());
+//  for (i, a) in a.action.iter().enumerate() {
+//    println!("{}: {:?}", i, a);
+//  }
+//  println!("{:?}", a.conflict);
+  println!("{}", g.gen(&RustCodegen,&a));
 }

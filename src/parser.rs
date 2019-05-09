@@ -6,6 +6,8 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum TokenType {
+  Expr,
+  _Expr,
   _Eps,
   _Eof,
   Or,
@@ -146,10 +148,10 @@ impl Lexer<'_> {
       self.string = &self.string[piece.len()..];
       let (line, col) = (self.cur_line, self.cur_col);
       for (i, l) in piece.split('\n').enumerate() {
+        self.cur_line += 1;
         if i == 0 {
           self.cur_col += l.len() as u32;
         } else {
-          self.cur_line += 1;
           self.cur_col = l.len() as u32;
         }
       }
@@ -243,6 +245,136 @@ lazy_static! {
       (Regex::new(r#"^."#).unwrap(), lex_act75),
     ],
   ];
+}
+
+enum Act {
+  Acc,
+  Shift(u32),
+  Reduce(u32),
+  Goto(u32),
+}
+
+enum StackItem {
+  Expr(Expr),
+}
+
+lazy_static! {
+  static ref TABLE: [HashMap<u32, Act>; 15] = [
+    map! { 19 => Act::Shift(5), 34 => Act::Shift(5), 0 => Act::Goto(5) },
+    map! { 0 => Act::Goto(8), 34 => Act::Shift(8), 19 => Act::Shift(8) },
+    map! { 34 => Act::Shift(4), 0 => Act::Goto(4), 19 => Act::Shift(4) },
+    map! { 18 => Act::Reduce(5), 19 => Act::Reduce(5), 20 => Act::Reduce(5), 3 => Act::Reduce(5) },
+    map! { 18 => Act::Reduce(4), 20 => Act::Reduce(4), 3 => Act::Reduce(4), 21 => Act::Shift(14), 22 => Act::Shift(14), 19 => Act::Reduce(4) },
+    map! { 34 => Act::Shift(2), 19 => Act::Shift(2), 0 => Act::Goto(2) },
+    map! { 19 => Act::Reduce(3), 20 => Act::Reduce(3), 3 => Act::Reduce(3), 21 => Act::Shift(13), 22 => Act::Shift(13), 18 => Act::Reduce(3) },
+    map! { 22 => Act::Shift(1), 19 => Act::Shift(1), 3 => Act::Acc, 18 => Act::Shift(1), 20 => Act::Shift(1), 21 => Act::Shift(1) },
+    map! { 3 => Act::Reduce(0), 18 => Act::Shift(10), 19 => Act::Shift(10), 22 => Act::Shift(10), 20 => Act::Shift(10), 21 => Act::Shift(10) },
+    map! { 18 => Act::Reduce(2), 20 => Act::Reduce(2), 22 => Act::Shift(12), 3 => Act::Reduce(2), 21 => Act::Shift(12), 19 => Act::Reduce(2) },
+    map! { 0 => Act::Goto(0), 34 => Act::Shift(0), 19 => Act::Shift(0) },
+    map! { 0 => Act::Goto(6), 34 => Act::Shift(6), 19 => Act::Shift(6) },
+    map! { 34 => Act::Shift(7), 0 => Act::Goto(7), 19 => Act::Shift(7) },
+    map! { 22 => Act::Shift(11), 20 => Act::Shift(11), 21 => Act::Shift(11), 18 => Act::Shift(11), 19 => Act::Shift(11), 3 => Act::Reduce(1) },
+    map! { 20 => Act::Reduce(6), 3 => Act::Reduce(6), 21 => Act::Reduce(6), 18 => Act::Reduce(6), 19 => Act::Reduce(6), 22 => Act::Reduce(6) },
+  ];
+}
+
+pub struct Parser<'a> {
+  value_stk: Vec<StackItem>,
+  state_stk: Vec<u32>,
+  lexer: Lexer<'a>,
+}
+
+impl<'a> Parser<'a> {
+  pub fn new(string: &'a str) -> Parser {
+    Parser {
+      value_stk: Vec::new(),
+      state_stk: vec![0],
+      lexer: Lexer::new(string),
+    }
+  }
+
+  pub fn parse(&mut self) -> TResult {
+    let mut token = self.lexer.next();
+    let mut shifted_token = token;
+
+    loop {
+      let state = *self.states_stack.last().unwrap();
+      let column = token.ty;
+
+      if !TABLE[state].contains_key(&column) {
+        self.unexpected_token(&token);
+        break;
+      }
+
+      let entry = &TABLE[state][&column];
+
+      match entry {
+
+        // Shift a token, go to state.
+        &Act::Shift(next_state) => {
+          // Push token.
+          self.values_stack.push(SV::_0(token));
+
+          // Push next state number: "s5" -> 5
+          self.states_stack.push(next_state as usize);
+
+          shifted_token = token;
+          token = self.tokenizer.get_next_token();
+        }
+
+        // Reduce by production.
+        &Act::Reduce(production_number) => {
+          let production = PRODUCTIONS[production_number];
+
+          self.tokenizer.yytext = shifted_token.value;
+          self.tokenizer.yyleng = shifted_token.value.len();
+
+          let mut rhs_length = production[1];
+          while rhs_length > 0 {
+            self.states_stack.pop();
+            rhs_length = rhs_length - 1;
+          }
+
+          // Call the handler, push result onto the stack.
+          let result_value = self.handlers[production_number](self);
+
+          let previous_state = *self.states_stack.last().unwrap();
+          let symbol_to_reduce_with = production[0];
+
+          // Then push LHS onto the stack.
+          self.values_stack.push(result_value);
+
+          let next_state = match &TABLE[previous_state][&symbol_to_reduce_with] {
+            &Act::Goto(next_state) => next_state,
+            _ => unreachable!(),
+          };
+
+          self.states_stack.push(next_state);
+        }
+
+        // Accept the string.
+        &Act::Acc => {
+          // Pop state number.
+          self.states_stack.pop();
+
+          // Pop the parsed value.
+          let parsed = self.values_stack.pop().unwrap();
+
+          if self.states_stack.len() != 1 ||
+            self.states_stack.pop().unwrap() != 0 ||
+            self.tokenizer.has_more_tokens() {
+            self.unexpected_token(&token);
+          }
+
+          let result = get_result!(parsed, {{{RESULT_TYPE}}});
+          return result;
+        }
+
+        _ => unreachable!(),
+      }
+    }
+    unreachable!();
+  }
 }
 
 fn lex_act0(_l: &mut Lexer) -> TokenType {

@@ -1,15 +1,18 @@
 use crate::grammar::Grammar;
 use crate::printer::IndentPrinter;
 use crate::raw_grammar::RawLexerFieldExt;
+use crate::lalr1::ParseTable;
+use std::collections::HashSet;
+use crate::abstract_grammar::AbstractGrammar;
 
 pub trait Codegen {
-  fn gen(&self, g: &Grammar) -> String;
+  fn gen(&self, g: &Grammar, table: &ParseTable) -> String;
 }
 
-struct RustCodegen;
+pub struct RustCodegen;
 
 impl Codegen for RustCodegen {
-  fn gen(&self, g: &Grammar) -> String {
+  fn gen(&self, g: &Grammar, table: &ParseTable) -> String {
     let mut p = IndentPrinter::new();
     p.ln(r#"#![allow(unused)]
 #![allow(unused_mut)]
@@ -19,8 +22,11 @@ use std::collections::HashMap;"#).ln("");
 
     p.lns(r#"#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum TokenType {"#).inc();
-    for &(token, _) in &g.terminal {
-      p.ln(format!("{},", token));
+    for &(nt, _) in &g.nt {
+      p.ln(format!("{},", nt));
+    }
+    for &(t, _) in &g.terminal {
+      p.ln(format!("{},", t));
     }
     p.dec().ln("}\n");
 
@@ -79,12 +85,12 @@ pub struct Token<'a> {
 
     p.lns(r#"pub fn next(&mut self) -> Option<Token> {
   loop {
-    if g.string.is_empty() {
-      return Some(Token { ty: TokenType::_Eof, piece: "", line: g.cur_line, col: g.cur_col });
+    if self.string.is_empty() {
+      return Some(Token { ty: TokenType::_Eof, piece: "", line: self.cur_line, col: self.cur_col });
     }
     let mut max: Option<(&str, fn(&mut Lexer) -> TokenType)> = None;
-    for (re, act) in &LEX_RULES[*g.states.last()? as usize] {
-      match re.find(g.string) {
+    for (re, act) in &LEX_RULES[*self.states.last()? as usize] {
+      match re.find(self.string) {
         None => {}
         Some(n) => {
           let n = n.as_str();
@@ -98,16 +104,16 @@ pub struct Token<'a> {
       }
     }
     let (piece, act) = max?;
-    g.piece = piece;
+    self.piece = piece;
     let ty = act(self);
-    g.string = &g.string[piece.len()..];
-    let (line, col) = (g.cur_line, g.cur_col);
+    self.string = &self.string[piece.len()..];
+    let (line, col) = (self.cur_line, self.cur_col);
     for (i, l) in piece.split('\n').enumerate() {
-      g.cur_line += 1;
+      self.cur_line += 1;
       if i == 0 {
-        g.cur_col += l.len() as u32;
+        self.cur_col += l.len() as u32;
       } else {
-        g.cur_col = l.len() as u32;
+        self.cur_col = l.len() as u32;
       }
     }
     if ty != TokenType::_Eps {
@@ -134,6 +140,139 @@ pub struct Token<'a> {
     }
     p.dec().ln("];"); // LEX_RULES
     p.dec().ln("}\n"); // lazy_static
+
+    p.lns("enum Act {
+  Acc,
+  Shift(u32),
+  Reduce(u32),
+  Goto(u32),
+}").ln("");
+
+    p.ln("enum StackItem {").inc();
+    let types = g.nt.iter().map(|(_, ty)| ty).collect::<HashSet<_>>();
+    for ty in types {
+      p.ln(format!("{}({}),", ty, ty));
+    }
+    p.dec().ln("}\n");
+
+    p.ln("lazy_static! {").inc();
+    p.ln(format!("static ref TABLE: [HashMap<u32, Act>; {}] = [", table.action.len())).inc();
+    for act in &table.action {
+      let mut map = "map! { ".to_owned();
+      // try to manually join...
+      for (i, (&link, act)) in act.1.iter().enumerate() {
+        if i == 0 {
+          map += &format!("{} => Act::{:?}", link, act[0]);
+        } else {
+          map += &format!(", {} => Act::{:?}", link, act[0]);
+        }
+      }
+      map += " },";
+      p.ln(map);
+    }
+    p.dec().ln("];"); // TABLE
+    p.dec().ln("}\n"); // lazy_static
+
+//    p.ln(format!("type ParseResult = {};\n", g.nt[AbstractGrammar::start(g).1 as usize].1));
+
+    p.lns(r#"pub struct Parser<'a> {
+  value_stk: Vec<StackItem>,
+  state_stk: Vec<u32>,
+  lexer: Lexer<'a>,
+}
+
+impl<'a> Parser<'a> {
+  pub fn new(string: &'a str) -> Parser {
+    Parser {
+      value_stk: Vec::new(),
+      state_stk: vec![0],
+      lexer: Lexer::new(string),
+    }
+  }
+
+  pub fn parse(&mut self) -> TResult {
+    let mut token = self.lexer.next();
+    let mut shifted_token = token;
+
+    loop {
+      let state = *self.states_stack.last().unwrap();
+      let column = token.ty;
+
+      if !TABLE[state].contains_key(&column) {
+        self.unexpected_token(&token);
+        break;
+      }
+
+      let entry = &TABLE[state][&column];
+
+      match entry {
+
+        // Shift a token, go to state.
+        &Act::Shift(next_state) => {
+          // Push token.
+          self.values_stack.push(SV::_0(token));
+
+          // Push next state number: "s5" -> 5
+          self.states_stack.push(next_state as usize);
+
+          shifted_token = token;
+          token = self.tokenizer.get_next_token();
+        }
+
+        // Reduce by production.
+        &Act::Reduce(production_number) => {
+          let production = PRODUCTIONS[production_number];
+
+          self.tokenizer.yytext = shifted_token.value;
+          self.tokenizer.yyleng = shifted_token.value.len();
+
+          let mut rhs_length = production[1];
+          while rhs_length > 0 {
+            self.states_stack.pop();
+            rhs_length = rhs_length - 1;
+          }
+
+          // Call the handler, push result onto the stack.
+          let result_value = self.handlers[production_number](self);
+
+          let previous_state = *self.states_stack.last().unwrap();
+          let symbol_to_reduce_with = production[0];
+
+          // Then push LHS onto the stack.
+          self.values_stack.push(result_value);
+
+          let next_state = match &TABLE[previous_state][&symbol_to_reduce_with] {
+            &Act::Goto(next_state) => next_state,
+            _ => unreachable!(),
+          };
+
+          self.states_stack.push(next_state);
+        }
+
+        // Accept the string.
+        &Act::Acc => {
+          // Pop state number.
+          self.states_stack.pop();
+
+          // Pop the parsed value.
+          let parsed = self.values_stack.pop().unwrap();
+
+          if self.states_stack.len() != 1 ||
+            self.states_stack.pop().unwrap() != 0 ||
+            self.tokenizer.has_more_tokens() {
+            self.unexpected_token(&token);
+          }
+
+          let result = get_result!(parsed, {{{RESULT_TYPE}}});
+          return result;
+        }
+
+        _ => unreachable!(),
+      }
+    }
+    unreachable!();
+  }
+}"#).ln("");
 
     {
       let mut cnt = 0;
