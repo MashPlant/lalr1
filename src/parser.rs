@@ -6,7 +6,8 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum TokenType {
-  _Skip,
+  _Eps,
+  _Eof,
   Or,
   And,
   BOr,
@@ -36,15 +37,6 @@ pub enum TokenType {
   RParenthesis,
   Empty,
   Else,
-  Identifier,
-  GuardSplit,
-  Colon,
-  LBrace,
-  RBrace,
-  RBracket,
-  LParenthesis,
-  Comma,
-  Semicolon,
   Void,
   Int,
   Bool,
@@ -71,6 +63,15 @@ pub enum TokenType {
   Sealed,
   Var,
   In,
+  GuardSplit,
+  Comma,
+  Semicolon,
+  LParenthesis,
+  RBracket,
+  LBrace,
+  RBrace,
+  Colon,
+  Identifier,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -122,7 +123,7 @@ impl Lexer<'_> {
   pub fn next(&mut self) -> Option<Token> {
     loop {
       if self.string.is_empty() {
-        return None;
+        return Some(Token { ty: TokenType::_Eof, piece: "", line: self.cur_line, col: self.cur_col });
       }
       let mut max: Option<(&str, fn(&mut Lexer) -> TokenType)> = None;
       for (re, act) in &LEX_RULES[*self.states.last()? as usize] {
@@ -145,14 +146,14 @@ impl Lexer<'_> {
       self.string = &self.string[piece.len()..];
       let (line, col) = (self.cur_line, self.cur_col);
       for (i, l) in piece.split('\n').enumerate() {
-        self.cur_line += 1;
         if i == 0 {
           self.cur_col += l.len() as u32;
         } else {
+          self.cur_line += 1;
           self.cur_col = l.len() as u32;
         }
       }
-      if ty != TokenType::_Skip {
+      if ty != TokenType::_Eps {
         break Some(Token { ty, piece, line, col });
       }
     }
@@ -493,7 +494,7 @@ fn lex_act61(_l: &mut Lexer) -> TokenType {
 }
 
 fn lex_act62(_l: &mut Lexer) -> TokenType {
-  TokenType::_Skip
+  TokenType::_Eps
 }
 
 fn lex_act63(_l: &mut Lexer) -> TokenType {
@@ -509,29 +510,29 @@ fn lex_act65(_l: &mut Lexer) -> TokenType {
   _l.string_builder.0.clear();
   _l.string_builder.1 = _l.cur_line;
   _l.string_builder.2 = _l.cur_col + 1;
-  TokenType::_Skip
+  TokenType::_Eps
 }
 
 fn lex_act66(_l: &mut Lexer) -> TokenType {
-  TokenType::_Skip
+  TokenType::_Eps
 }
 
 fn lex_act67(_l: &mut Lexer) -> TokenType {
 //  let loc = Loc(_l.string_builder.1, _l.string_builder.2);
 //  let string = print::quote(&_l.string_builder.0.clone());
 //  _l.report_error(Error::new(loc, NewlineInStr{ string }));
-  TokenType::_Skip
+  TokenType::_Eps
 }
 
 fn lex_act68(_l: &mut Lexer) -> TokenType {
-  TokenType::_Skip
+  TokenType::_Eps
 }
 
 fn lex_act69(_l: &mut Lexer) -> TokenType {
 //  let loc = Loc(_l.string_builder.1, _l.string_builder.2);
 //  let string = print::quote(&_l.string_builder.0.clone());
 //  _l.report_error(Error::new(loc, UnterminatedStr{ string }));
-  TokenType::_Skip
+  TokenType::_Eps
 }
 
 fn lex_act70(_l: &mut Lexer) -> TokenType {
@@ -541,27 +542,27 @@ fn lex_act70(_l: &mut Lexer) -> TokenType {
 
 fn lex_act71(_l: &mut Lexer) -> TokenType {
   _l.string_builder.0.push('\n');
-  TokenType::_Skip
+  TokenType::_Eps
 }
 
 fn lex_act72(_l: &mut Lexer) -> TokenType {
   _l.string_builder.0.push('\t');
-  TokenType::_Skip
+  TokenType::_Eps
 }
 
 fn lex_act73(_l: &mut Lexer) -> TokenType {
   _l.string_builder.0.push('\"');
-  TokenType::_Skip
+  TokenType::_Eps
 }
 
 fn lex_act74(_l: &mut Lexer) -> TokenType {
   _l.string_builder.0.push('\\');
-  TokenType::_Skip
+  TokenType::_Eps
 }
 
 fn lex_act75(_l: &mut Lexer) -> TokenType {
   _l.string_builder.0.push_str(_l.piece);
-  TokenType::_Skip
+  TokenType::_Eps
 }
 
 

@@ -1,9 +1,9 @@
-pub struct IdentPrinter {
+pub struct IndentPrinter {
   indent: String,
   content: String,
 }
 
-impl IdentPrinter {
+impl IndentPrinter {
   const INDENT: u32 = 2;
   const INDENT_STR: &'static str = "  ";
 
@@ -12,12 +12,12 @@ impl IdentPrinter {
   }
 
   pub fn inc(&mut self) -> &mut Self {
-    self.indent += IdentPrinter::INDENT_STR;
+    self.indent += IndentPrinter::INDENT_STR;
     self
   }
 
   pub fn dec(&mut self) -> &mut Self {
-    for _ in 0..IdentPrinter::INDENT {
+    for _ in 0..IndentPrinter::INDENT {
       self.indent.pop().unwrap();
     }
     self

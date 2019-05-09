@@ -89,7 +89,7 @@ impl LRCtx {
 
   // one beta, and many a
   fn first(&mut self, beta: &[u32], a: &BitSet) -> BitSet {
-    let mut ret = BitSet::new(self.nt_num);
+    let mut ret = BitSet::new(self.token_num);
     for &ch in beta {
       if ch < self.nt_num {
         let rhs = &self.nt_first[ch as usize];
