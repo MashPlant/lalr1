@@ -112,13 +112,14 @@ _l.report_error(Error::new(loc, UnterminatedStr{ string }));''', term = "_Eps", 
 
 [[production]]
 lhs = "Expr"
-type = "Expr"
+type = "i32"
 rhs = [
-  { rhs = "Expr Add Expr", act = "" },
-  { rhs = "Expr Sub Expr", act = "" },
-  { rhs = "Expr Mul Expr", act = "" },
-  { rhs = "Expr Div Expr", act = "" },
-  { rhs = "Expr Mod Expr", act = "" },
-  { rhs = "Sub Expr", act = "", prec = "UMinus" },
-  { rhs = "Int", act = "" }
+  { rhs = "Expr Add Expr", act = "let _0 = _1 + _3;" },
+  { rhs = "Expr Sub Expr", act = "let _0 = _1 - _3;" },
+  { rhs = "Expr Mul Expr", act = "let _0 = _1 * _3;" },
+  { rhs = "Expr Div Expr", act = "let _0 = _1 / _3;" },
+  { rhs = "Expr Mod Expr", act = "let _0 = _1 % _3;" },
+  { rhs = "Sub Expr", act = "let _0 = -_2;", prec = "UMinus" },
+  { rhs = "LParenthesis Expr RParenthesis", act = "let _0 = _2;", prec = "UMinus" },
+  { rhs = "Int", act = "let _0 = _1.piece.parse::<i32>().unwrap();" }
 ]

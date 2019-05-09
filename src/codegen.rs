@@ -45,6 +45,46 @@ pub enum LexerState {"#).inc();
   }};
 );"#).ln("");
 
+    p.ln("lazy_static! {").inc();
+    p.ln(format!("static ref LEX_RULES: [Vec<(Regex, fn(&mut Lexer) -> TokenType)>; {}] = [", g.lex.len())).inc();
+    {
+      let mut cnt = 0;
+      for lex_state_rules in &g.lex {
+        p.ln("vec![").inc();
+        for (re, _, _) in lex_state_rules {
+          // add enough # to prevent the re contains `#"`
+          let raw = "#".repeat(re.matches('#').count() + 1);
+          p.ln(format!(r#"(Regex::new(r{}"^{}"{}).unwrap(), lex_act{}),"#, raw, &re, raw, cnt));
+          cnt += 1;
+        }
+        p.dec().ln("],");
+      }
+    }
+    p.dec().ln("];\n"); // LEX_RULES
+    p.ln(format!("static ref TABLE: [HashMap<u32, Act>; {}] = [", table.action.len())).inc();
+    for act in &table.action {
+      let mut map = "map! { ".to_owned();
+      // manually join...
+      // rust's join seems still unstable now?
+      for (i, (&link, act)) in act.1.iter().enumerate() {
+        if i == 0 {
+          map += &format!("{} => Act::{:?}", link, act[0]);
+        } else {
+          map += &format!(", {} => Act::{:?}", link, act[0]);
+        }
+      }
+      map += " },";
+      p.ln(map);
+    }
+    p.dec().ln("];"); // TABLE
+    p.dec().ln("}\n"); // lazy_static
+
+    p.ln(format!("static PRODUCTION_ACT: [fn(&mut Parser); {}] = [", g.prod_extra.len())).inc();
+    for i in 0..g.prod_extra.len() {
+      p.ln(format!("parser_act{}, ", i));
+    }
+    p.dec().ln("];"); // TABLE
+
     p.lns(r#"#[derive(Debug, Clone, Copy)]
 pub struct Token<'a> {
   pub ty: TokenType,
@@ -97,9 +137,7 @@ pub struct Token<'a> {
           if match max {
             None => true,
             Some((o, _)) => o.len() < n.len(),
-          } {
-            max = Some((n, *act));
-          }
+          } { max = Some((n, *act)); }
         }
       }
     }
@@ -123,24 +161,6 @@ pub struct Token<'a> {
 }"#);
     p.dec().ln("}\n"); // impl
 
-    p.ln("lazy_static! {").inc();
-    p.ln(format!("static ref LEX_RULES: [Vec<(Regex, fn(&mut Lexer) -> TokenType)>; {}] = [", g.lex.len())).inc();
-    {
-      let mut cnt = 0;
-      for lex_state_rules in &g.lex {
-        p.ln("vec![").inc();
-        for (re, _, _) in lex_state_rules {
-          // add enough # to prevent the re contains `#"`
-          let raw = "#".repeat(re.matches('#').count() + 1);
-          p.ln(format!(r#"(Regex::new(r{}"^{}"{}).unwrap(), lex_act{}),"#, raw, &re, raw, cnt));
-          cnt += 1;
-        }
-        p.dec().ln("],");
-      }
-    }
-    p.dec().ln("];"); // LEX_RULES
-    p.dec().ln("}\n"); // lazy_static
-
     p.lns("enum Act {
   Acc,
   Shift(u32),
@@ -149,29 +169,12 @@ pub struct Token<'a> {
 }").ln("");
 
     p.ln("enum StackItem {").inc();
+    p.ln("_Token(Token)");
     let types = g.nt.iter().map(|(_, ty)| ty).collect::<HashSet<_>>();
     for ty in types {
       p.ln(format!("{}({}),", ty, ty));
     }
     p.dec().ln("}\n");
-
-    p.ln("lazy_static! {").inc();
-    p.ln(format!("static ref TABLE: [HashMap<u32, Act>; {}] = [", table.action.len())).inc();
-    for act in &table.action {
-      let mut map = "map! { ".to_owned();
-      // try to manually join...
-      for (i, (&link, act)) in act.1.iter().enumerate() {
-        if i == 0 {
-          map += &format!("{} => Act::{:?}", link, act[0]);
-        } else {
-          map += &format!(", {} => Act::{:?}", link, act[0]);
-        }
-      }
-      map += " },";
-      p.ln(map);
-    }
-    p.dec().ln("];"); // TABLE
-    p.dec().ln("}\n"); // lazy_static
 
 //    p.ln(format!("type ParseResult = {};\n", g.nt[AbstractGrammar::start(g).1 as usize].1));
 
@@ -195,7 +198,7 @@ impl<'a> Parser<'a> {
     let mut shifted_token = token;
 
     loop {
-      let state = *self.states_stack.last().unwrap();
+      let state = *self.state_stk.last().unwrap();
       let column = token.ty;
 
       if !TABLE[state].contains_key(&column) {
@@ -210,10 +213,10 @@ impl<'a> Parser<'a> {
         // Shift a token, go to state.
         &Act::Shift(next_state) => {
           // Push token.
-          self.values_stack.push(SV::_0(token));
+          self.value_stk.push(SV::_0(token));
 
           // Push next state number: "s5" -> 5
-          self.states_stack.push(next_state as usize);
+          self.state_stk.push(next_state as usize);
 
           shifted_token = token;
           token = self.tokenizer.get_next_token();
@@ -228,37 +231,37 @@ impl<'a> Parser<'a> {
 
           let mut rhs_length = production[1];
           while rhs_length > 0 {
-            self.states_stack.pop();
+            self.state_stk.pop();
             rhs_length = rhs_length - 1;
           }
 
           // Call the handler, push result onto the stack.
           let result_value = self.handlers[production_number](self);
 
-          let previous_state = *self.states_stack.last().unwrap();
+          let previous_state = *self.state_stk.last().unwrap();
           let symbol_to_reduce_with = production[0];
 
           // Then push LHS onto the stack.
-          self.values_stack.push(result_value);
+          self.value_stk.push(result_value);
 
           let next_state = match &TABLE[previous_state][&symbol_to_reduce_with] {
             &Act::Goto(next_state) => next_state,
             _ => unreachable!(),
           };
 
-          self.states_stack.push(next_state);
+          self.state_stk.push(next_state);
         }
 
         // Accept the string.
         &Act::Acc => {
           // Pop state number.
-          self.states_stack.pop();
+          self.state_stk.pop();
 
           // Pop the parsed value.
-          let parsed = self.values_stack.pop().unwrap();
+          let parsed = self.value_stk.pop().unwrap();
 
-          if self.states_stack.len() != 1 ||
-            self.states_stack.pop().unwrap() != 0 ||
+          if self.state_stk.len() != 1 ||
+            self.state_stk.pop().unwrap() != 0 ||
             self.tokenizer.has_more_tokens() {
             self.unexpected_token(&token);
           }
@@ -271,6 +274,10 @@ impl<'a> Parser<'a> {
       }
     }
     unreachable!();
+  }
+
+  fn unexpected_token(&self, _token: &Token) {
+    panic!("unexpected_token");
   }
 }"#).ln("");
 
@@ -287,6 +294,26 @@ impl<'a> Parser<'a> {
           cnt += 1;
         }
       }
+    }
+
+    for (i, &(act, (lhs, rhs), _)) in g.prod_extra.iter().enumerate() {
+      p.ln(format!("fn parser_act{}(_p: &mut Parser) {{", i)).inc();
+      let rhs = &g.prod[lhs as usize][rhs as usize];
+      for (j, &x) in rhs.0.iter().enumerate().rev() {
+        let j = j + 1;
+        if x < AbstractGrammar::nt_num(g) {
+          let ty = g.nt[x as usize].1;
+          p.ln(format!("let mut _{} = match _p.value_stk.pop() {{ Some(StackItem::{}(x)) => x, _ => unreachable!() }};", j, ty));
+        } else {
+          p.ln(format!("let mut _{} = match _p.value_stk.pop() {{ Some(StackItem::_Token(x)) => x, _ => unreachable!() }};", j));
+        }
+      }
+      if !act.is_empty() { // just to make it prettier...
+        p.lns(act);
+      }
+      let ty = g.nt[lhs as usize].1;
+      p.lns(format!("_p.value_stk.push(StackItem::{}(_0));", ty));
+      p.dec().ln("}\n");
     }
     p.finish()
   }

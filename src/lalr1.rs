@@ -51,6 +51,9 @@ fn get_lalr1_table<'a>(lr: &'a Vec<LRResult<'a>>, g: &'a impl AbstractGrammarExt
     v.1.push((state, link));
     rev_states.insert(state as *const LRState, v.0);
   }
+  let mut states = states.into_iter().collect::<Vec<_>>();
+  states.sort_unstable_by(|l, r| (l.1).0.cmp(&(r.1).0));
+
   let mut result = Vec::new();
   for (state, (id, old_states)) in states {
     let mut new_state = LALR1State { items: old_states[0].0.items.iter().map(|(state, look_ahead)| (state, look_ahead.clone())).collect() };
@@ -60,9 +63,11 @@ fn get_lalr1_table<'a>(lr: &'a Vec<LRResult<'a>>, g: &'a impl AbstractGrammarExt
       }
     }
     let mut new_link = HashMap::new();
-    for (old_state, old_link) in old_states {
+    for (_, old_link) in old_states {
       for (&k, &v) in old_link {
-        new_link.insert(k, *rev_states.get(&(old_state as *const _)).unwrap());
+        let old_to = &lr[v as usize].0;
+        let new_to = rev_states[&(old_to as *const _)];
+        new_link.insert(k, new_to);
       }
     }
     result.push((new_state, new_link));

@@ -13,6 +13,7 @@ pub type ProdVec = SmallVec<[u32; 6]>;
 #[derive(Debug)]
 pub struct Grammar<'a> {
   pub raw: &'a RawGrammar,
+  //                 name
   pub terminal: Vec<(&'a str, Option<(u32, Assoc)>)>,
   //          (name   , type_  )>
   pub nt: Vec<(&'a str, &'a str)>,
@@ -20,7 +21,8 @@ pub struct Grammar<'a> {
   //               (re    , act    , term   )
   pub lex: Vec<Vec<(String, &'a str, &'a str)>>,
   pub prod: Vec<Vec<(ProdVec, u32)>>,
-  pub prod_pri_assoc: Vec<Option<(u32, Assoc)>>,
+  //                   act      (lhs, index of this prod in self.prod[lhs])
+  pub prod_extra: Vec<(&'a str, (u32, u32), Option<(u32, Assoc)>)>,
 }
 
 impl<'a> AbstractGrammar<'a> for Grammar<'a> {
@@ -56,7 +58,7 @@ impl<'a> AbstractGrammar<'a> for Grammar<'a> {
 
 impl<'a> AbstractGrammarExt<'a> for Grammar<'a> {
   fn prod_pri_assoc(&self, id: u32) -> Option<(u32, Assoc)> {
-    self.prod_pri_assoc[id as usize]
+    self.prod_extra[id as usize].2
   }
 
   fn term_pri_assoc(&self, ch: u32) -> Option<(u32, Assoc)> {

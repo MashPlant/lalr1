@@ -128,11 +128,12 @@ fn main() {
 
   let a = lr1::work(&g);
 //  for (i, a) in a.iter().enumerate() {
-//    println!("{}: {:?}", i, a);
+//    println!("{}: {:?}", i, a.1);
 //  }
+//  println!();
   let a = lalr1::work(&a, &g);
 //  for (i, a) in a.action.iter().enumerate() {
-//    println!("{}: {:?}", i, a);
+//    println!("{}: {:?}", i, a.1);
 //  }
 //  println!("{:?}", a.conflict);
   println!("{}", g.gen(&RustCodegen,&a));

@@ -102,7 +102,7 @@ impl RawGrammar {
         type_: start.1,
         rhs: vec![RawProductionRhs {
           rhs: start.0,
-          act: "_0 = _1;".into(),
+          act: "let _0 = _1;".into(),
           prec: None,
         }],
       });
@@ -126,7 +126,7 @@ impl RawGrammar {
     }
 
     let mut prod = vec![Vec::new(); nt.len()];
-    let mut prod_pri_assoc = Vec::new();
+    let mut prod_extra = Vec::new();
     let mut prod_id = 0u32;
 
     for raw in &self.production {
@@ -154,8 +154,9 @@ impl RawGrammar {
             }
           }
         }
+        let id = lhs_prod.len() as u32;
         lhs_prod.push((prod_rhs, prod_id));
-        prod_pri_assoc.push(pri_assoc);
+        prod_extra.push((rhs.act.as_str(), (*lhs, id), pri_assoc));
         prod_id += 1;
       }
     }
@@ -167,7 +168,7 @@ impl RawGrammar {
       lex_state,
       lex,
       prod,
-      prod_pri_assoc,
+      prod_extra,
     })
   }
 }
