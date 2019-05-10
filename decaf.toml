@@ -1,4 +1,46 @@
-include = "#include <iostream>\nusing namespace std },\n"
+include = '''use std::process;
+use std::mem;
+use std::ptr;
+use std::default::Default as D;
+
+use super::ast::*;
+use super::types::*;
+use super::loc::*;
+use super::errors::*;
+use super::print;
+
+type ClassList = Vec<ClassDef>;
+type FieldList = Vec<FieldDef>;
+type VarDefList = Vec<VarDef>;
+type StmtList = Vec<Stmt>;
+type ExprList = Vec<Expr>;
+type GuardedList = Vec<(Expr, Block)>;
+type Flag = bool;
+type Str = &'static str;
+
+fn gen_binary(l: Expr, opt: Token, r: Expr, op: Operator) -> Expr {
+  Expr::new(opt.get_loc(),
+    ExprData::Binary(Binary { op, l: Box::new(l), r: Box::new(r), }))
+}
+
+fn gen_unary(opt: Token, r: Expr, op: Operator) -> Expr {
+  Expr::new(opt.get_loc(),
+    ExprData::Unary(Unary { op, r: Box::new(r), }))
+}
+
+impl Parser {
+  fn get_loc(&self) -> Loc {
+    Loc(self.tokenizer.token_start_line, self.tokenizer.token_start_column + 1)
+  }
+}
+
+impl Token {
+  fn get_loc(&self) -> Loc {
+    Loc(self.start_line, self.start_column + 1)
+  }
+}
+'''
+
 lexer_state_ext = ["S"]
 lexer_field_ext = [
   { field = "string_builder", type = "(String, u32, u32)", init = "(String::new(), 0, 0)" },
@@ -21,7 +63,6 @@ terminal = [
   { assoc = "no_assoc", tokens = ["LBracket", "Dot", "Default"] },
   { assoc = "no_assoc", tokens = ["RParenthesis", "Empty"] },
   { assoc = "no_assoc", tokens = ["Else"] },
-  # { tokens = ["Identifier", "GuardSplit", "Colon", "LBrace", "RBrace", "RBracket", "LParenthesis", "Comma", "Semicolon", "Void", "Int", "Bool", "String", "New", "Null", "True", "False", "Class", "Extends", "This", "While", "Foreach", "For", "If", "Return", "Break", "Print", "ReadInteger", "ReadLine", "Static", "InstanceOf", "SCopy", "Sealed", "Var", "In" ] }
 ]
 
 lexical = [
@@ -36,19 +77,19 @@ lexical = [
   { re = "class", term = "Class" },
   { re = "extends", term = "Extends" },
   { re = "this", term = "This" },
-  { re = "while", term = "While" },
-  { re = "foreach", term = "Foreach" },
-  { re = "for", term = "For" },
-  { re = "if", term = "If" },
+  { re = "while", term = "WhileTk" },
+  { re = "foreach", term = "ForeachTk" },
+  { re = "for", term = "ForTk" },
+  { re = "if", term = "IfTk" },
   { re = "else", term = "Else" },
-  { re = "return", term = "Return" },
-  { re = "break", term = "Break" },
-  { re = "Print", term = "Print" },
+  { re = "return", term = "ReturnTk" },
+  { re = "break", term = "BreakTk" },
+  { re = "Print", term = "PrintTk" },
   { re = "ReadInteger", term = "ReadInteger" },
   { re = "ReadLine", term = "ReadLine" },
   { re = "static", term = "Static" },
   { re = "instanceof", term = "InstanceOf" },
-  { re = "scopy", term = "SCopy" },
+  { re = "scopy", term = "SCopyTk" },
   { re = "sealed", term = "Sealed" },
   { re = "var", term = "Var" },
   { re = "default", term = "Default" },
@@ -73,7 +114,7 @@ lexical = [
   { re = "&", term = "BAnd" },
   { re = "|", term = "BOr" },
   { re = "^", term = "BXor" },
-  { re = "=", term = "Eq" },
+  { re = "=", term = "Assign" },
   { re = "<", term = "Lt" },
   { re = ">", term = "Gt" },
   { re = ".", term = "Dot" },
@@ -88,7 +129,7 @@ lexical = [
   { re = "}", term = "RBrace" },
   { re = ":", term = "Colon" },
   { re = '\s+', term = "_Eps", escape = false },
-  { re = '\d+', term = "Int", escape = false },
+  { re = '\d+', term = "IntConst", escape = false },
   { re = "[A-Za-z][_0-9A-Za-z]*", term = "Identifier", escape = false },
   { re = '"', act = '''_l.states.push(LexerState::S);
 _l.string_builder.0.clear();
@@ -101,7 +142,7 @@ _l.report_error(Error::new(loc, NewlineInStr{ string }));''', term = "_Eps", sta
   { re = "$", act = '''let loc = Loc(_l.string_builder.1, _l.string_builder.2);
 let string = print::quote(&_l.string_builder.0.clone());
 _l.report_error(Error::new(loc, UnterminatedStr{ string }));''', term = "_Eps", state = "S", escape = false },
-  { re = '"', act = '''_l.states.pop();''', term = "String", state = "S" },
+  { re = '"', act = '''_l.states.pop();''', term = "StringConst", state = "S" },
   { re = '\n', act = '''_l.string_builder.0.push('\n');''', term = "_Eps", state = "S" },
   { re = '\t', act = '''_l.string_builder.0.push('\t');''', term = "_Eps", state = "S" },
   { re = '\"', act = '''_l.string_builder.0.push('\"');''', term = "_Eps", state = "S" },
@@ -111,15 +152,487 @@ _l.report_error(Error::new(loc, UnterminatedStr{ string }));''', term = "_Eps", 
 ]
 
 [[production]]
-lhs = "Expr"
-type = "i32"
+lhs = "Program"
+type = "Program"
 rhs = [
-  { rhs = "Expr Add Expr", act = "let _0 = _1 + _3;" },
-  { rhs = "Expr Sub Expr", act = "let _0 = _1 - _3;" },
-  { rhs = "Expr Mul Expr", act = "let _0 = _1 * _3;" },
-  { rhs = "Expr Div Expr", act = "let _0 = _1 / _3;" },
-  { rhs = "Expr Mod Expr", act = "let _0 = _1 % _3;" },
-  { rhs = "Sub Expr", act = "let _0 = -_2;", prec = "UMinus" },
-  { rhs = "LParenthesis Expr RParenthesis", act = "let _0 = _2;", prec = "UMinus" },
-  { rhs = "Int", act = "let _0 = _1.piece.parse::<i32>().unwrap();" }
+  { rhs = "ClassList", act = '''let _0 = if self.errors.is_empty() {
+  Ok(Program { class: _1, ..D::default() })
+} else {
+  Err(mem::replace(&mut self.errors, Vec::new()))
+};''' },
+]
+
+[[production]]
+lhs = "ClassList"
+type = "ClassList"
+rhs = [
+  { rhs = "ClassList ClassDef", act = '''_1.push(_2);
+let _0 = _1;''' },
+  { rhs = "ClassDef", act = '''let _0 = vec![_1];''' },
+]
+
+[[production]]
+lhs = "ClassDef"
+type = "ClassDef"
+rhs = [
+  { rhs = "MaybeSealed Class Identifier MaybeExtends LBrace FieldList RBrace", act = '''let _0 = ClassDef {
+  loc: _2.get_loc(),
+  name: _3.value,
+  parent: _4,
+  field: _6,
+  sealed: _1,
+  ..D::default()
+};''' },
+]
+
+[[production]]
+lhs = "MaybeSealed"
+type = "Flag"
+rhs = [
+  { rhs = "Sealed", act = '''let _0 = true;''' },
+  { rhs = "", act = '''let _0 = false;''' },
+]
+
+[[production]]
+lhs = "MaybeExtends"
+type = "Option<Str>"
+rhs = [
+  { rhs = "Extends Identifier", act = '''let _0 = Some(_2.value)''' },
+  { rhs = "", act = '''let _0 = None;''' },
+]
+
+[[production]]
+lhs = "FieldList"
+type = "FieldList"
+rhs = [
+  { rhs = "FieldList VarDef Semicolon", act = '''_1.push(FieldDef::VarDef(_2));
+let _0 = _1;''' },
+  { rhs = "FieldList MethodDef", act = '''_1.push(FieldDef::MethodDef(_2));
+let _0 = _1''' },
+  { rhs = "", act = '''let _0 = Vec::new();''' },
+]
+
+[[production]]
+lhs = "MethodDef"
+type = "MethodDef"
+rhs = [
+  { rhs = "Static Type Identifier LParenthesis VarDefListOrEmpty RParenthesis Block", act = '''let _0 = MethodDef {
+  loc: _3.get_loc(),
+  name: _3.value,
+  ret_t: _2,
+  param: _5,
+  static_: true,
+  body: _7,
+  scope: D::default(),
+  class: ptr::null(),
+  offset: -1,
+};''' },
+  { rhs = "Type Identifier LParenthesis VarDefListOrEmpty RParenthesis Block", act = '''let _0 = MethodDef {
+  loc: _2.get_loc(),
+  name: _2.value,
+  ret_t: _1,
+  param: _4,
+  static_: false,
+  body: _6,
+  scope: D::default(),
+  class: ptr::null(),
+  offset: -1,
+};''' },
+]
+
+[[production]]
+lhs = "VarDefListOrEmpty"
+type = "VarDefList"
+rhs = [
+  { rhs = "VarDefList", act = '''let _0 = _1;''' },
+  { rhs = "", act = '''let _0 = Vec::new();''' },
+]
+
+[[production]]
+lhs = "VarDefList"
+type = "VarDefList"
+rhs = [
+  { rhs = "VarDefList Comma VarDef", act = '''_1.push(_3);
+let _0 = _1;''' },
+  { rhs = "VarDef", act = '''let _0 = vec![_1];''' },
+]
+
+[[production]]
+lhs = "Block"
+type = "Block"
+rhs = [
+  { rhs = "LBrace StmtList RBrace", act = '''let _0 = Block {
+  loc: _1.get_loc(),
+  stmt: _2,
+  ..D::default()
+};''' },
+]
+
+[[production]]
+lhs = "StmtList"
+type = "StmtList"
+rhs = [
+  { rhs = "StmtList Stmt", act = '''_1.push(_2);
+let _0 = _1;''' },
+  { rhs = "", act = '''let _0 = Vec::new();''' },
+]
+
+[[production]]
+lhs = "Stmt"
+type = "Stmt"
+rhs = [
+  { rhs = "Simple Semicolon", act = '''let _0 = Stmt::Simple(_1);''' },
+  { rhs = "If", act = '''let _0 = _1;''' },
+  { rhs = "While", act = '''let _0 = _1;''' },
+  { rhs = "For", act = '''let _0 = _1;''' },
+  { rhs = "Return Semicolon", act = '''let _0 = _1;''' },
+  { rhs = "Print Semicolon", act = '''let _0 = _1;''' },
+  { rhs = "Break Semicolon", act = '''let _0 = _1;''' },
+  { rhs = "SCopy Semicolon", act = '''let _0 = _1;''' },
+  { rhs = "Foreach", act = '''let _0 = _1;''' },
+  { rhs = "Guarded", act = '''let _0 = _1;''' },
+  { rhs = "Block", act = '''let _0 = Stmt::Block(_1);''' },
+]
+
+[[production]]
+lhs = "Blocked"
+type = "Block"
+rhs = [
+  { rhs = "Stmt", act = '''let _0 = match _1 {
+  Stmt::Block(block) => block,
+  stmt => Block {
+    loc: NO_LOC,
+    stmt: vec![stmt],
+    ..D::default()
+  }
+}''' },
+]
+
+[[production]]
+lhs = "While"
+type = "Stmt"
+rhs = [
+  { rhs = "WhileTk LParenthesis Expr RParenthesis Blocked", act = '''let _0 = Stmt::While(While {
+  loc: _1.get_loc(),
+  cond: _3,
+  body: _5,
+});''' },
+]
+
+[[production]]
+lhs = "For"
+type = "Stmt"
+rhs = [
+  { rhs = "ForTk LParenthesis Simple Semicolon Expr Semicolon Simple RParenthesis Blocked", act = '''let _0 = Stmt::For(For {
+  loc: _1.get_loc(),
+  init: _3,
+  cond: _5,
+  update: _7,
+  body: _9,
+});''' },
+]
+
+[[production]]
+lhs = "Foreach"
+type = "Stmt"
+rhs = [
+  { rhs = "ForeachTk LParenthesis TypeOrVar Identifier In Expr MaybeForeachCond RParenthesis Blocked", act = '''let _0 = Stmt::Foreach(Foreach {
+  def: VarDef {
+    loc: _4.get_loc(),
+    name: _4.value,
+    type_: _3,
+    finish_loc: _4.get_loc(),
+    src: None,
+    scope: ptr::null(),
+    index: D::default(),
+    offset: -1,
+  },
+  arr: _6,
+  cond: _7,
+  body: _9,
+});''' },
+]
+
+[[production]]
+lhs = "Break"
+type = "Stmt"
+rhs = [
+  { rhs = "BreakTk", act = '''let _0 = Stmt::Break(Break { loc: _1.get_loc(), });''' },
+]
+
+[[production]]
+lhs = "If"
+type = "Stmt"
+rhs = [
+  { rhs = "IfTk LParenthesis Expr RParenthesis Blocked MaybeElse", act = '''let _0 = Stmt::If(If {
+  loc: _1.get_loc(),
+  cond: _3,
+  on_true: _5,
+  on_false: _6,
+});''' },
+]
+
+[[production]]
+lhs = "MaybeElse"
+type = "Option<Block>"
+rhs = [
+  { rhs = "Else Blocked", act = '''let _0 = Some(_2);''' },
+  { rhs = "", act = '''let _0 = None;''' },
+]
+
+[[production]]
+lhs = "SCopy"
+type = "Stmt"
+rhs = [
+  { rhs = "SCopyTk LParenthesis Identifier Comma Expr RParenthesis", act = '''let _0 = Stmt::SCopy(SCopy {
+  loc: _1.get_loc(),
+  dst_loc:_3.get_loc(),
+  dst: _3.value,
+  dst_sym: ptr::null(),
+  src: _5,
+});''' },
+]
+
+[[production]]
+lhs = "TypeOrVar"
+type = "Type"
+rhs = [
+  { rhs = "Var", act = '''let _0 = Type { loc: _1.get_loc(), sem: VAR };''' },
+  { rhs = "Type", act = '''let _0 = _1;''' },
+]
+
+[[production]]
+lhs = "MaybeForeachCond"
+type = "Option<Expr>"
+rhs = [
+  { rhs = "WhileTk Expr", act = '''let _0 = Some(_2);''' },
+  { rhs = "", act = '''let _0 = None;''' },
+]
+
+[[production]]
+lhs = "Guarded"
+type = "Stmt"
+rhs = [
+  { rhs = "IfTk LBrace GuardedBranchesOrEmpty RBrace", act = '''let _0 = Stmt::Guarded(Guarded {
+  loc: _1.get_loc(),
+  guarded: _3,
+});''' },
+]
+
+[[production]]
+lhs = "GuardedBranchesOrEmpty"
+type = "GuardedList"
+rhs = [
+  { rhs = "GuardedBranches", act = '''let _0 = _1;''' },
+  { rhs = "", act = '''let _0 = Vec::new();''' },
+]
+
+[[production]]
+lhs = "GuardedBranches"
+type = "GuardedList"
+rhs = [
+  { rhs = "GuardedBranches GuardSplit Expr Colon Blocked", act = '''_1.push((_3, _5));
+  let _0 = _1;''' },
+  { rhs = "Expr Colon Blocked", act = '''let _0 = vec![(_1, _3)];''' },
+]
+
+[[production]]
+lhs = "Return"
+type = "Stmt"
+rhs = [
+  { rhs = "ReturnTk Expr", act = '''let _0 = Stmt::Return(Return {
+  loc: _1.get_loc(),
+  expr: Some(_2),
+});''' },
+  { rhs = "ReturnTk", act = '''let _0 = Stmt::Return(Return {
+  loc: _1.get_loc(),
+  expr: None,
+});''' },
+]
+
+[[production]]
+lhs = "Print"
+type = "Stmt"
+rhs = [
+  { rhs = "PrintTk LParenthesis ExprList RParenthesis", act = '''let _0 = Stmt::Print(Print {
+  loc: _1.get_loc(),
+  print: _3,
+  });''' },
+]
+
+[[production]]
+lhs = "ExprList"
+type = "ExprList"
+rhs = [
+  { rhs = "ExprList Comma Expr", act = '''_1.push(_3);
+  let _0 = _1;''' },
+  { rhs = "Expr", act = '''let _0 = vec![_1];''' },
+]
+
+[[production]]
+lhs = "Simple"
+type = "Simple"
+rhs = [
+  { rhs = "LValue Assign Expr", act = '''let _0 = Simple::Assign(Assign {
+  loc: _2.get_loc(),
+  dst: _1,
+  src: _3,
+});''' },
+  { rhs = "Type Identifier Assign Expr", act = '''let _0 = Simple::VarDef(VarDef {
+  loc: _2.get_loc(),
+  name: _2.value,
+  type_: _1,
+  finish_loc: self.get_loc(),
+  src: Some(_4),
+  scope: ptr::null(),
+  index: D::default(),
+  offset: -1,
+});''' },
+  { rhs = "Var Identifier Assign Expr", act = '''let _0 = Simple::VarDef(VarDef {
+  loc: _2.get_loc(),
+  name: _2.value,
+  type_: Type { loc: _1.get_loc(), sem: VAR },
+  finish_loc: self.get_loc(),
+  src: Some(_4),
+  scope: ptr::null(),
+  index: D::default(),
+  offset: -1,
+});''' },
+  { rhs = "VarDef", act = '''let _0 = Simple::VarDef(_1);''' },
+  { rhs = "Expr", act = '''let _0 = Simple::Expr(_1);''' },
+  { rhs = "", act = '''let _0 = Simple::Skip;''' },
+]
+
+[[production]]
+lhs = "Expr"
+type = "Expr"
+rhs = [
+  { rhs = "LValue", act = '''let _0 = _1;''' },
+  { rhs = "MaybeReceiver Identifier LParenthesis ExprListOrEmpty RParenthesis", act = '''let _0 = Expr::new(_2.get_loc(), ExprData::Call(Call {
+  owner: _1.map(|s| Box::new(s)),
+  name: _2.value,
+  arg: _4,
+  is_arr_len: false,
+  method: ptr::null(),
+}));''' },
+  { rhs = "IntConst", act = '''let _0 = Expr::with_type(_1.get_loc(), INT, ExprData::IntConst(_1.value.parse::<i32>().unwrap_or_else(|_| {
+  self.errors.push(Error::new(_1.get_loc(), IntTooLarge{ string: _1.value.to_string(), }));
+  0
+})))''' },
+  { rhs = "True", act = '''let _0 = Expr::with_type(_1.get_loc(), BOOL, ExprData::BoolConst(true));''' },
+  { rhs = "False", act = '''let _0 = Expr::with_type(_1.get_loc(), BOOL, ExprData::BoolConst(false));''' },
+  { rhs = "StringConst", act = '''let _0 = Expr::with_type(Loc(self.tokenizer.string_builder.1, self.tokenizer.string_builder.2),
+  STRING, ExprData::StringConst(self.tokenizer.string_builder.0.clone()));''' },
+  { rhs = "LBracket ExprList RBracket", act = '''let _0 = Expr::new(self.get_loc(), ExprData::ArrayConst(_1));''' },
+  { rhs = "Null", act = '''let _0 = Expr::new(_1.get_loc(), ExprData::Null);''' },
+  { rhs = "Expr Add Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Add);''' },
+  { rhs = "Expr Sub Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Sub);''' },
+  { rhs = "Expr Mul Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Mul);''' },
+  { rhs = "Expr Div Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Div);''' },
+  { rhs = "Expr Mod Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Mod);''' },
+  { rhs = "Expr Eq Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Eq);''' },
+  { rhs = "Expr Ne Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Ne);''' },
+  { rhs = "Expr Lt Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Lt);''' },
+  { rhs = "Expr Gt Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Gt);''' },
+  { rhs = "Expr Le Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Le);''' },
+  { rhs = "Expr Ge Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Ge);''' },
+  { rhs = "Expr And Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::And);''' },
+  { rhs = "Expr Or Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Or);''' },
+  { rhs = "Expr Repeat Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Repeat);''' },
+  { rhs = "Expr BAnd Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::BAnd);''' },
+  { rhs = "Expr BOr Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::BOr);''' },
+  { rhs = "Expr BXor Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::BXor);''' },
+  { rhs = "Expr Shl Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Shl);''' },
+  { rhs = "Expr Shr Expr", act = '''let _0 = gen_binary(_1, _2, _3, Operator::Shr);''' },
+  { rhs = "Expr LBracket Expr Colon Expr RBracket", act = '''let _0 = Expr::new(_2.get_loc(),
+  ExprData::Range(Range { arr: Box::new(_1), lb: Box::new(_3), ub: Box::new(_5), }));''' },
+  { rhs = "Expr LBracket Expr RBracket Default Expr", act = '''let _0 = Expr::new(_2.get_loc(),
+  ExprData::Default(Default { arr: Box::new(_1), idx: Box::new(_3), dft: Box::new(_6), }));''' },
+  { rhs = "LBracket Expr For Identifier In Expr RBracket", act = '''let _0 = Expr::new(_1.get_loc(), ExprData::Comprehension(Comprehension {
+  expr: Box::new(_2),
+  name: _4.value,
+  arr: Box::new(_6),
+  cond: None,
+}));''' },
+  { rhs = "LBracket Expr ForTk Identifier In Expr IfTk Expr RBracket", act = '''let _0 = Expr::new(_1.get_loc(), ExprData::Comprehension(Comprehension {
+  expr: Box::new(_2),
+  name: _4.value,
+  arr: Box::new(_6),
+  cond: Some(Box::new(_8)),
+}));''' },
+  { rhs = "LParenthesis Expr RParenthesis", act = '''let _0 = _2;''' },
+  { rhs = "Sub Expr", act = '''let _0 = gen_unary(_1, _2, Operator::Neg);''', prec = "UMinus" },
+  { rhs = "Not Expr", act = '''let _0 = gen_unary(_1, _2, Operator::Not);''' },
+  { rhs = "Inc Expr", act = '''let _0 = gen_unary(_1, _2, Operator::PreInc);''' },
+  { rhs = "Dec Expr", act = '''let _0 = gen_unary(_1, _2, Operator::PreDec);''' },
+  { rhs = "Expr Inc", act = '''let _0 = gen_unary(_2, _1, Operator::PostInc);''' },
+  { rhs = "Expr Dec", act = '''let _0 = gen_unary(_2, _1, Operator::PostDec);''' },
+  { rhs = "ReadInteger LParenthesis RParenthesis", act = '''let _0 = Expr::with_type(_1.get_loc(), INT, ExprData::ReadInt);''' },
+  { rhs = "ReadLine LParenthesis RParenthesis", act = '''let _0 = Expr::with_type(_1.get_loc(), STRING, ExprData::ReadLine);''' },
+  { rhs = "This", act = '''let _0 = Expr::new(_1.get_loc(), ExprData::This);''' },
+  { rhs = "New Identifier LParenthesis RParenthesis", act = '''let _0 = Expr::new(_1.get_loc(), ExprData::NewClass { name: _2.value, });''' },
+  { rhs = "New Type LBracket Expr RBracket", act = '''let _0 = Expr::new(_1.get_loc(), ExprData::NewArray { elem_t: _2, len: Box::new(_4), });''' },
+  { rhs = "InstanceOf LParenthesis Expr Comma Identifier RParenthesis", act = '''let _0 = Expr::new(_1.get_loc(), ExprData::TypeTest { expr: Box::new(_3), name: _5.value, target_class: ptr::null() });''' },
+  { rhs = "LParenthesis Class Identifier RParenthesis Expr", act = '''let _0 = Expr::new(_5.loc, ExprData::TypeCast { name: _3.value, expr: Box::new(_5), });''' },
+]
+
+[[production]]
+lhs = "LValue"
+type = "Expr"
+rhs = [
+  { rhs = "MaybeReceiver Identifier", act = '''let _0 = Expr::new(_2.get_loc(), ExprData::Id(Id {
+  owner: _1.map(|e| Box::new(e)),
+  name: _2.value,
+  symbol: ptr::null(),
+  for_assign: D::default(),
+}));''' },
+  { rhs = "Expr LBracket Expr RBracket", act = '''let _0 = Expr::new(_1.loc, ExprData::Indexed(Indexed {
+  arr: Box::new(_1),
+  idx: Box::new(_3),
+  for_assign: D::default(),
+}));''' },
+]
+
+[[production]]
+lhs = "MaybeReceiver"
+type = "Option<Expr>"
+rhs = [
+  { rhs = "Expr Dot", act = '''let _0 = Some(_1);''' },
+  { rhs = "", act = '''let _0 = None;''' },
+]
+
+[[production]]
+lhs = "ExprListOrEmpty"
+type = "ExprList"
+rhs = [
+  { rhs = "ExprList", act = '''let _0 = _1;''' },
+  { rhs = "", act = '''let _0 = Vec::new();''' },
+]
+
+[[production]]
+lhs = "VarDef"
+type = "VarDef"
+rhs = [
+  { rhs = "Type Identifier", act = '''let _0 = VarDef {
+  loc: _2.get_loc(),
+  name: _2.value,
+  type_: _1,
+  finish_loc: self.get_loc(),
+  src: None,
+  scope: ptr::null(),
+  index: D::default(),
+  offset: -1,
+};''' },
+]
+
+[[production]]
+lhs = "Type"
+type = "Type"
+rhs = [
+  { rhs = "Int", act = '''let _0 = Type { loc: _1.get_loc(), sem: INT };''' },
+  { rhs = "Void", act = '''let _0 = Type { loc: _1.get_loc(), sem: VOID };''' },
+  { rhs = "Bool", act = '''let _0 = Type { loc: _1.get_loc(), sem: BOOL };''' },
+  { rhs = "String", act = '''let _0 = Type { loc: _1.get_loc(), sem: STRING };''' },
+  { rhs = "Class Identifier", act = '''let _0 = Type { loc: _2.get_loc(), sem: SemanticType::Named(_2.value) };''' },
+  { rhs = "Type LBracket RBracket", act = '''let _0 = Type { loc: _1.loc, sem: SemanticType::Array(Box::new(_1.sem)) };''' },
 ]

@@ -8,8 +8,9 @@ use crate::bitset::BitSet;
 use crate::abstract_grammar::AbstractGrammar;
 use std::cell::RefCell;
 use std::collections::vec_deque::VecDeque;
+use std::collections::hash_map::DefaultHasher;
 
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug)]
 pub struct LRItem<'a> {
   pub prod: &'a [u32],
   pub prod_id: u32,
@@ -18,7 +19,39 @@ pub struct LRItem<'a> {
   // look_ahead is the map value in LRState
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+// Hash, Eq, PartialEq, Ord, PartialOrd
+
+impl Hash for LRItem<'_> {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    self.prod_id.hash(state);
+    self.dot.hash(state);
+  }
+}
+
+impl PartialEq for LRItem<'_> {
+  fn eq(&self, other: &LRItem) -> bool {
+    self.prod_id == other.prod_id && self.dot == other.dot
+  }
+}
+
+impl Eq for LRItem<'_> {}
+
+impl PartialOrd for LRItem<'_> {
+  fn partial_cmp(&self, other: &LRItem) -> Option<Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl Ord for LRItem<'_> {
+  fn cmp(&self, other: &Self) -> Ordering {
+    match self.prod_id.cmp(&other.prod_id) {
+      Ordering::Equal => self.dot.cmp(&other.dot),
+      o => o
+    }
+  }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LRState<'a> {
   // item -> look_ahead, which only have [token_num..nt_num] possible to be 1
   // when calculation, use HashMap; after calculation, convert it to Vec, and sort it
@@ -80,10 +113,7 @@ impl LRCtx {
       token_num,
       nt_num,
       eps,
-//      first_cache: HashMap::new(),
-      // oh what a waste...
-      // pls someone tell me how to convert RefCell<T> to T
-      nt_first: nt_first.into_iter().map(|x| x.borrow().clone()).collect(),
+      nt_first: nt_first.into_iter().map(|x| x.into_inner()).collect(),
     }
   }
 
@@ -159,6 +189,7 @@ impl LRCtx {
     let mut items = items.into_iter().map(|(k, v)| (k, v)).collect::<Vec<_>>();
     // why sort_unstable_by_key(|x| &x.0) won't work here?
     items.sort_unstable_by(|l, r| l.0.cmp(&r.0));
+
     LRState { items }
   }
 }
@@ -167,7 +198,7 @@ pub type LRResult<'a> = (LRState<'a>, HashMap<u32, u32>);
 
 pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Vec<LRResult<'a>> {
   let mut ctx = LRCtx::new(g);
-//  println!("{:?}", ctx.nt_first);
+
   let mut ss = HashMap::new();
   let init = ctx.closure({
                            let start = g.start();
@@ -199,6 +230,7 @@ pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Vec<LRResult<'a>> {
         link.insert(mov, id);
       }
     }
+
     result.push((cur, link));
   }
   result

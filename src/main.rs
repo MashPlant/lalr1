@@ -22,9 +22,6 @@ mod codegen;
 use crate::abstract_grammar::{AbstractGrammar, AbstractGrammarExt};
 use crate::raw_grammar::{Assoc, RawGrammar};
 use std::fs::read_to_string;
-use std::slice::Iter;
-use std::iter::Map;
-//use crate::parser::TokenType;
 use crate::codegen::RustCodegen;
 
 struct GrammarStub {
@@ -84,6 +81,15 @@ impl<'a> AbstractGrammarExt<'a> for GrammarStub {
   }
 }
 
+//fn test() -> Result<i32,()> {
+//  let a = Some(1);
+//  let b = a?;
+//  let a = Ok(1);
+//  let b = a?;
+//
+//  Ok(b + 1)
+//}
+
 fn main() {
 //  let stub = GrammarStub {
 //    prod: vec![
@@ -114,7 +120,8 @@ fn main() {
 //  }
 //  println!("{}", a.conflict.len());
 
-//  let prog = read_to_string("test.decaf").unwrap();
+//  use crate::parser::TokenType;
+//  let prog = read_to_string("calc.txt").unwrap();
 //  let mut lex = parser::Lexer::new(&prog);
 //  while let Some(tk) = lex.next() {
 //    println!("{:?}", tk);
@@ -122,19 +129,34 @@ fn main() {
 //      break;
 //    }
 //  }
+//  let mut parser = parser::Parser::new(&prog);
+//  let a = parser.parse();
+//  println!("{:?}", a);
+
   let s = read_to_string("decaf.toml").unwrap();
   let mut g: RawGrammar = toml::from_str(&s).unwrap();
-  let g = g.to_grammar().unwrap();
 
+  let g = g.to_grammar().unwrap();
+//  for (i, x) in g.terminal.iter().enumerate() {
+//    println!("{:?} {:?}", i, x);
+//  }
+//  println!("{:?}", g.prod_extra[5]);
   let a = lr1::work(&g);
+  println!("{}", a.len());
+
+
 //  for (i, a) in a.iter().enumerate() {
 //    println!("{}: {:?}", i, a.1);
 //  }
 //  println!();
+
   let a = lalr1::work(&a, &g);
+  println!("{}", a.action.len());
+
 //  for (i, a) in a.action.iter().enumerate() {
 //    println!("{}: {:?}", i, a.1);
 //  }
 //  println!("{:?}", a.conflict);
-  println!("{}", g.gen(&RustCodegen,&a));
+//  println!("{}", g.gen(&RustCodegen, &a));
+//  println!("{:?}", a.conflict);
 }

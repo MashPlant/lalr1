@@ -62,7 +62,7 @@ impl<'a> AbstractGrammarExt<'a> for Grammar<'a> {
   }
 
   fn term_pri_assoc(&self, ch: u32) -> Option<(u32, Assoc)> {
-    self.terminal[ch as usize].1
+    self.terminal[ch as usize - self.nt.len()].1
   }
 }
 

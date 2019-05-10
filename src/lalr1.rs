@@ -5,6 +5,7 @@ use crate::bitset::BitSet;
 use smallvec::SmallVec;
 use std::cmp::Ordering;
 use crate::raw_grammar::Assoc;
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Copy, Clone)]
 pub enum ParserAct {
@@ -41,13 +42,34 @@ struct LALR1State<'a> {
   items: Vec<(&'a LRItem<'a>, BitSet)>,
 }
 
+struct LRCore<'a> {
+  state: &'a LRState<'a>,
+}
+
+impl Hash for LRCore<'_> {
+  fn hash<H: Hasher>(&self, state: &mut H) {
+    for (item, _) in &self.state.items {
+      item.hash(state);
+    }
+  }
+}
+
+impl PartialEq for LRCore<'_> {
+  fn eq(&self, other: &LRCore) -> bool {
+    self.state.items.len() == other.state.items.len() &&
+      self.state.items.iter().zip(other.state.items.iter()).all(|(l, r)| l.0 == r.0)
+  }
+}
+
+impl Eq for LRCore<'_> {}
+
 fn get_lalr1_table<'a>(lr: &'a Vec<LRResult<'a>>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<(LALR1State<'a>, HashMap<u32, u32>)> {
   // lalr1 state -> id(in lalr1 states) + corresponding lr1 states
   let mut states = HashMap::new();
   let mut rev_states = HashMap::new();
   for (state, link) in lr {
     let id = states.len() as u32;
-    let v = states.entry(state as *const LRState).or_insert_with(|| (id, Vec::new()));
+    let v = states.entry(LRCore { state }).or_insert_with(|| (id, Vec::new()));
     v.1.push((state, link));
     rev_states.insert(state as *const LRState, v.0);
   }
