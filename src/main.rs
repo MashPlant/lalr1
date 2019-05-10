@@ -18,6 +18,7 @@ mod lr1;
 mod lalr1;
 mod bitset;
 mod codegen;
+mod lr0;
 
 use crate::abstract_grammar::{AbstractGrammar, AbstractGrammarExt};
 use crate::raw_grammar::{Assoc, RawGrammar};
@@ -141,8 +142,8 @@ fn main() {
 //    println!("{:?} {:?}", i, x);
 //  }
 //  println!("{:?}", g.prod_extra[5]);
-  let a = lr1::work(&g);
-  println!("{}", a.len());
+//  let a = lr1::work(&g);
+//  println!("{}", a.len());
 
 
 //  for (i, a) in a.iter().enumerate() {
@@ -150,8 +151,11 @@ fn main() {
 //  }
 //  println!();
 
-  let a = lalr1::work(&a, &g);
-  println!("{}", a.action.len());
+//  let a = lalr1::work(&a, &g);
+//  println!("{}", a.action.len());
+
+  let a = lr0::work(&g);
+  println!("{}", a.len());
 
 //  for (i, a) in a.action.iter().enumerate() {
 //    println!("{}: {:?}", i, a.1);

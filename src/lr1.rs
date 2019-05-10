@@ -72,7 +72,6 @@ struct LRCtx {
 impl LRCtx {
   fn new<'a>(g: &'a impl AbstractGrammar<'a>) -> LRCtx {
     let (token_num, nt_num, eps) = (g.token_num(), g.nt_num(), g.eps());
-    // todo: replace this with some thing like Vec<usize>, and use some unsafe to avoid such meaningless check
     let mut nt_first = vec![RefCell::new(BitSet::new(token_num)); nt_num as usize];
     let mut changed = true;
     while changed {
