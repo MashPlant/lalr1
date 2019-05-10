@@ -80,7 +80,7 @@ impl fmt::Debug for BitSet {
         l.entry(&i);
       }
     }
-    l.finish();
+    l.finish()?;
     Ok(())
   }
 }

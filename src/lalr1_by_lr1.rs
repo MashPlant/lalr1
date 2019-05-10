@@ -1,7 +1,7 @@
 use crate::lr1::*;
 use crate::lr0::LRItem;
 use crate::abstract_grammar::AbstractGrammarExt;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use crate::bitset::BitSet;
 use smallvec::SmallVec;
 use std::hash::{Hash, Hasher};
@@ -32,7 +32,7 @@ impl PartialEq for LRCore<'_> {
 
 impl Eq for LRCore<'_> {}
 
-fn get_lalr1_table<'a>(lr: &'a Vec<LRResult<'a>>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<(LALR1State<'a>, HashMap<u32, u32>)> {
+fn get_lalr1_table<'a>(lr: &'a Vec<LRResult<'a>>) -> Vec<(LALR1State<'a>, HashMap<u32, u32>)> {
   // lalr1 state -> id(in lalr1 states) + corresponding lr1 states
   let mut states = HashMap::new();
   let mut rev_states = HashMap::new();
@@ -46,7 +46,7 @@ fn get_lalr1_table<'a>(lr: &'a Vec<LRResult<'a>>, g: &'a impl AbstractGrammarExt
   states.sort_unstable_by(|l, r| (l.1).0.cmp(&(r.1).0));
 
   let mut result = Vec::new();
-  for (state, (id, old_states)) in states {
+  for (_state, (_id, old_states)) in states {
     let mut new_state = LALR1State { items: old_states[0].0.items.iter().map(|(state, look_ahead)| (state, look_ahead.clone())).collect() };
     for &(old_state, _) in &old_states[1..] {
       for (it1, it2) in new_state.items.iter_mut().zip(old_state.items.iter()) {
@@ -67,8 +67,9 @@ fn get_lalr1_table<'a>(lr: &'a Vec<LRResult<'a>>, g: &'a impl AbstractGrammarExt
 }
 
 // merge lr1 states, and try to solve conflict using g's information
+#[allow(unused)]
 pub fn work<'a>(lr: &'a Vec<LRResult<'a>>, g: &'a impl AbstractGrammarExt<'a>) -> ParseTable<'a> {
-  let lalr1_table = get_lalr1_table(lr, g);
+  let lalr1_table = get_lalr1_table(lr);
   let mut action = Vec::with_capacity(lalr1_table.len());
   let (nt_num, token_num, eof) = (g.nt_num(), g.token_num(), g.eof());
   for (i, (state, link)) in lalr1_table.iter().enumerate() {

@@ -1,10 +1,8 @@
-#![allow(unused)]
 extern crate toml;
 extern crate serde;
 extern crate serde_derive;
 extern crate regex;
-#[macro_use]
-extern crate lazy_static;
+
 #[macro_use]
 extern crate smallvec;
 
@@ -24,8 +22,8 @@ mod lalr1_common;
 use crate::abstract_grammar::{AbstractGrammar, AbstractGrammarExt};
 use crate::raw_grammar::{Assoc, RawGrammar};
 use std::fs::read_to_string;
-use crate::codegen::RustCodegen;
 
+#[allow(unused)]
 struct GrammarStub {
   prod: Vec<Vec<(Vec<u32>, u32)>>
 }
@@ -151,18 +149,23 @@ fn main() {
 //    println!("{}: {:?}", i, a.1);
 //  }
 //  println!();
-
-//  let a = lalr1::work(&a, &g);
+//  let a = lr1::work(&g);
+//  let a = lalr1_by_lr1::work(&a, &g);
 //  println!("{}", a.action.len());
 
   let a = lr0::work(&g);
   let a = lalr1_by_lr0::work(&a, &g);
+//  for (i, a) in a.a iter().enumerate() {
+//    println!("{}: {:?}", i, a.1);
+//  }
 //  println!("{}", a.len());
 
 //  for (i, a) in a.action.iter().enumerate() {
 //    println!("{}: {:?}", i, a.1);
 //  }
 //  println!("{:?}", a.conflict);
+  use crate::codegen::RustCodegen;
   println!("{}", g.gen(&RustCodegen, &a));
   println!("{:?}", a.conflict);
+//  println!("{:?}", g.terminal[66 - g.nt.len()]);
 }

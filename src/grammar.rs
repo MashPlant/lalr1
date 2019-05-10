@@ -1,9 +1,5 @@
-use std::collections::{HashMap, HashSet};
 use crate::raw_grammar::*;
-use crate::printer::*;
 use crate::abstract_grammar::{AbstractGrammar, AbstractGrammarExt};
-use std::iter::Map;
-use std::slice::Iter;
 use smallvec::SmallVec;
 use crate::codegen::Codegen;
 use crate::lalr1_common::ParseTable;
@@ -67,6 +63,7 @@ impl<'a> AbstractGrammarExt<'a> for Grammar<'a> {
 }
 
 impl Grammar<'_> {
+  #[allow(unused)]
   pub fn gen<CG: Codegen>(&self, cg: &CG, table: &ParseTable) -> String {
     cg.gen(self, table)
   }

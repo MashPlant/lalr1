@@ -10,14 +10,31 @@ use smallvec::SmallVec;
 
 pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> ParseTable<'a> {
   let mut ctx = LRCtx::new(g);
-  let mut lalr1 = lr0.iter().map(|lr0| {
-    lr0.0.iter().map(|item| (item, BitSet::new(ctx.token_num))).collect::<Vec<_>>()
-  }).collect::<Vec<_>>();
+//  let mut lalr1 = lr0.iter().map(|lr0| {
+//    lr0.0.iter().map(|item| (item, BitSet::new(ctx.token_num))).collect::<Vec<_>>()
+//  }).collect::<Vec<_>>();
+  let mut look_ahead = lr0.iter().map(|(items, _)| vec![BitSet::new(ctx.token_num); items.len()]).collect::<Vec<_>>();
   let mut clo_cache = HashMap::new();
   let mut prop = Vec::new();
 
-  for (i, state) in lr0.iter().enumerate() {
-    for (item_id, &item) in state.0.iter().enumerate() {
+  for (i, item) in lr0[0].0.iter().enumerate() {
+    if item.prod == g.start().0.as_ref() {
+      look_ahead[0][i].set(g.eof());
+      break;
+    }
+  }
+  for (i, (state, link)) in lr0.iter().enumerate() {
+    for (item_id, &item) in state.iter().enumerate() {
+//      let x = match item.prod.get(item.dot as usize) {
+//        Some(&x) => x,
+//        _ => continue,
+//      };
+//      let to_state = link[&x];
+//      let from = look_ahead[i][item_id].as_ptr();
+//      let next_id = item.unique_id() + 1;
+//      let to_item_id = lr0[to_state as usize].0.iter().enumerate().find(|item| item.1.unique_id() == next_id).unwrap().0;
+//      let to_look_ahead = &mut look_ahead[to_state as usize][to_item_id];
+
       // ctx.closure is really slow, so add a cache here
       let clo = clo_cache.entry(item.unique_id()).or_insert_with(||
         ctx.closure({
@@ -27,29 +44,26 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl 
                       init.insert(item, look_ahead);
                       init
                     }, g));
-      let from = lalr1[i][item_id].1.as_ptr();
-      for (&edge, &to_id) in &state.1 {
-        let to = &mut lalr1[to_id as usize];
-        for (clo_item, look_ahead) in &clo.items {
-          if (item.dot as usize) < item.prod.len() && item.prod[item.dot as usize] == edge {
-            let id = item.unique_id() + 1; // dot + 1
-            let to_item = to.iter_mut().enumerate().find(|item| (item.1).0.unique_id() == id).unwrap();
-            for i in 0..ctx.token_num - 1 {
-              if look_ahead.test(i) {
-                (to_item.1).1.set(i);
-              }
-            }
-            if look_ahead.test(ctx.token_num - 1) {
-              prop.push((from, (to_item.1).1.as_mut_ptr()));
-            }
-          }
+      let from = look_ahead[i][item_id].as_ptr();
+      for (clo_item, clo_item_look_ahead) in &clo.items {
+        if clo_item.dot as usize >= clo_item.prod.len() {
+          continue;
+        }
+        let goto_state = link[&clo_item.prod[clo_item.dot as usize]];
+        let goto_item_id = clo_item.unique_id() + 1; // dot + 1
+        let goto_item_idx = lr0[goto_state as usize].0.iter().enumerate().find(|item| item.1.unique_id() == goto_item_id).unwrap().0;
+        let goto_look_ahead = &mut look_ahead[goto_state as usize][goto_item_idx];
+        goto_look_ahead.or(&clo_item_look_ahead);
+//        println!("{:?}", to_look_ahead);
+        if clo_item_look_ahead.test(ctx.token_num - 1) {
+          prop.push((from, goto_look_ahead.as_mut_ptr()));
         }
       }
     }
   }
 
   let mut changed = true;
-  let len = lalr1[0][0].1.inner_len();
+  let len = look_ahead[0][0].inner_len();
   while changed {
     changed = false;
     unsafe {
@@ -59,20 +73,20 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl 
     }
   }
 
-  let mut action = Vec::with_capacity(lalr1.len());
+  let mut action = Vec::with_capacity(lr0.len());
   let eof = g.eof();
   let start_id = g.start().1;
   let token_num = g.token_num();
-  for (i, state) in lalr1.iter().enumerate() {
+  for (i, (state, link)) in lr0.iter().enumerate() {
     let mut act = HashMap::new();
-    for (&k, &v) in &lr0[i].1 {
+    for (&k, &v) in link {
       if k < ctx.nt_num {
         act.insert(k, smallvec![ParserAct::Goto(v)]);
       } else {
         act.insert(k, smallvec![ParserAct::Shift(v)]);
       }
     }
-    for (item, look_ahead) in state {
+    for (item, look_ahead) in state.iter().zip(look_ahead[i].iter()) {
       if item.dot == item.prod.len() as u32 {
         if look_ahead.test(g.eof()) && item.prod_id == start_id {
           act.insert(eof, smallvec![ParserAct::Acc]);
@@ -86,7 +100,7 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl 
         }
       }
     }
-    action.push((state.iter().map(|&(item, _)| item).collect(), act));
+    action.push((state.iter().map(|item| item).collect(), act));
   }
 
   let conflict = try_solve_conflict(&mut action, g);

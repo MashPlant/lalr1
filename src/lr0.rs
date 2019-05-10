@@ -1,6 +1,5 @@
 use crate::abstract_grammar::AbstractGrammar;
 use std::collections::{HashMap, HashSet};
-use crate::bitset::BitSet;
 use std::collections::vec_deque::VecDeque;
 use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;
@@ -49,7 +48,6 @@ impl Ord for LRItem<'_> {
 struct LRCtx {
   token_num: u32,
   nt_num: u32,
-  eps: u32,
 }
 
 impl LRCtx {
@@ -73,7 +71,6 @@ impl LRCtx {
         continue;
       }
       let b = item.prod[item.dot as usize];
-      let beta = &item.prod[item.dot as usize + 1..];
       if b < self.nt_num {
         for new_prod in g.get_prod(b) {
           let new_item = LRItem { prod: new_prod.0.as_ref(), prod_id: new_prod.1, dot: 0 };
@@ -91,7 +88,7 @@ impl LRCtx {
 }
 
 pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)> {
-  let ctx = LRCtx { token_num: g.token_num(), nt_num: g.nt_num(), eps: g.eps() };
+  let ctx = LRCtx { token_num: g.token_num(), nt_num: g.nt_num() };
   let mut ss = HashMap::new();
   let init = ctx.closure({
                            let start = g.start();
@@ -103,10 +100,10 @@ pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Vec<(Vec<LRItem<'a>>, HashMa
   let mut q = VecDeque::new();
   let mut result = Vec::new();
   q.push_back(init);
-  while let Some(mut cur) = q.pop_front() {
+  while let Some(cur) = q.pop_front() {
     let mut link = HashMap::new();
     for mov in 0..ctx.token_num {
-      let mut ns = ctx.go(&cur, mov, g);
+      let ns = ctx.go(&cur, mov, g);
       if !ns.is_empty() {
         let id = match ss.get(&ns) {
           None => {

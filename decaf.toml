@@ -364,7 +364,7 @@ rhs = [
 lhs = "If"
 type = "Stmt"
 rhs = [
-  { rhs = "IfTk LParenthesis Expr RParenthesis Blocked MaybeElse", act = '''let _0 = Stmt::If(If {
+  { rhs = "IfTk LParenthesis Expr RParenthesis Blocked", act = '''let _0 = Stmt::If(If {
   loc: _1.get_loc(),
   cond: _3,
   on_true: _5,
@@ -372,13 +372,13 @@ rhs = [
 });''' },
 ]
 
-[[production]]
-lhs = "MaybeElse"
-type = "Option<Block>"
-rhs = [
-  { rhs = "Else Blocked", act = '''let _0 = Some(_2);''' },
-  { rhs = "", act = '''let _0 = None;''' },
-]
+#[[production]]
+#lhs = "MaybeElse"
+#type = "Option<Block>"
+#rhs = [
+#  { rhs = "Else Blocked", act = '''let _0 = Some(_2);''' },
+#  { rhs = "", act = '''let _0 = None;''' },
+#]
 
 [[production]]
 lhs = "SCopy"

@@ -2,13 +2,14 @@ use crate::grammar::Grammar;
 use crate::printer::IndentPrinter;
 use crate::raw_grammar::RawLexerFieldExt;
 use crate::lalr1_common::ParseTable;
-use std::collections::{HashSet, HashMap};
+use std::collections::HashMap;
 use crate::abstract_grammar::AbstractGrammar;
 
 pub trait Codegen {
   fn gen(&self, g: &Grammar, table: &ParseTable) -> String;
 }
 
+#[allow(unused)]
 pub struct RustCodegen;
 
 impl Codegen for RustCodegen {

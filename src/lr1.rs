@@ -116,7 +116,6 @@ impl LRCtx {
   }
 
   pub fn closure<'a>(&mut self, mut items: HashMap<LRItem<'a>, BitSet>, g: &'a impl AbstractGrammar<'a>) -> LRState<'a> {
-    println!("enter closure {:?}", items);
     let mut q = items.clone().into_iter().collect::<VecDeque<_>>();
     while let Some((item, look_ahead)) = q.pop_front() {
       if item.dot as usize >= item.prod.len() { // dot is after the last ch
@@ -124,11 +123,8 @@ impl LRCtx {
       }
       let b = item.prod[item.dot as usize];
       let beta = &item.prod[item.dot as usize + 1..];
-//      println!("beta = {:?}", beta);
       if b < self.nt_num {
         let first = self.first(beta, &look_ahead);
-//        println!("look_ahead = {:?}", look_ahead);
-//        println!("first = {:?}", first);
         for new_prod in g.get_prod(b) {
           let new_item = LRItem { prod: new_prod.0.as_ref(), prod_id: new_prod.1, dot: 0 };
           match items.get_mut(&new_item) {
