@@ -81,17 +81,33 @@ impl<'a> AbstractGrammarExt<'a> for GrammarStub {
   }
 }
 
-//fn test() -> Result<i32,()> {
-//  let a = Some(1);
-//  let b = a?;
-//  let a = Ok(1);
-//  let b = a?;
-//
-//  Ok(b + 1)
-//}
-
 fn main() {
-//  let stub = GrammarStub {
+
+  let s = read_to_string("src/example/decaf.toml").unwrap();
+  let mut g: RawGrammar = toml::from_str(&s).unwrap();
+
+  let g = g.to_grammar().unwrap();
+
+  use std::env;
+
+  match env::args().nth(1) {
+    Some(ref one) if one.as_str() == "1" => {
+      let a = lr1::work(&g);
+      let a = lalr1_by_lr1::work(&a, &g);
+      use crate::codegen::RustCodegen;
+      println!("{}", g.gen(&RustCodegen, &a));
+      eprintln!("conflict: {:?}", a.conflict);
+    }
+    _ => {
+      let a = lr0::work(&g);
+      let a = lalr1_by_lr0::work(&a, &g);
+      use crate::codegen::RustCodegen;
+      println!("{}", g.gen(&RustCodegen, &a));
+      eprintln!("conflict: {:?}", a.conflict);
+    }
+  }
+
+  //  let stub = GrammarStub {
 //    prod: vec![
 //      vec![
 //        (vec![1], 0) // E' -> E
@@ -132,28 +148,4 @@ fn main() {
 //  let mut parser = parser::Parser::new(&prog);
 //  let a = parser.parse();
 //  println!("{:?}", a);
-
-  let s = read_to_string("decaf.toml").unwrap();
-  let mut g: RawGrammar = toml::from_str(&s).unwrap();
-
-  let g = g.to_grammar().unwrap();
-
-  use std::env;
-
-  match env::args().nth(1) {
-    Some(ref one) if one.as_str() == "1" => {
-      let a = lr1::work(&g);
-      let a = lalr1_by_lr1::work(&a, &g);
-      use crate::codegen::RustCodegen;
-      println!("{}", g.gen(&RustCodegen, &a));
-      eprintln!("conflict: {:?}", a.conflict);
-    }
-    _ => {
-      let a = lr0::work(&g);
-      let a = lalr1_by_lr0::work(&a, &g);
-      use crate::codegen::RustCodegen;
-      println!("{}", g.gen(&RustCodegen, &a));
-      eprintln!("conflict: {:?}", a.conflict);
-    }
-  }
 }

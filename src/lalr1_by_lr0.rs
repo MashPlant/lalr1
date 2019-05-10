@@ -10,43 +10,44 @@ use smallvec::SmallVec;
 
 pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> ParseTable<'a> {
   let mut ctx = LRCtx::new(g);
-//  let mut lalr1 = lr0.iter().map(|lr0| {
-//    lr0.0.iter().map(|item| (item, BitSet::new(ctx.token_num))).collect::<Vec<_>>()
-//  }).collect::<Vec<_>>();
   let mut look_ahead = lr0.iter().map(|(items, _)| vec![BitSet::new(ctx.token_num); items.len()]).collect::<Vec<_>>();
   let mut clo_cache = HashMap::new();
   let mut prop = Vec::new();
+  let start_prod = g.start().0.as_ref();
 
   for (i, item) in lr0[0].0.iter().enumerate() {
-    if item.prod == g.start().0.as_ref() {
+    if item.prod == start_prod {
       look_ahead[0][i].set(g.eof());
       break;
     }
   }
+
   for (i, (state, link)) in lr0.iter().enumerate() {
     for (item_id, &item) in state.iter().enumerate() {
-      // ctx.closure is really slow, so add a cache here
-      let clo = clo_cache.entry(item.unique_id()).or_insert_with(||
-        ctx.closure({
-                      let mut look_ahead = BitSet::new(ctx.token_num);
-                      look_ahead.set(ctx.token_num - 1);
-                      let mut init = HashMap::new();
-                      init.insert(item, look_ahead);
-                      init
-                    }, g));
-      let from = look_ahead[i][item_id].as_ptr();
-      for (clo_item, clo_item_look_ahead) in &clo.items {
-        if clo_item.dot as usize >= clo_item.prod.len() {
-          continue;
-        }
-        let goto_state = link[&clo_item.prod[clo_item.dot as usize]];
-        let goto_item_id = clo_item.unique_id() + 1; // dot + 1
-        let goto_item_idx = lr0[goto_state as usize].0.iter().enumerate().find(|item| item.1.unique_id() == goto_item_id).unwrap().0;
-        let goto_look_ahead = &mut look_ahead[goto_state as usize][goto_item_idx];
-        goto_look_ahead.or(&clo_item_look_ahead);
-//        println!("{:?}", to_look_ahead);
-        if clo_item_look_ahead.test(ctx.token_num - 1) {
-          prop.push((from, goto_look_ahead.as_mut_ptr()));
+      // only consider lr0 core item
+      if item.prod == start_prod || item.dot != 0 {
+        // ctx.closure is really slow, so add a cache here
+        let clo = clo_cache.entry(item.unique_id()).or_insert_with(||
+          ctx.closure({
+                        let mut look_ahead = BitSet::new(ctx.token_num);
+                        look_ahead.set(ctx.token_num - 1);
+                        let mut init = HashMap::new();
+                        init.insert(item, look_ahead);
+                        init
+                      }, g));
+        let from = look_ahead[i][item_id].as_ptr();
+        for (clo_item, clo_item_look_ahead) in &clo.items {
+          if clo_item.dot as usize >= clo_item.prod.len() {
+            continue;
+          }
+          let goto_state = link[&clo_item.prod[clo_item.dot as usize]];
+          let goto_item_id = clo_item.unique_id() + 1; // dot + 1
+          let goto_item_idx = lr0[goto_state as usize].0.iter().enumerate().find(|item| item.1.unique_id() == goto_item_id).unwrap().0;
+          let goto_look_ahead = &mut look_ahead[goto_state as usize][goto_item_idx];
+          goto_look_ahead.or(&clo_item_look_ahead);
+          if clo_item_look_ahead.test(ctx.token_num - 1) {
+            prop.push((from, goto_look_ahead.as_mut_ptr()));
+          }
         }
       }
     }
