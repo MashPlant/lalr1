@@ -1,5 +1,4 @@
 #![allow(unused)]
-#![feature(fn_traits)]
 extern crate toml;
 extern crate serde;
 extern crate serde_derive;
@@ -15,10 +14,12 @@ mod raw_grammar;
 mod abstract_grammar;
 mod grammar;
 mod lr1;
-mod lalr1;
+mod lalr1_by_lr1;
 mod bitset;
 mod codegen;
 mod lr0;
+mod lalr1_by_lr0;
+mod lalr1_common;
 
 use crate::abstract_grammar::{AbstractGrammar, AbstractGrammarExt};
 use crate::raw_grammar::{Assoc, RawGrammar};
@@ -155,12 +156,13 @@ fn main() {
 //  println!("{}", a.action.len());
 
   let a = lr0::work(&g);
-  println!("{}", a.len());
+  let a = lalr1_by_lr0::work(&a, &g);
+//  println!("{}", a.len());
 
 //  for (i, a) in a.action.iter().enumerate() {
 //    println!("{}: {:?}", i, a.1);
 //  }
 //  println!("{:?}", a.conflict);
-//  println!("{}", g.gen(&RustCodegen, &a));
-//  println!("{:?}", a.conflict);
+  println!("{}", g.gen(&RustCodegen, &a));
+  println!("{:?}", a.conflict);
 }

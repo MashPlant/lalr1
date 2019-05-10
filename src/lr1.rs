@@ -9,47 +9,7 @@ use crate::abstract_grammar::AbstractGrammar;
 use std::cell::RefCell;
 use std::collections::vec_deque::VecDeque;
 use std::collections::hash_map::DefaultHasher;
-
-#[derive(Clone, Copy, Debug)]
-pub struct LRItem<'a> {
-  pub prod: &'a [u32],
-  pub prod_id: u32,
-  // prod[dot] = the token after dot
-  pub dot: u32,
-  // look_ahead is the map value in LRState
-}
-
-// Hash, Eq, PartialEq, Ord, PartialOrd
-
-impl Hash for LRItem<'_> {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    self.prod_id.hash(state);
-    self.dot.hash(state);
-  }
-}
-
-impl PartialEq for LRItem<'_> {
-  fn eq(&self, other: &LRItem) -> bool {
-    self.prod_id == other.prod_id && self.dot == other.dot
-  }
-}
-
-impl Eq for LRItem<'_> {}
-
-impl PartialOrd for LRItem<'_> {
-  fn partial_cmp(&self, other: &LRItem) -> Option<Ordering> {
-    Some(self.cmp(other))
-  }
-}
-
-impl Ord for LRItem<'_> {
-  fn cmp(&self, other: &Self) -> Ordering {
-    match self.prod_id.cmp(&other.prod_id) {
-      Ordering::Equal => self.dot.cmp(&other.dot),
-      o => o
-    }
-  }
-}
+use crate::lr0::LRItem;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LRState<'a> {
@@ -60,18 +20,19 @@ pub struct LRState<'a> {
 //  pub link: HashMap<u32, u32>,
 }
 
-struct LRCtx {
-  token_num: u32,
-  nt_num: u32,
-  eps: u32,
-  //  first_cache: HashMap<&'a [u32], BitSet>,
-  // non-terminal should occupy 0..nt_num
-  nt_first: Vec<BitSet>,
+pub(crate) struct LRCtx {
+  pub token_num: u32,
+  pub nt_num: u32,
+  pub eps: u32,
+  pub nt_first: Vec<BitSet>,
 }
 
 impl LRCtx {
-  fn new<'a>(g: &'a impl AbstractGrammar<'a>) -> LRCtx {
-    let (token_num, nt_num, eps) = (g.token_num(), g.nt_num(), g.eps());
+  pub fn new<'a>(g: &'a impl AbstractGrammar<'a>) -> LRCtx {
+    //                                                        this + 1
+    // is for lalr1_by_lr0.rs, it is a terminal not in g, helping wo calculate the propagation of look_ahead
+    // this bit will be always 0 otherwise
+    let (token_num, nt_num, eps) = (g.token_num() + 1, g.nt_num(), g.eps());
     let mut nt_first = vec![RefCell::new(BitSet::new(token_num)); nt_num as usize];
     let mut changed = true;
     while changed {
@@ -117,7 +78,7 @@ impl LRCtx {
   }
 
   // one beta, and many a
-  fn first(&mut self, beta: &[u32], a: &BitSet) -> BitSet {
+  pub fn first(&mut self, beta: &[u32], a: &BitSet) -> BitSet {
     let mut ret = BitSet::new(self.token_num);
     for &ch in beta {
       if ch < self.nt_num {
@@ -137,7 +98,7 @@ impl LRCtx {
     ret
   }
 
-  fn go<'a>(&mut self, state: &LRState<'a>, mov: u32, g: &'a impl AbstractGrammar<'a>) -> LRState<'a> {
+  pub fn go<'a>(&mut self, state: &LRState<'a>, mov: u32, g: &'a impl AbstractGrammar<'a>) -> LRState<'a> {
     let mut new_items = HashMap::new();
     for (item, look_ahead) in &state.items {
       if item.dot as usize >= item.prod.len() { // dot is after the last ch
@@ -154,8 +115,8 @@ impl LRCtx {
     self.closure(new_items, g)
   }
 
-  fn closure<'a>(&mut self, mut items: HashMap<LRItem<'a>, BitSet>, g: &'a impl AbstractGrammar<'a>) -> LRState<'a> {
-//    println!("enter closure {:?}", items);
+  pub fn closure<'a>(&mut self, mut items: HashMap<LRItem<'a>, BitSet>, g: &'a impl AbstractGrammar<'a>) -> LRState<'a> {
+    println!("enter closure {:?}", items);
     let mut q = items.clone().into_iter().collect::<VecDeque<_>>();
     while let Some((item, look_ahead)) = q.pop_front() {
       if item.dot as usize >= item.prod.len() { // dot is after the last ch

@@ -6,7 +6,7 @@ use std::iter::Map;
 use std::slice::Iter;
 use smallvec::SmallVec;
 use crate::codegen::Codegen;
-use crate::lalr1::ParseTable;
+use crate::lalr1_common::ParseTable;
 
 pub type ProdVec = SmallVec<[u32; 6]>;
 

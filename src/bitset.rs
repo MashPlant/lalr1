@@ -44,6 +44,21 @@ impl BitSet {
   }
 
   #[inline]
+  pub fn inner_len(&self) -> u32 {
+    self.inner.len() as u32
+  }
+
+  #[inline]
+  pub fn as_ptr(&self) -> *const u64 {
+    self.inner.as_ptr()
+  }
+
+  #[inline]
+  pub fn as_mut_ptr(&mut self) -> *mut u64 {
+    self.inner.as_mut_ptr()
+  }
+
+  #[inline]
   pub unsafe fn or_raw(mut x: *mut u64, mut y: *const u64, len: u32) -> bool {
     let mut changed = false;
     for _ in 0..len {

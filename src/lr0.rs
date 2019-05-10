@@ -15,7 +15,7 @@ pub struct LRItem<'a> {
 }
 
 impl LRItem<'_> {
-  fn unique_id(&self) -> u64 {
+  pub fn unique_id(&self) -> u64 {
     ((self.prod_id as u64) << 32) | (self.dot as u64)
   }
 }
@@ -120,7 +120,6 @@ pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Vec<(Vec<LRItem<'a>>, HashMa
         link.insert(mov, id);
       }
     }
-
     result.push((cur, link));
   }
   result

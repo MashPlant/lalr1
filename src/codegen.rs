@@ -1,7 +1,7 @@
 use crate::grammar::Grammar;
 use crate::printer::IndentPrinter;
 use crate::raw_grammar::RawLexerFieldExt;
-use crate::lalr1::ParseTable;
+use crate::lalr1_common::ParseTable;
 use std::collections::{HashSet, HashMap};
 use crate::abstract_grammar::AbstractGrammar;
 
