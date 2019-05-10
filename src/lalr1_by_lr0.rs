@@ -25,16 +25,6 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl 
   }
   for (i, (state, link)) in lr0.iter().enumerate() {
     for (item_id, &item) in state.iter().enumerate() {
-//      let x = match item.prod.get(item.dot as usize) {
-//        Some(&x) => x,
-//        _ => continue,
-//      };
-//      let to_state = link[&x];
-//      let from = look_ahead[i][item_id].as_ptr();
-//      let next_id = item.unique_id() + 1;
-//      let to_item_id = lr0[to_state as usize].0.iter().enumerate().find(|item| item.1.unique_id() == next_id).unwrap().0;
-//      let to_look_ahead = &mut look_ahead[to_state as usize][to_item_id];
-
       // ctx.closure is really slow, so add a cache here
       let clo = clo_cache.entry(item.unique_id()).or_insert_with(||
         ctx.closure({
@@ -73,6 +63,10 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl 
     }
   }
 
+  let result = lr0.clone().into_iter().zip(look_ahead.into_iter()).map(|((state, _), look_ahead_s)| {
+    ctx.closure(state.into_iter().zip(look_ahead_s.into_iter()).collect(), g)
+  }).collect::<Vec<_>>();
+
   let mut action = Vec::with_capacity(lr0.len());
   let eof = g.eof();
   let start_id = g.start().1;
@@ -86,7 +80,7 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl 
         act.insert(k, smallvec![ParserAct::Shift(v)]);
       }
     }
-    for (item, look_ahead) in state.iter().zip(look_ahead[i].iter()) {
+    for (item, (_, look_ahead)) in state.iter().zip(result[i].items.iter()) {
       if item.dot == item.prod.len() as u32 {
         if look_ahead.test(g.eof()) && item.prod_id == start_id {
           act.insert(eof, smallvec![ParserAct::Acc]);

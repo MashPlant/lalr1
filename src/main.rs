@@ -137,35 +137,23 @@ fn main() {
   let mut g: RawGrammar = toml::from_str(&s).unwrap();
 
   let g = g.to_grammar().unwrap();
-//  for (i, x) in g.terminal.iter().enumerate() {
-//    println!("{:?} {:?}", i, x);
-//  }
-//  println!("{:?}", g.prod_extra[5]);
-//  let a = lr1::work(&g);
-//  println!("{}", a.len());
 
+  use std::env;
 
-//  for (i, a) in a.iter().enumerate() {
-//    println!("{}: {:?}", i, a.1);
-//  }
-//  println!();
-//  let a = lr1::work(&g);
-//  let a = lalr1_by_lr1::work(&a, &g);
-//  println!("{}", a.action.len());
-
-  let a = lr0::work(&g);
-  let a = lalr1_by_lr0::work(&a, &g);
-//  for (i, a) in a.a iter().enumerate() {
-//    println!("{}: {:?}", i, a.1);
-//  }
-//  println!("{}", a.len());
-
-//  for (i, a) in a.action.iter().enumerate() {
-//    println!("{}: {:?}", i, a.1);
-//  }
-//  println!("{:?}", a.conflict);
-  use crate::codegen::RustCodegen;
-  println!("{}", g.gen(&RustCodegen, &a));
-  println!("{:?}", a.conflict);
-//  println!("{:?}", g.terminal[66 - g.nt.len()]);
+  match env::args().nth(1) {
+    Some(ref one) if one.as_str() == "1" => {
+      let a = lr1::work(&g);
+      let a = lalr1_by_lr1::work(&a, &g);
+      use crate::codegen::RustCodegen;
+      println!("{}", g.gen(&RustCodegen, &a));
+      eprintln!("conflict: {:?}", a.conflict);
+    }
+    _ => {
+      let a = lr0::work(&g);
+      let a = lalr1_by_lr0::work(&a, &g);
+      use crate::codegen::RustCodegen;
+      println!("{}", g.gen(&RustCodegen, &a));
+      eprintln!("conflict: {:?}", a.conflict);
+    }
+  }
 }

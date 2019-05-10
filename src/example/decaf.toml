@@ -30,13 +30,13 @@ fn gen_unary(opt: Token, r: Expr, op: Operator) -> Expr {
 
 impl Parser {
   fn get_loc(&self) -> Loc {
-    Loc(self.tokenizer.token_start_line, self.tokenizer.token_start_column + 1)
+    Loc(self.lexer.cur_line, self.tokenizer.cur_col + 1)
   }
 }
 
 impl Token {
   fn get_loc(&self) -> Loc {
-    Loc(self.start_line, self.start_column + 1)
+    Loc(self.line, self.col + 1)
   }
 }
 '''
@@ -62,6 +62,7 @@ terminal = [
   { assoc = "no_assoc", tokens = ["UMinus", "Not", "Inc", "Dec"] },
   { assoc = "no_assoc", tokens = ["LBracket", "Dot", "Default"] },
   { assoc = "no_assoc", tokens = ["RParenthesis", "Empty"] },
+  { assoc = "no_assoc", tokens = ["Then"] },
   { assoc = "no_assoc", tokens = ["Else"] },
 ]
 
@@ -364,7 +365,7 @@ rhs = [
 lhs = "If"
 type = "Stmt"
 rhs = [
-  { rhs = "IfTk LParenthesis Expr RParenthesis Blocked", act = '''let _0 = Stmt::If(If {
+  { rhs = "IfTk LParenthesis Expr RParenthesis Blocked MaybeElse", act = '''let _0 = Stmt::If(If {
   loc: _1.get_loc(),
   cond: _3,
   on_true: _5,
@@ -372,13 +373,13 @@ rhs = [
 });''' },
 ]
 
-#[[production]]
-#lhs = "MaybeElse"
-#type = "Option<Block>"
-#rhs = [
-#  { rhs = "Else Blocked", act = '''let _0 = Some(_2);''' },
-#  { rhs = "", act = '''let _0 = None;''' },
-#]
+[[production]]
+lhs = "MaybeElse"
+type = "Option<Block>"
+rhs = [
+  { rhs = "Else Blocked", act = '''let _0 = Some(_2);''' },
+  { rhs = "", act = '''let _0 = None;''', prec = "Then" },
+]
 
 [[production]]
 lhs = "SCopy"

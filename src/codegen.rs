@@ -21,6 +21,10 @@ impl Codegen for RustCodegen {
 use regex::Regex;
 use std::collections::HashMap;"#).ln("");
 
+    if !g.raw.include.is_empty() {
+      p.lns(&g.raw.include).ln("");
+    }
+
     p.lns(r#"#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum TokenType {"#).inc();
     for &(nt, _) in &g.nt {
@@ -64,10 +68,13 @@ pub enum LexerState {"#).inc();
     p.dec().ln("];\n"); // LEX_RULES
     p.ln(format!("static ref TABLE: [HashMap<u32, Act>; {}] = [", table.action.len())).inc();
     for act in &table.action {
+      let mut sorted = act.1.iter().collect::<Vec<_>>();
+      sorted.sort_unstable_by(|l, r| l.0.cmp(r.0));
+
       let mut map = "map! { ".to_owned();
       // manually join...
       // rust's join seems still unstable now?
-      for (i, (&link, act)) in act.1.iter().enumerate() {
+      for (i, (&link, act)) in sorted.iter().enumerate() {
         if i == 0 {
           map += &format!("{} => Act::{:?}", link, act[0]);
         } else {
