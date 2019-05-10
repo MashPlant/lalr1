@@ -1,5 +1,0 @@
-class Main {
-  static void main() {
-    Print("Hello world!");
-  }
-}
