@@ -31,8 +31,14 @@ F -> ( E )
 
 picture:
 
+lr0:
+
 ![lr0](./pic/lr0.png)
 
+lr1:
+
 ![lr1](./pic/lr1.png)
+
+lalr1:
 
 ![lalr1](./pic/lalr1.png)
