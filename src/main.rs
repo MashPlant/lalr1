@@ -7,7 +7,6 @@ extern crate regex;
 extern crate smallvec;
 
 mod printer;
-mod parser;
 mod raw_grammar;
 mod abstract_grammar;
 mod grammar;
@@ -18,94 +17,54 @@ mod codegen;
 mod lr0;
 mod lalr1_by_lr0;
 mod lalr1_common;
+mod simple_grammar;
 
 use crate::abstract_grammar::{AbstractGrammar, AbstractGrammarExt};
 use crate::raw_grammar::{Assoc, RawGrammar};
-use std::fs::read_to_string;
+use std::fs::{read_to_string, File};
+use crate::simple_grammar::SimpleGrammar;
+use std::io::Write;
 
-#[allow(unused)]
-struct GrammarStub {
-  prod: Vec<Vec<(Vec<u32>, u32)>>
-}
-
-impl<'a> AbstractGrammar<'a> for GrammarStub {
-  type ProdRef = Vec<u32>;
-  type ProdIter = &'a Vec<(Vec<u32>, u32)>;
-
-  fn start(&'a self) -> &'a (Self::ProdRef, u32) {
-    &self.prod[0][0]
-  }
-
-  fn eps(&self) -> u32 {
-    3
-  }
-
-  fn eof(&self) -> u32 {
-    4
-  }
-
-  fn token_num(&self) -> u32 {
-    8
-  }
-
-  fn nt_num(&self) -> u32 {
-    3
-  }
-
-  fn get_prod(&'a self, lhs: u32) -> Self::ProdIter {
-    &self.prod[lhs as usize]
-  }
-}
-
-impl<'a> AbstractGrammarExt<'a> for GrammarStub {
-  fn prod_pri_assoc(&self, id: u32) -> Option<(u32, Assoc)> {
-    match id {
-      0 => None,
-      1 => Some((0, Assoc::Left)),
-      2 => Some((1, Assoc::Left)),
-      3 => None,
-      4 => None,
-      _ => panic!("out of range")
-    }
-  }
-
-  fn term_pri_assoc(&self, ch: u32) -> Option<(u32, Assoc)> {
-    match ch {
-      3 => None,
-      4 => None,
-      5 => Some((0, Assoc::Left)),
-      6 => Some((1, Assoc::Left)),
-      7 => None,
-      _ => panic!("out of range")
-    }
-  }
-}
 
 fn main() {
+  let s = read_to_string("test.g").unwrap();
+  let g = SimpleGrammar::from_text(&s);
 
-  let s = read_to_string("src/example/decaf.toml").unwrap();
-  let mut g: RawGrammar = toml::from_str(&s).unwrap();
+  let lr1 = lr1::work(&g);
+  let mut f = File::create("lr1.dot").unwrap();
+  f.write(g.print_lr1(&lr1).as_bytes()).unwrap();
 
-  let g = g.to_grammar().unwrap();
+  let lr0 = lr0::work(&g);
+  let mut f = File::create("lr0.dot").unwrap();
+  f.write(g.print_lr0(&lr0).as_bytes()).unwrap();
 
-  use std::env;
+  let lalr1 = lalr1_by_lr0::lalr1_only(&lr0, &g);
+  let mut f = File::create("lalr1.dot").unwrap();
+  f.write(g.print_lr1(&lalr1).as_bytes()).unwrap();
 
-  match env::args().nth(1) {
-    Some(ref one) if one.as_str() == "1" => {
-      let a = lr1::work(&g);
-      let a = lalr1_by_lr1::work(&a, &g);
-      use crate::codegen::RustCodegen;
-      println!("{}", g.gen(&RustCodegen, &a));
-      eprintln!("conflict: {:?}", a.conflict);
-    }
-    _ => {
-      let a = lr0::work(&g);
-      let a = lalr1_by_lr0::work(&a, &g);
-      use crate::codegen::RustCodegen;
-      println!("{}", g.gen(&RustCodegen, &a));
-      eprintln!("conflict: {:?}", a.conflict);
-    }
-  }
+//  let s = read_to_string("src/example/decaf.toml").unwrap();
+//  let mut g: RawGrammar = toml::from_str(&s).unwrap();
+//
+//  let g = g.to_grammar().unwrap();
+//
+//  use std::env;
+//
+//  match env::args().nth(1) {
+//    Some(ref one) if one.as_str() == "1" => {
+//      let a = lr1::work(&g);
+//      let a = lalr1_by_lr1::work(&a, &g);
+//      use crate::codegen::RustCodegen;
+//      println!("{}", g.gen(&RustCodegen, &a));
+//      eprintln!("conflict: {:?}", a.conflict);
+//    }
+//    _ => {
+//      let a = lr0::work(&g);
+//      let a = lalr1_by_lr0::work(&a, &g);
+//      use crate::codegen::RustCodegen;
+//      println!("{}", g.gen(&RustCodegen, &a));
+//      eprintln!("conflict: {:?}", a.conflict);
+//    }
+//  }
 
   //  let stub = GrammarStub {
 //    prod: vec![

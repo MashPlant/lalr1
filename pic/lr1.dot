@@ -1,0 +1,90 @@
+digraph g {
+  0 -> 2 [label="F"];
+  0 -> 4 [label="("];
+  0 -> 3 [label="num"];
+  0 -> 1 [label="E"];
+  0[shape=box, label="E→.E+F,#/+/-\nE→.E-F,#/+/-\nE→.F,#/+/-\nF→.F*num,#/+/-/*///%\nF→.F/num,#/+/-/*///%\nF→.F%num,#/+/-/*///%\nF→.num,#/+/-/*///%\nF→.(E),#/+/-/*///%\nE'→.E,#"]
+  1 -> 5 [label="+"];
+  1 -> 6 [label="-"];
+  1[shape=box, label="E→E.+F,#/+/-\nE→E.-F,#/+/-\nE'→E.,#"]
+  2 -> 7 [label="*"];
+  2 -> 8 [label="/"];
+  2 -> 9 [label="%"];
+  2[shape=box, label="E→F.,#/+/-\nF→F.*num,#/+/-/*///%\nF→F./num,#/+/-/*///%\nF→F.%num,#/+/-/*///%"]
+  3[shape=box, label="F→num.,#/+/-/*///%"]
+  4 -> 13 [label="("];
+  4 -> 10 [label="E"];
+  4 -> 12 [label="num"];
+  4 -> 11 [label="F"];
+  4[shape=box, label="E→.E+F,+/-/)\nE→.E-F,+/-/)\nE→.F,+/-/)\nF→.F*num,+/-/*///%/)\nF→.F/num,+/-/*///%/)\nF→.F%num,+/-/*///%/)\nF→.num,+/-/*///%/)\nF→.(E),+/-/*///%/)\nF→(.E),#/+/-/*///%"]
+  5 -> 14 [label="F"];
+  5 -> 4 [label="("];
+  5 -> 3 [label="num"];
+  5[shape=box, label="E→E+.F,#/+/-\nF→.F*num,#/+/-/*///%\nF→.F/num,#/+/-/*///%\nF→.F%num,#/+/-/*///%\nF→.num,#/+/-/*///%\nF→.(E),#/+/-/*///%"]
+  6 -> 3 [label="num"];
+  6 -> 4 [label="("];
+  6 -> 15 [label="F"];
+  6[shape=box, label="E→E-.F,#/+/-\nF→.F*num,#/+/-/*///%\nF→.F/num,#/+/-/*///%\nF→.F%num,#/+/-/*///%\nF→.num,#/+/-/*///%\nF→.(E),#/+/-/*///%"]
+  7 -> 16 [label="num"];
+  7[shape=box, label="F→F*.num,#/+/-/*///%"]
+  8 -> 17 [label="num"];
+  8[shape=box, label="F→F/.num,#/+/-/*///%"]
+  9 -> 18 [label="num"];
+  9[shape=box, label="F→F%.num,#/+/-/*///%"]
+  10 -> 21 [label=")"];
+  10 -> 19 [label="+"];
+  10 -> 20 [label="-"];
+  10[shape=box, label="E→E.+F,+/-/)\nE→E.-F,+/-/)\nF→(E.),#/+/-/*///%"]
+  11 -> 23 [label="/"];
+  11 -> 22 [label="*"];
+  11 -> 24 [label="%"];
+  11[shape=box, label="E→F.,+/-/)\nF→F.*num,+/-/*///%/)\nF→F./num,+/-/*///%/)\nF→F.%num,+/-/*///%/)"]
+  12[shape=box, label="F→num.,+/-/*///%/)"]
+  13 -> 13 [label="("];
+  13 -> 25 [label="E"];
+  13 -> 11 [label="F"];
+  13 -> 12 [label="num"];
+  13[shape=box, label="E→.E+F,+/-/)\nE→.E-F,+/-/)\nE→.F,+/-/)\nF→.F*num,+/-/*///%/)\nF→.F/num,+/-/*///%/)\nF→.F%num,+/-/*///%/)\nF→.num,+/-/*///%/)\nF→.(E),+/-/*///%/)\nF→(.E),+/-/*///%/)"]
+  14 -> 9 [label="%"];
+  14 -> 7 [label="*"];
+  14 -> 8 [label="/"];
+  14[shape=box, label="E→E+F.,#/+/-\nF→F.*num,#/+/-/*///%\nF→F./num,#/+/-/*///%\nF→F.%num,#/+/-/*///%"]
+  15 -> 7 [label="*"];
+  15 -> 8 [label="/"];
+  15 -> 9 [label="%"];
+  15[shape=box, label="E→E-F.,#/+/-\nF→F.*num,#/+/-/*///%\nF→F./num,#/+/-/*///%\nF→F.%num,#/+/-/*///%"]
+  16[shape=box, label="F→F*num.,#/+/-/*///%"]
+  17[shape=box, label="F→F/num.,#/+/-/*///%"]
+  18[shape=box, label="F→F%num.,#/+/-/*///%"]
+  19 -> 26 [label="F"];
+  19 -> 13 [label="("];
+  19 -> 12 [label="num"];
+  19[shape=box, label="E→E+.F,+/-/)\nF→.F*num,+/-/*///%/)\nF→.F/num,+/-/*///%/)\nF→.F%num,+/-/*///%/)\nF→.num,+/-/*///%/)\nF→.(E),+/-/*///%/)"]
+  20 -> 13 [label="("];
+  20 -> 12 [label="num"];
+  20 -> 27 [label="F"];
+  20[shape=box, label="E→E-.F,+/-/)\nF→.F*num,+/-/*///%/)\nF→.F/num,+/-/*///%/)\nF→.F%num,+/-/*///%/)\nF→.num,+/-/*///%/)\nF→.(E),+/-/*///%/)"]
+  21[shape=box, label="F→(E).,#/+/-/*///%"]
+  22 -> 28 [label="num"];
+  22[shape=box, label="F→F*.num,+/-/*///%/)"]
+  23 -> 29 [label="num"];
+  23[shape=box, label="F→F/.num,+/-/*///%/)"]
+  24 -> 30 [label="num"];
+  24[shape=box, label="F→F%.num,+/-/*///%/)"]
+  25 -> 31 [label=")"];
+  25 -> 19 [label="+"];
+  25 -> 20 [label="-"];
+  25[shape=box, label="E→E.+F,+/-/)\nE→E.-F,+/-/)\nF→(E.),+/-/*///%/)"]
+  26 -> 22 [label="*"];
+  26 -> 23 [label="/"];
+  26 -> 24 [label="%"];
+  26[shape=box, label="E→E+F.,+/-/)\nF→F.*num,+/-/*///%/)\nF→F./num,+/-/*///%/)\nF→F.%num,+/-/*///%/)"]
+  27 -> 23 [label="/"];
+  27 -> 22 [label="*"];
+  27 -> 24 [label="%"];
+  27[shape=box, label="E→E-F.,+/-/)\nF→F.*num,+/-/*///%/)\nF→F./num,+/-/*///%/)\nF→F.%num,+/-/*///%/)"]
+  28[shape=box, label="F→F*num.,+/-/*///%/)"]
+  29[shape=box, label="F→F/num.,+/-/*///%/)"]
+  30[shape=box, label="F→F%num.,+/-/*///%/)"]
+  31[shape=box, label="F→(E).,+/-/*///%/)"]
+}

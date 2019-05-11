@@ -1,14 +1,15 @@
 // "Compilers: Principles, Techniques and Tools" Algorithm 4.63
 
 use crate::bitset::BitSet;
-use crate::lr1::LRCtx;
+use crate::lr1::{LRCtx, LRState, LRResult};
 use crate::lr0::LRItem;
 use crate::abstract_grammar::AbstractGrammarExt;
 use crate::lalr1_common::*;
 use std::collections::HashMap;
 use smallvec::SmallVec;
 
-pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> ParseTable<'a> {
+// inner version, the return value doesn't contain `link`
+fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<LRState<'a>> {
   let mut ctx = LRCtx::new(g);
   let mut look_ahead = lr0.iter().map(|(items, _)| vec![BitSet::new(ctx.token_num); items.len()]).collect::<Vec<_>>();
   let mut clo_cache = HashMap::new();
@@ -64,9 +65,13 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl 
     }
   }
 
-  let result = lr0.clone().into_iter().zip(look_ahead.into_iter()).map(|((state, _), look_ahead_s)| {
+  lr0.clone().into_iter().zip(look_ahead.into_iter()).map(|((state, _), look_ahead_s)| {
     ctx.closure(state.into_iter().zip(look_ahead_s.into_iter()).collect(), g)
-  }).collect::<Vec<_>>();
+  }).collect::<Vec<_>>()
+}
+
+pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> ParseTable<'a> {
+  let result = _lalr1_only(lr0, g);
 
   let mut action = Vec::with_capacity(lr0.len());
   let eof = g.eof();
@@ -75,7 +80,7 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl 
   for (i, (state, link)) in lr0.iter().enumerate() {
     let mut act = HashMap::new();
     for (&k, &v) in link {
-      if k < ctx.nt_num {
+      if k < g.nt_num() {
         act.insert(k, smallvec![ParserAct::Goto(v)]);
       } else {
         act.insert(k, smallvec![ParserAct::Shift(v)]);
@@ -100,4 +105,10 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl 
 
   let conflict = try_solve_conflict(&mut action, g);
   ParseTable { action, conflict }
+}
+
+// the return type is the same with lr1::work
+pub fn lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<LRResult<'a>> {
+  let result = _lalr1_only(lr0, g);
+  result.into_iter().zip(lr0.clone().into_iter()).map(|(state, (_, link))| (state, link)).collect()
 }

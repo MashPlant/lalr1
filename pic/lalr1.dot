@@ -1,0 +1,50 @@
+digraph g {
+  0 -> 4 [label="("];
+  0 -> 2 [label="F"];
+  0 -> 3 [label="num"];
+  0 -> 1 [label="E"];
+  0[shape=box, label="E→.E+F,#/+/-\nE→.E-F,#/+/-\nE→.F,#/+/-\nF→.F*num,#/+/-/*///%\nF→.F/num,#/+/-/*///%\nF→.F%num,#/+/-/*///%\nF→.num,#/+/-/*///%\nF→.(E),#/+/-/*///%\nE'→.E,#"]
+  1 -> 6 [label="-"];
+  1 -> 5 [label="+"];
+  1[shape=box, label="E→E.+F,#/+/-\nE→E.-F,#/+/-\nE'→E.,#"]
+  2 -> 8 [label="/"];
+  2 -> 7 [label="*"];
+  2 -> 9 [label="%"];
+  2[shape=box, label="E→F.,#/+/-/)\nF→F.*num,#/+/-/*///%/)\nF→F./num,#/+/-/*///%/)\nF→F.%num,#/+/-/*///%/)"]
+  3[shape=box, label="F→num.,#/+/-/*///%/)"]
+  4 -> 4 [label="("];
+  4 -> 2 [label="F"];
+  4 -> 3 [label="num"];
+  4 -> 10 [label="E"];
+  4[shape=box, label="E→.E+F,+/-/)\nE→.E-F,+/-/)\nE→.F,+/-/)\nF→.F*num,+/-/*///%/)\nF→.F/num,+/-/*///%/)\nF→.F%num,+/-/*///%/)\nF→.num,+/-/*///%/)\nF→.(E),+/-/*///%/)\nF→(.E),#/+/-/*///%/)"]
+  5 -> 11 [label="F"];
+  5 -> 3 [label="num"];
+  5 -> 4 [label="("];
+  5[shape=box, label="E→E+.F,#/+/-/)\nF→.F*num,#/+/-/*///%/)\nF→.F/num,#/+/-/*///%/)\nF→.F%num,#/+/-/*///%/)\nF→.num,#/+/-/*///%/)\nF→.(E),#/+/-/*///%/)"]
+  6 -> 12 [label="F"];
+  6 -> 3 [label="num"];
+  6 -> 4 [label="("];
+  6[shape=box, label="E→E-.F,#/+/-/)\nF→.F*num,#/+/-/*///%/)\nF→.F/num,#/+/-/*///%/)\nF→.F%num,#/+/-/*///%/)\nF→.num,#/+/-/*///%/)\nF→.(E),#/+/-/*///%/)"]
+  7 -> 13 [label="num"];
+  7[shape=box, label="F→F*.num,#/+/-/*///%/)"]
+  8 -> 14 [label="num"];
+  8[shape=box, label="F→F/.num,#/+/-/*///%/)"]
+  9 -> 15 [label="num"];
+  9[shape=box, label="F→F%.num,#/+/-/*///%/)"]
+  10 -> 5 [label="+"];
+  10 -> 16 [label=")"];
+  10 -> 6 [label="-"];
+  10[shape=box, label="E→E.+F,+/-/)\nE→E.-F,+/-/)\nF→(E.),#/+/-/*///%/)"]
+  11 -> 9 [label="%"];
+  11 -> 7 [label="*"];
+  11 -> 8 [label="/"];
+  11[shape=box, label="E→E+F.,#/+/-/)\nF→F.*num,#/+/-/*///%/)\nF→F./num,#/+/-/*///%/)\nF→F.%num,#/+/-/*///%/)"]
+  12 -> 8 [label="/"];
+  12 -> 7 [label="*"];
+  12 -> 9 [label="%"];
+  12[shape=box, label="E→E-F.,#/+/-/)\nF→F.*num,#/+/-/*///%/)\nF→F./num,#/+/-/*///%/)\nF→F.%num,#/+/-/*///%/)"]
+  13[shape=box, label="F→F*num.,#/+/-/*///%/)"]
+  14[shape=box, label="F→F/num.,#/+/-/*///%/)"]
+  15[shape=box, label="F→F%num.,#/+/-/*///%/)"]
+  16[shape=box, label="F→(E).,#/+/-/*///%/)"]
+}
