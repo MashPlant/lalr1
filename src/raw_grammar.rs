@@ -14,9 +14,12 @@ pub enum Assoc {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RawGrammar {
   pub include: String,
-  pub lexer_field_ext: Option<Vec<RawLexerFieldExt>>,
   pub terminal: Vec<RawTerminalRow>,
-  pub lexical: Vec<RawLexicalRule>,
+  // previously I support state/act just like lex/flex
+  // later on I found they are not necessary in my application and removed them
+  //               (re,     token )
+  pub lexical: Vec<(String, String)>,
+  pub parser_field_ext: Option<Vec<RawFieldExt>>,
   //                (nt    , type  )
   pub start: Option<(String, String)>,
   pub production: Vec<RawProduction>,
@@ -24,32 +27,28 @@ pub struct RawGrammar {
 
 const EPS: &'static str = "_Eps";
 const EOF: &'static str = "_Eof";
-const INITIAL: &'static str = "_Initial";
-
+//const INITIAL: &'static str = "_Initial";
 
 impl RawGrammar {
   // will add a production _Start -> Start, so need mut
-  pub fn to_grammar(&mut self) -> Result<Grammar, String> {
+  pub fn extend_grammar(&mut self) -> Result<Grammar, String> {
     // don't allow '_' to be the first char
     let valid_name = regex::Regex::new("^[a-zA-Z][a-zA-Z_0-9]*$").unwrap();
     let mut terminal = vec![(EPS, None), (EOF, None)];
     let mut terminal2id = HashMap::new();
     terminal2id.insert(EPS, 0);
     terminal2id.insert(EOF, 1);
-    let mut lex_state = vec![INITIAL];
-    let mut lex_state2id = HashMap::new();
-    lex_state2id.insert(INITIAL, 0);
     let mut lex = Vec::new();
     let mut nt = Vec::new();
     let mut nt2id = HashMap::new();
 
     for (pri, term_row) in self.terminal.iter().enumerate() {
       let pri_assoc = term_row.assoc.map(|assoc| (pri as u32, assoc));
-      for term in term_row.tokens.iter().map(String::as_str) {
+      for term in term_row.terms.iter().map(String::as_str) {
         if term == EPS {
-          return Err(format!("Terminal cannot have the builtin name `{}`.", EPS));
+          return Err(format!("Terminal cannot have builtin name `{}`.", EPS));
         } else if term == EOF {
-          return Err(format!("Terminal cannot have the builtin name `{}`.", EOF));
+          return Err(format!("Terminal cannot have builtin name `{}`.", EOF));
         } else if !valid_name.is_match(term) {
           return Err(format!("Terminal is not a valid variable name: `{}`.", term));
         } else if terminal2id.contains_key(term) {
@@ -61,30 +60,19 @@ impl RawGrammar {
       }
     }
 
-    for lexical in &self.lexical {
-      let re = if lexical.escape { regex::escape(&lexical.re) } else { lexical.re.clone() };
-      if let Err(err) = Regex::new(&re) {
-        return Err(format!("Error regex: `{}`, reason: {}.", lexical.re, err));
-      } else {
-        let id = *lex_state2id.entry(lexical.state.as_str()).or_insert_with(|| {
-          let id = lex_state.len() as u32;
-          lex_state.push(lexical.state.as_str());
-          id
-        }) as usize;
-        if lex.len() < id + 1 {
-          lex.resize_with(id + 1, || Vec::new());
-        }
-        let term = lexical.term.as_str();
-        if term != EOF && term != EPS && !valid_name.is_match(term) {
-          return Err(format!("Terminal is not a valid variable name: `{}`.", term));
-        }
-        terminal2id.entry(term).or_insert_with(|| {
-          let id = terminal.len() as u32;
-          terminal.push((term, None));
-          id
-        });
-        lex[id].push((re, lexical.act.as_str(), term));
+    for l in &self.lexical {
+      let (re, term) = (l.0.as_str(), l.1.as_str());
+      if term == EOF {
+        return Err(format!("User define lex rule cannot return token `{}`.", EOF));
+      } else if term != EPS && !valid_name.is_match(term) {
+        return Err(format!("Token is not a valid variable name: `{}`.", term));
       }
+      terminal2id.entry(term).or_insert_with(|| {
+        let id = terminal.len() as u32;
+        terminal.push((term, None));
+        id
+      });
+      lex.push((re, term));
     }
 
     if self.production.is_empty() {
@@ -165,7 +153,6 @@ impl RawGrammar {
       raw: self,
       nt,
       terminal,
-      lex_state,
       lex,
       prod,
       prod_extra,
@@ -176,43 +163,15 @@ impl RawGrammar {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RawTerminalRow {
   pub assoc: Option<Assoc>,
-  pub tokens: Vec<String>,
+  pub terms: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct RawLexerFieldExt {
+pub struct RawFieldExt {
   pub field: String,
   #[serde(rename = "type")]
   pub type_: String,
   pub init: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct RawLexicalRule {
-  #[serde(default = "default_state")]
-  pub state: String,
-  pub re: String,
-  #[serde(default = "default_act")]
-  pub act: String,
-  // the terminal name that this lex rule returns
-  // will be extracted and add to terminal list(no need to declare)
-  pub term: String,
-  // whether use regex::escape to modify the pattern string
-  // in most case, yes(like "+"); if it is "real" regex, no(like "[0-9]")
-  #[serde(default = "default_escape")]
-  pub escape: bool,
-}
-
-fn default_state() -> String {
-  INITIAL.into()
-}
-
-fn default_act() -> String {
-  "".into()
-}
-
-fn default_escape() -> bool {
-  true
 }
 
 #[derive(Debug, Deserialize, Serialize)]

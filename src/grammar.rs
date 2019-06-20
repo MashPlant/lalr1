@@ -13,9 +13,8 @@ pub struct Grammar<'a> {
   pub terminal: Vec<(&'a str, Option<(u32, Assoc)>)>,
   //          (name   , type_  )>
   pub nt: Vec<(&'a str, &'a str)>,
-  pub lex_state: Vec<&'a str>,
-  //               (re    , act    , term   )
-  pub lex: Vec<Vec<(String, &'a str, &'a str)>>,
+  //               (re     , token  )
+  pub lex: Vec<(&'a str, &'a str)>,
   pub prod: Vec<Vec<(ProdVec, u32)>>,
   //                   act      (lhs, index of this prod in self.prod[lhs])
   pub prod_extra: Vec<(&'a str, (u32, u32), Option<(u32, Assoc)>)>,

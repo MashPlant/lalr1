@@ -9,11 +9,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitset"
+version = "0.1.0"
+source = "git+https://github.com/MashPlant/re2dfa#dfd4f3dac5a2ce73dee753951797fe3774da7434"
+
+[[package]]
+name = "cfg-if"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "lalr1"
 version = "0.1.0"
 dependencies = [
- "lazy_static 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "regex 1.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "re2dfa 1.0.0 (git+https://github.com/MashPlant/re2dfa)",
+ "regex 1.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 0.6.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -22,18 +32,39 @@ dependencies = [
 
 [[package]]
 name = "lazy_static"
-version = "0.2.11"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "lazy_static"
-version = "1.3.0"
+name = "lexical-core"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "cfg-if 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ryu 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "stackvector 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "static_assertions 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "memchr"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "nom"
+version = "5.0.0-beta2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "lexical-core 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "memchr 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "version_check 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "print"
+version = "0.1.0"
+source = "git+https://github.com/MashPlant/re2dfa#dfd4f3dac5a2ce73dee753951797fe3774da7434"
 
 [[package]]
 name = "proc-macro2"
@@ -52,24 +83,61 @@ dependencies = [
 ]
 
 [[package]]
+name = "re2dfa"
+version = "1.0.0"
+source = "git+https://github.com/MashPlant/re2dfa#dfd4f3dac5a2ce73dee753951797fe3774da7434"
+dependencies = [
+ "bitset 0.1.0 (git+https://github.com/MashPlant/re2dfa)",
+ "nom 5.0.0-beta2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "print 0.1.0 (git+https://github.com/MashPlant/re2dfa)",
+ "smallvec 0.6.9 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "regex"
-version = "1.1.6"
+version = "1.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "aho-corasick 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "memchr 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "regex-syntax 0.6.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex-syntax 0.6.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "thread_local 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "utf8-ranges 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "utf8-ranges 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "regex-syntax"
-version = "0.6.6"
+version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "ucd-util 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "rustc_version"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ryu"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "semver"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "semver-parser 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "semver-parser"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "serde"
@@ -92,6 +160,20 @@ dependencies = [
 [[package]]
 name = "smallvec"
 version = "0.6.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "stackvector"
+version = "1.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "rustc_version 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unreachable 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "static_assertions"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -131,25 +213,57 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "unreachable"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "utf8-ranges"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "version_check"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [metadata]
 "checksum aho-corasick 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)" = "e6f484ae0c99fec2e858eb6134949117399f222608d84cadb3f58c1f97c2364c"
-"checksum lazy_static 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)" = "76f033c7ad61445c5b347c7382dd1237847eb1bce590fe50365dcb33d546be73"
+"checksum bitset 0.1.0 (git+https://github.com/MashPlant/re2dfa)" = "<none>"
+"checksum cfg-if 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "b486ce3ccf7ffd79fdeb678eac06a9e6c09fc88d33836340becb8fffe87c5e33"
 "checksum lazy_static 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "bc5729f27f159ddd61f4df6228e827e86643d4d3e7c32183cb30a1c08f604a14"
+"checksum lexical-core 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3e82e023e062f1d25f807ad182008fba1b46538e999f908a08cc0c29e084462e"
 "checksum memchr 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "2efc7bc57c883d4a4d6e3246905283d8dae951bb3bd32f49d6ef297f546e1c39"
+"checksum nom 5.0.0-beta2 (registry+https://github.com/rust-lang/crates.io-index)" = "cfa215de9f747c2b3290ceee185976eb6ffc936087e19d810b57ba3ff85ae28c"
+"checksum print 0.1.0 (git+https://github.com/MashPlant/re2dfa)" = "<none>"
 "checksum proc-macro2 0.4.29 (registry+https://github.com/rust-lang/crates.io-index)" = "64c827cea7a7ab30ce4593e5e04d7a11617ad6ece2fa230605a78b00ff965316"
 "checksum quote 0.6.12 (registry+https://github.com/rust-lang/crates.io-index)" = "faf4799c5d274f3868a4aae320a0a182cbd2baee377b378f080e16a23e9d80db"
-"checksum regex 1.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "8f0a0bcab2fd7d1d7c54fa9eae6f43eddeb9ce2e7352f8518a814a4f65d60c58"
-"checksum regex-syntax 0.6.6 (registry+https://github.com/rust-lang/crates.io-index)" = "dcfd8681eebe297b81d98498869d4aae052137651ad7b96822f09ceb690d0a96"
+"checksum re2dfa 1.0.0 (git+https://github.com/MashPlant/re2dfa)" = "<none>"
+"checksum regex 1.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "0b2f0808e7d7e4fb1cb07feb6ff2f4bc827938f24f8c2e6a3beb7370af544bdd"
+"checksum regex-syntax 0.6.7 (registry+https://github.com/rust-lang/crates.io-index)" = "9d76410686f9e3a17f06128962e0ecc5755870bb890c34820c7af7f1db2e1d48"
+"checksum rustc_version 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
+"checksum ryu 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "b96a9549dc8d48f2c283938303c4b5a77aa29bfbc5b54b084fb1630408899a8f"
+"checksum semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
+"checksum semver-parser 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 "checksum serde 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)" = "aa5f7c20820475babd2c077c3ab5f8c77a31c15e16ea38687b4c02d3e48680f4"
 "checksum serde_derive 1.0.90 (registry+https://github.com/rust-lang/crates.io-index)" = "58fc82bec244f168b23d1963b45c8bf5726e9a15a9d146a067f9081aeed2de79"
 "checksum smallvec 0.6.9 (registry+https://github.com/rust-lang/crates.io-index)" = "c4488ae950c49d403731982257768f48fada354a5203fe81f9bb6f43ca9002be"
+"checksum stackvector 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)" = "1c4725650978235083241fab0fdc8e694c3de37821524e7534a1a9061d1068af"
+"checksum static_assertions 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)" = "c19be23126415861cb3a23e501d34a708f7f9b2183c5252d690941c2e69199d5"
 "checksum syn 0.15.33 (registry+https://github.com/rust-lang/crates.io-index)" = "ec52cd796e5f01d0067225a5392e70084acc4c0013fa71d55166d38a8b307836"
 "checksum thread_local 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "c6b53e329000edc2b34dbe8545fd20e55a333362d0a321909685a19bd28c3f1b"
 "checksum toml 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "87c5890a989fa47ecdc7bcb4c63a77a82c18f306714104b1decfd722db17b39e"
 "checksum ucd-util 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "535c204ee4d8434478593480b8f86ab45ec9aae0e83c568ca81abf0fd0e88f86"
 "checksum unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc72304796d0818e357ead4e000d19c9c174ab23dc11093ac919054d20a6a7fc"
-"checksum utf8-ranges 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "796f7e48bef87609f7ade7e06495a87d5cd06c7866e6a5cbfceffc558a243737"
+"checksum unreachable 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "382810877fe448991dfc7f0dd6e3ae5d58088fd0ea5e35189655f84e6814fa56"
+"checksum utf8-ranges 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "9d50aa7650df78abf942826607c62468ce18d9019673d4a2ebe1865dbb96ffde"
+"checksum version_check 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "914b1a6776c4c929a602fafd8bc742e06365d4bcbe48c30f9cca5824f70dc9dd"
+"checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"

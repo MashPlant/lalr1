@@ -1,6 +1,6 @@
 use crate::grammar::Grammar;
 use crate::printer::IndentPrinter;
-use crate::raw_grammar::RawLexerFieldExt;
+use crate::raw_grammar::RawFieldExt;
 use crate::lalr1_common::ParseTable;
 use std::collections::HashMap;
 use crate::abstract_grammar::AbstractGrammar;
@@ -35,57 +35,58 @@ pub enum TokenType {"#).inc();
     }
     p.dec().ln("}\n");
 
-    p.lns(r#"#[derive(Debug, Clone, Copy)]
-pub enum LexerState {"#).inc();
-    for &state in &g.lex_state {
-      p.ln(format!("{},", state));
-    }
-    p.dec().ln("}\n");
+//    p.lns(r#"#[derive(Debug, Clone, Copy)]
+//pub enum LexerState {"#).inc();
+//    for &state in &g.lex_state {
+//      p.ln(format!("{},", state));
+//    }
+//    p.dec().ln("}\n");
 
-    p.lns(r#"macro_rules! map (
-  { $($key:expr => $value:expr),+ } => {{
-    let mut m = ::std::collections::HashMap::new();
-    $( m.insert($key, $value); )+
-    m
-  }};
-);"#).ln("");
+//    p.lns(r#"macro_rules! map (
+//  { $($key:expr => $value:expr),+ } => {{
+//    let mut m = ::std::collections::HashMap::new();
+//    $( m.insert($key, $value); )+
+//    m
+//  }};
+//);"#).ln("");
 
-    p.ln("lazy_static! {").inc();
-    p.ln(format!("static ref LEX_RULES: [Vec<(Regex, fn(&mut Lexer) -> TokenType)>; {}] = [", g.lex.len())).inc();
-    {
-      let mut cnt = 0;
-      for lex_state_rules in &g.lex {
-        p.ln("vec![").inc();
-        for (re, _, _) in lex_state_rules {
-          // add enough # to prevent the re contains `#"`
-          let raw = "#".repeat(re.matches('#').count() + 1);
-          p.ln(format!(r#"(Regex::new(r{}"^{}"{}).unwrap(), lex_act{}),"#, raw, &re, raw, cnt));
-          cnt += 1;
-        }
-        p.dec().ln("],");
-      }
-    }
-    p.dec().ln("];\n"); // LEX_RULES
-    p.ln(format!("static ref TABLE: [HashMap<u32, Act>; {}] = [", table.action.len())).inc();
-    for act in &table.action {
-      let mut sorted = act.1.iter().collect::<Vec<_>>();
-      sorted.sort_unstable_by(|l, r| l.0.cmp(r.0));
+//    p.ln("lazy_static! {").inc();
+//    p.ln(format!("static ref LEX_RULES: [Vec<(Regex, fn(&mut Lexer) -> TokenType)>; {}] = [", g.lex.len())).inc();
+//    {
+//      let mut cnt = 0;
+//      for lex_state_rules in &g.lex {
+//        p.ln("vec![").inc();
+//        for (re, _, _) in lex_state_rules {
+//          // add enough # to prevent the re contains `#"`
+//          let raw = "#".repeat(re.matches('#').count() + 1);
+//          p.ln(format!(r#"(Regex::new(r{}"^{}"{}).unwrap(), lex_act{}),"#, raw, &re, raw, cnt));
+//          cnt += 1;
+//        }
+//        p.dec().ln("],");
+//      }
+//    }
+//    p.dec().ln("];\n"); // LEX_RULES
 
-      let mut map = "map! { ".to_owned();
-      // manually join...
-      // rust's join seems still unstable now?
-      for (i, (&link, act)) in sorted.iter().enumerate() {
-        if i == 0 {
-          map += &format!("{} => Act::{:?}", link, act[0]);
-        } else {
-          map += &format!(", {} => Act::{:?}", link, act[0]);
-        }
-      }
-      map += " },";
-      p.ln(map);
-    }
-    p.dec().ln("];"); // TABLE
-    p.dec().ln("}\n"); // lazy_static
+//    p.ln(format!("static ref TABLE: [HashMap<u32, Act>; {}] = [", table.action.len())).inc();
+//    for act in &table.action {
+//      let mut sorted = act.1.iter().collect::<Vec<_>>();
+//      sorted.sort_unstable_by(|l, r| l.0.cmp(r.0));
+//
+//      let mut map = "map! { ".to_owned();
+//      // manually join...
+//      // rust's join seems still unstable now?
+//      for (i, (&link, act)) in sorted.iter().enumerate() {
+//        if i == 0 {
+//          map += &format!("{} => Act::{:?}", link, act[0]);
+//        } else {
+//          map += &format!(", {} => Act::{:?}", link, act[0]);
+//        }
+//      }
+//      map += " },";
+//      p.ln(map);
+//    }
+//    p.dec().ln("];"); // TABLE
+//    p.dec().ln("}\n"); // lazy_static
 
     p.ln(format!("static PARSER_ACT: [fn(&mut Parser); {}] = [", g.prod_extra.len())).inc();
     for i in 0..g.prod_extra.len() {
@@ -99,80 +100,105 @@ pub enum LexerState {"#).inc();
     }
     p.dec().ln("];\n");
 
-    p.lns(r#"#[derive(Debug, Clone, Copy)]
+    p.write(r#"#[derive(Debug, Clone, Copy)]
 pub struct Token<'a> {
   pub ty: TokenType,
-  pub piece: &'a str,
+  pub piece: &'a [u8],
   pub line: u32,
   pub col: u32,
-}"#).ln("");
+}
 
-    p.lns(r#"pub struct Lexer<'a> {
-  pub string: &'a str,
-  pub states: Vec<LexerState>,
+pub struct Lexer<'a> {
+  pub string: &'a [u8],
   pub cur_line: u32,
   pub cur_col: u32,
-  pub piece: &'a str,"#).inc();
-    if let Some(ext) = &g.raw.lexer_field_ext {
-      for RawLexerFieldExt { field, type_, init: _ } in ext {
-        p.ln(format!("pub {}: {},", field, type_));
-      }
-    }
-    p.dec().ln("}\n");
+}
 
-    p.ln("impl<'a> Lexer<'a> {").inc();
-    p.lns(r#"pub fn new(string: &str) -> Lexer {"#).inc();
-    p.lns(r#"Lexer {
-  string,
-  states: vec![LexerState::_Initial],
-  cur_line: 1,
-  cur_col: 0,
-  piece: "","#).inc();
-    if let Some(ext) = &g.raw.lexer_field_ext {
-      for RawLexerFieldExt { field, type_: _, init } in ext {
-        p.ln(format!("{}: {},", field, init));
-      }
+impl<'a> Lexer<'a> {
+  pub fn new(string: &[u8]) -> Lexer {
+    Lexer {
+      string,
+      cur_line: 1,
+      cur_col: 1,
     }
-    p.dec().ln("}"); // Lexer
-    p.dec().ln("}\n"); // new
+  }
 
-    p.lns(r#"pub fn next(&mut self) -> Option<Token<'a>> {
-  loop {
-    if self.string.is_empty() {
-      return Some(Token { ty: TokenType::_Eof, piece: "", line: self.cur_line, col: self.cur_col });
-    }
-    let mut max: Option<(&str, fn(&mut Lexer) -> TokenType)> = None;
-    for (re, act) in &LEX_RULES[*self.states.last()? as usize] {
-      match re.find(self.string) {
-        None => {}
-        Some(n) => {
-          let n = n.as_str();
-          if match max {
-            None => true,
-            Some((o, _)) => o.len() < n.len(),
-          } { max = Some((n, *act)); }
+  pub fn next(&mut self) -> Option<Token<'a>> {
+    loop {
+      if self.string.is_empty() {
+        return Some(Token { ty: _Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col });
+      }
+      let (mut line, mut col) = (self.cur_line, self.cur_col);
+      let mut last_acc = _Eof; // this is arbitrary, just a value that cannot be returned by user defined function
+      let mut state = 0;
+      let mut i = 0;
+      while i < self.string.len() {
+        // '\0' should not be in alphabet
+        let ch = unsafe { *self.string.get_unchecked(i) };
+        let &ec = unsafe { CH2EC.get_unchecked((ch & 0x7F) as usize) };
+        let &nxt = unsafe { EDGE.get_unchecked(state as usize).get_unchecked(ec as usize) };
+        let &acc = unsafe { ACC.get_unchecked(nxt as usize) };
+        last_acc = if acc != _Eof { acc } else { last_acc };
+        state = nxt;
+        if nxt == 0 { // dead, should not eat this char
+          if last_acc == _Eof { // completely dead
+            return None;
+          } else {
+            // exec user defined function here
+            let piece = unsafe { std::slice::from_raw_parts(self.string.as_ptr(), i) };
+            self.string = unsafe { std::slice::from_raw_parts(self.string.as_ptr().add(i), self.string.len() - i) };
+            if last_acc != _Eps {
+              return Some(Token { ty: last_acc, piece, line, col });
+            } else {
+              line = self.cur_line;
+              col = self.cur_col;
+              last_acc = _Eof;
+              state = 0;
+              i = 0;
+            }
+          }
+        } else { // continue, eat this char
+          if ch == b'\n' {
+            self.cur_line += 1;
+            self.cur_col = 1;
+          } else {
+            self.cur_col += 1;
+          }
+          i += 1;
+        }
+      }
+      // end of file
+      if last_acc == _Eof { // completely dead
+        return None;
+      } else {
+        // exec user defined function here
+        let piece = unsafe { std::slice::from_raw_parts(self.string.as_ptr(), i) };
+        self.string = unsafe { std::slice::from_raw_parts(self.string.as_ptr().add(i), 0) };
+        if last_acc != _Eps {
+          return Some(Token { ty: last_acc, piece, line, col });
+        } else {
+          return Some(Token { ty: _Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col });
         }
       }
     }
-    let (piece, act) = max?;
-    self.piece = piece;
-    let ty = act(self);
-    self.string = &self.string[piece.len()..];
-    let (line, col) = (self.cur_line, self.cur_col);
-    for (i, l) in piece.split('\n').enumerate() {
-      self.cur_line += 1;
-      if i == 0 {
-        self.cur_col += l.len() as u32;
-      } else {
-        self.cur_col = l.len() as u32;
-      }
-    }
-    if ty != TokenType::_Eps {
-      break Some(Token { ty, piece, line, col });
-    }
   }
-}"#);
-    p.dec().ln("}\n"); // impl
+}
+"#).ln("");
+
+//    if let Some(ext) = &g.raw.lexer_field_ext {
+//      for RawFieldExt { field, type_, init: _ } in ext {
+//        p.ln(format!("pub {}: {},", field, type_));
+//      }
+//    }
+//    p.dec().ln("}\n");
+
+//    aw.lexer_field_ext {
+//      for RawFieldExt { field, type_: _, init } in ext {
+//        p.ln(format!("{}: {},", field, init));
+//      }
+//    }
+//    p.dec().ln("}"); // Lexer
+//    p.dec().ln("}\n"); // new
 
     p.lns("#[derive(Copy, Clone, Debug)]
 enum Act {
@@ -202,27 +228,37 @@ enum Act {
     // use these 2 forward declaration to make the huge code block below not need format!()
 
 
-    p.lns(r#"pub struct Parser<'a> {
+    p.write(r#"pub struct Parser<'a> {
   value_stk: Vec<StackItem<'a>>,
   state_stk: Vec<u32>,
   lexer: Lexer<'a>,
-}
+"#).inc();
+    if let Some(ext) = &g.raw.parser_field_ext {
+      for RawFieldExt { field, type_, init: _ } in ext {
+        p.ln(format!("pub {}: {},", field, type_));
+      }
+    }
+    p.dec().ln("}\n");
 
-impl<'a> Parser<'a> {
+    p.write(r#"impl<'a> Parser<'a> {
   pub fn new(string: &'a str) -> Parser {
     Parser {
-      value_stk: Vec::new(),
+      value_stk: vec![],
       state_stk: vec![0],
       lexer: Lexer::new(string),
+"#).inc().inc().inc();
+    if let Some(ext) = &g.raw.parser_field_ext {
+      for RawFieldExt { field, type_: _, init } in ext {
+        p.ln(format!("{}: {},", field, init));
+      }
     }
-  }
-"#);
+    p.dec().ln("}").dec().ln("}");
 
     let parse_res = g.nt[(g.prod_extra.last().unwrap().1).0 as usize].1;
     let res_id = types2id[parse_res];
-    p.lns(format!(r#"  pub fn parse(&mut self) -> Result<{}, Option<Token<'a>>> {{"#, parse_res));
+    p.write(format!(r#"  pub fn parse(&mut self) -> Result<{}, Option<Token<'a>>> {{"#, parse_res));
 
-    p.lns(r#"    let mut token = match self.lexer.next() { Some(t) => t, None => return Err(None) };
+    p.write(r#"    let mut token = match self.lexer.next() { Some(t) => t, None => return Err(None) };
     loop {
       let state = *self.state_stk.last().unwrap();
       let act = match TABLE[state as usize].get(&(token.ty as u32)) { Some(a) => *a, None => return Err(Some(token)) };
@@ -252,20 +288,20 @@ impl<'a> Parser<'a> {
   }
 }"#).ln("");
 
-    {
-      let mut cnt = 0;
-      for lex_state_rules in &g.lex {
-        for &(_, act, term) in lex_state_rules {
-          p.ln(format!("fn lex_act{}(_l: &mut Lexer) -> TokenType {{", cnt)).inc();
-          if !act.is_empty() { // just to make it prettier...
-            p.lns(act);
-          }
-          p.ln(format!("TokenType::{}", term));
-          p.dec().ln("}\n");
-          cnt += 1;
-        }
-      }
-    }
+//    {
+//      let mut cnt = 0;
+//      for lex_state_rules in &g.lex {
+//        for &(_, act, term) in lex_state_rules {
+//          p.ln(format!("fn lex_act{}(_l: &mut Lexer) -> TokenType {{", cnt)).inc();
+//          if !act.is_empty() { // just to make it prettier...
+//            p.lns(act);
+//          }
+//          p.ln(format!("TokenType::{}", term));
+//          p.dec().ln("}\n");
+//          cnt += 1;
+//        }
+//      }
+//    }
 
     for (i, &(act, (lhs, rhs), _)) in g.prod_extra.iter().enumerate() {
       p.ln(format!("fn parser_act{}(_p: &mut Parser) {{", i)).inc();
