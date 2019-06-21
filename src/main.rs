@@ -26,7 +26,7 @@ fn main() {
 //  let mut f = File::create("lalr1.dot").unwrap();
 //  f.write(g.print_lr1(&lalr1).as_bytes()).unwrap();
 
-  let s = read_to_string("src/example/decaf.toml").unwrap();
+  let s = read_to_string("examples/calc.toml").unwrap();
   let mut g: RawGrammar = toml::from_str(&s).unwrap();
 
   let g = g.extend_grammar().unwrap();
@@ -87,17 +87,4 @@ fn main() {
 ////    }
 //  }
 //  println!("{}", a.conflict.len());
-
-//  use crate::parser::TokenType;
-//  let prog = read_to_string("calc.txt").unwrap();
-//  let mut lex = parser::Lexer::new(&prog);
-//  while let Some(tk) = lex.next() {
-//    println!("{:?}", tk);
-//    if tk.ty == TokenType::_Eof {
-//      break;
-//    }
-//  }
-//  let mut parser = parser::Parser::new(&prog);
-//  let a = parser.parse();
-//  println!("{:?}", a);
 }

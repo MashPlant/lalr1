@@ -39,9 +39,11 @@ impl Codegen for RustCodegen {
       "{{DFA_EDGE}}",
       "{{PARSER_FIELD}}",
       "{{PARSER_INIT}}",
+      "{{RESULT_TYPE}}",
+      "{{RESULT_ID}}",
       "{{U_LR_SIZE}}",
       "{{U_PROD_LEN}}",
-      "{{U_PROD_SIZE}}",
+      "{{PROD_SIZE}}",
       "{{PROD}}",
       "{{TOKEN_SIZE}}",
       "{{LR_SIZE}}",
@@ -58,6 +60,8 @@ impl Codegen for RustCodegen {
         id
       });
     }
+    let parse_res = g.nt[(g.prod_extra.last().unwrap().1).0 as usize].1;
+    let res_id = types2id[parse_res];
     let rep = [
       // "{{INCLUDE}}"
       g.raw.include.clone(),
@@ -74,7 +78,7 @@ impl Codegen for RustCodegen {
       // {{U_LR_SIZE}}
       min_u_of(table.action.len() as u32),
       { // "{{STACK_ITEM}}"
-        let mut s = "_token(token<'a>), ".to_owned();
+        let mut s = "_Token(Token<'a>), ".to_owned();
         for (i, ty) in types.iter().enumerate() {
           write!(s, "_{}({}), ", i, ty).unwrap();
         }
@@ -86,8 +90,8 @@ impl Codegen for RustCodegen {
         let mut s = String::new();
         for &(acc, _) in &dfa.nodes {
           match acc {
-            Some(acc) => write!(s, "{}, ", g.terminal[acc as usize].0).unwrap(),
-            None => s += "_Eps, ",
+            Some(acc) => write!(s, "{}, ", g.raw.lexical[acc as usize].1).unwrap(),
+            None => s += "_Eof, ",
           }
         }
         s
@@ -133,11 +137,15 @@ impl Codegen for RustCodegen {
         }
         s
       },
-      //  "{{U_LR_SIZE}}"
+      // "{{RESULT_TYPE}}"
+      parse_res.to_owned(),
+      // "{{RESULT_ID}}"
+      res_id.to_string(),
+      // "{{U_LR_SIZE}}"
       min_u_of(table.action.len() as u32),
       // "{{U_PROD_LEN}}"
-      g.prod_extra.iter().map(|&(_, (lhs, rhs), _)| g.prod[lhs as usize][rhs as usize].0.len()).max().unwrap().to_string(),
-      // "{{U_PROD_SIZE}}"
+      min_u_of(g.prod_extra.iter().map(|&(_, (lhs, rhs), _)| g.prod[lhs as usize][rhs as usize].0.len()).max().unwrap() as u32),
+      // "{{PROD_SIZE}}"
       g.prod_extra.len().to_string(),
       { // "{{PROD}}"
         let mut s = String::new();

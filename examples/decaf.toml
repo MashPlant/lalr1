@@ -41,7 +41,6 @@ impl Token {
 }
 '''
 
-# 
 terminal = [
   { assoc = "left", terms = ["Or"] },
   { assoc = "left", terms = ["And"] },

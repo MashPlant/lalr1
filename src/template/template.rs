@@ -28,9 +28,9 @@ macro_rules! impossible {
 pub enum TokenType { {{TOKEN_TYPE}} }
 
 #[derive(Copy, Clone, Debug)]
-enum Act { Shift({{U_LR_SIZE}}), Reduce({{U_LR_SIZE}}), Goto({{U_LR_SIZE}}), Acc, Err }
+pub enum Act { Shift({{U_LR_SIZE}}), Reduce({{U_LR_SIZE}}), Goto({{U_LR_SIZE}}), Acc, Err }
 
-enum StackItem<'a> { {{STACK_ITEM}} }
+pub enum StackItem<'a> { {{STACK_ITEM}} }
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token<'a> {
@@ -70,7 +70,7 @@ impl<'a> Lexer<'a> {
       let mut i = 0;
       while i < self.string.len() {
         let ch = index!(self.string, i);
-        let ec = index!(CH2EC, ch & 0x7F);
+        let ec = index!(EC, ch & 0x7F);
         let nxt = index!(index!(EDGE, state), ec);
         let acc = index!(ACC, nxt);
         last_acc = if acc != _Eof { acc } else { last_acc };
@@ -120,7 +120,7 @@ impl<'a> Lexer<'a> {
 
 pub struct Parser<'a> {
   pub value_stk: Vec<StackItem<'a>>,
-  pub state_stk: Vec<u32>,
+  pub state_stk: Vec<{{U_LR_SIZE}}>,
   pub lexer: Lexer<'a>,
   {{PARSER_FIELD}}
 }
@@ -135,8 +135,8 @@ impl<'a> Parser<'a> {
     }
   }
 
-  pub fn parse(&mut self) -> Result<Program, Option<Token<'a>>> {
-    static PROD: [({{U_LR_SIZE}}, {{U_PROD_LEN}}); {{U_PROD_SIZE}}] = [{{PROD}}];
+  pub fn parse(&mut self) -> Result<{{RESULT_TYPE}}, Option<Token<'a>>> {
+    static PROD: [({{U_LR_SIZE}}, {{U_PROD_LEN}}); {{PROD_SIZE}}] = [{{PROD}}];
     static EDGE: [[Act; {{TOKEN_SIZE}}]; {{LR_SIZE}}] = [{{LR_EDGE}}];
     let mut token = match self.lexer.next() { Some(t) => t, None => return Err(None) };{{LOG_TOKEN}}
     loop {
@@ -156,15 +156,16 @@ impl<'a> Parser<'a> {
             _ => impossible!(),
           }
           let cur = index!(self.state_stk, self.state_stk.len() - 1);
-          let nxt = match index!(index!(TABLE, cur), prod.0) { Act::Goto(n) => n, _ => impossible!() };
+          let nxt = match index!(index!(EDGE, cur), prod.0) { Act::Goto(n) => n, _ => impossible!() };
           self.state_stk.push(nxt);
         }
         Act::Acc => {
           match self.state_stk.pop() { None => impossible!(), Some(_) => {} };
-          let res = match self.value_stk.pop() { Some(StackItem::_0(r)) => r, _ => impossible!() };
+          let res = match self.value_stk.pop() { Some(StackItem::_{{RESULT_ID}}(r)) => r, _ => impossible!() };
           return Ok(res);
         }
         Act::Err => return Err(Some(token)),
+        _ => impossible!(),
       }
     }
   }

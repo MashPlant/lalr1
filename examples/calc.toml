@@ -1,0 +1,71 @@
+include = ""
+
+terminal = [
+  { assoc = "left", terms = ["Or"] },
+  { assoc = "left", terms = ["And"] },
+  { assoc = "left", terms = ["BOr"] },
+  { assoc = "left", terms = ["BXor"] },
+  { assoc = "left", terms = ["BAnd"] },
+  { assoc = "no_assoc", terms = ["Eq", "Ne"] },
+  { assoc = "no_assoc", terms = ["Le", "Ge", "Lt", "Gt"] },
+  { assoc = "left", terms = ["Shl", "Shr"] },
+  { assoc = "left", terms = ["Add", "Sub"] },
+  { assoc = "left", terms = ["Mul", "Div", "Mod"] },
+  { assoc = "no_assoc", terms = ["UMinus", "Not"] },
+  { assoc = "no_assoc", terms = ["LBracket"] },
+  { assoc = "no_assoc", terms = ["RParenthesis"] },
+]
+
+lexical = [
+  ["<=", "Le"],
+  [">=", "Ge"],
+  ["==", "Eq"],
+  ["!=", "Ne"],
+  ["&&", "And"],
+  ['\|\|', "Or"],
+  ["%%", "Repeat"],
+  ["<<", "Shl"],
+  [">>", "Shr"],
+  ['\+', "Add"],
+  ["-", "Sub"],
+  ['\*', "Mul"],
+  ["/", "Div"],
+  ["%", "Mod"],
+  ["&", "BAnd"],
+  ['\|', "BOr"],
+  ["^", "BXor"],
+  ["<", "Lt"],
+  [">", "Gt"],
+  ['\d+', "IntConst"],
+  ['\s+', "_Eps"],
+]
+
+#parser_field_ext = [{ field = "errors", type = "Vec<String>", init = "vec![]" }]
+
+[[production]]
+lhs = "Expr"
+type = "i64"
+rhs = [
+  { rhs = "Expr Add Expr", act = "let _0 = _1 + _3;" },
+  { rhs = "Expr Sub Expr", act = "let _0 = _1 - _3;" },
+  { rhs = "Expr Mul Expr", act = "let _0 = _1 * _3;" },
+  { rhs = "Expr Div Expr", act = "let _0 = _1 / _3;" },
+  { rhs = "Expr Mod Expr", act = "let _0 = _1 % _3;" },
+  { rhs = "Expr Eq Expr", act = "let _0 = (_1 == _3) as i64;" },
+  { rhs = "Expr Ne Expr", act = "let _0 = (_1 != _3) as i64;" },
+  { rhs = "Expr Lt Expr", act = "let _0 = (_1 < _3) as i64;" },
+  { rhs = "Expr Gt Expr", act = "let _0 = (_1 > _3) as i64;" },
+  { rhs = "Expr Le Expr", act = "let _0 = (_1 <= _3) as i64;" },
+  { rhs = "Expr Ge Expr", act = "let _0 = (_1 >= _3) as i64;" },
+  { rhs = "Expr And Expr", act = "let _0 = ((_1 != 0) && (_3 != 0)) as i64;" },
+  { rhs = "Expr Or Expr", act = "let _0 = ((_1 != 0) || (_3 != 0)) as i64;" },
+  { rhs = "Expr BAnd Expr", act = "let _0 = _1 & _3;" },
+  { rhs = "Expr BOr Expr", act = "let _0 = _1 | _3;" },
+  { rhs = "Expr BXor Expr", act = "let _0 = _1 ^ _3;" },
+  { rhs = "Expr Shl Expr", act = "let _0 = _1 << _3;" },
+  { rhs = "Expr Shr Expr", act = "let _0 = _1 >> _3;" },
+  { rhs = "Sub Expr", act = "let _0 = -_2;", prec = "UMinus" },
+  { rhs = "Not Expr", act = "let _0 = (_2 == 0) as i64;" },
+  { rhs = "IntConst", act = "let _0 = std::str::from_utf8(_1.piece).unwrap().parse().unwrap();" },
+]
+
