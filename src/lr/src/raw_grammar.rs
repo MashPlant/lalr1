@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
-use regex::Regex;
 use crate::grammar::{Grammar, ProdVec};
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
@@ -32,13 +31,11 @@ const EOF: &'static str = "_Eof";
 impl RawGrammar {
   // will add a production _Start -> Start, so need mut
   pub fn extend_grammar(&mut self) -> Result<Grammar, String> {
-    // don't allow '_' to be the first char
     let valid_name = regex::Regex::new("^[a-zA-Z][a-zA-Z_0-9]*$").unwrap();
     let mut terminal = vec![(EPS, None), (EOF, None)];
     let mut terminal2id = HashMap::new();
     terminal2id.insert(EPS, 0);
     terminal2id.insert(EOF, 1);
-    let mut lex = Vec::new();
     let mut nt = Vec::new();
     let mut nt2id = HashMap::new();
 
@@ -61,7 +58,7 @@ impl RawGrammar {
     }
 
     for l in &self.lexical {
-      let (re, term) = (l.0.as_str(), l.1.as_str());
+      let (_, term) = (l.0.as_str(), l.1.as_str());
       if term == EOF {
         return Err(format!("User define lex rule cannot return token `{}`.", EOF));
       } else if term != EPS && !valid_name.is_match(term) {
@@ -72,7 +69,6 @@ impl RawGrammar {
         terminal.push((term, None));
         id
       });
-      lex.push((re, term));
     }
 
     if self.production.is_empty() {
@@ -131,7 +127,8 @@ impl RawGrammar {
               prod_rhs.push(t + nt.len() as u32);
               pri_assoc = terminal[t as usize].1;
             }
-            _ => return Err(format!("Production rhs contains undefined item: `{}`", rhs)),
+            _ => {}
+//            _ => return Err(format!("Production rhs contains undefined item: `{}`", rhs)),
           }
         }
         if let Some(prec) = rhs.prec.as_ref() {
@@ -153,7 +150,6 @@ impl RawGrammar {
       raw: self,
       nt,
       terminal,
-      lex,
       prod,
       prod_extra,
     })

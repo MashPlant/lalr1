@@ -1,14 +1,8 @@
-#![allow(unused)]
-
-use std::hash::{Hash, Hasher};
-use std::collections::{HashMap, HashSet};
-use std::cmp::Ordering;
-use crate::grammar::Grammar;
+use std::collections::HashMap;
 use crate::bitset::BitSet;
 use crate::abstract_grammar::AbstractGrammar;
 use std::cell::RefCell;
 use std::collections::vec_deque::VecDeque;
-use std::collections::hash_map::DefaultHasher;
 use crate::lr0::LRItem;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -33,7 +27,7 @@ impl LRCtx {
     // is for lalr1_by_lr0.rs, it is a terminal not in g, helping wo calculate the propagation of look_ahead
     // this bit will be always 0 otherwise
     let (token_num, nt_num, eps) = (g.token_num() + 1, g.nt_num(), g.eps());
-    let mut nt_first = vec![RefCell::new(BitSet::new(token_num)); nt_num as usize];
+    let nt_first = vec![RefCell::new(BitSet::new(token_num)); nt_num as usize];
     let mut changed = true;
     while changed {
       changed = false;
@@ -169,10 +163,10 @@ pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Vec<LRResult<'a>> {
   let mut q = VecDeque::new();
   let mut result = Vec::new();
   q.push_back(init);
-  while let Some(mut cur) = q.pop_front() {
+  while let Some(cur) = q.pop_front() {
     let mut link = HashMap::new();
     for mov in 0..ctx.token_num {
-      let mut ns = ctx.go(&cur, mov, g);
+      let ns = ctx.go(&cur, mov, g);
       if !ns.items.is_empty() {
         let id = match ss.get(&ns.items) {
           None => {
@@ -190,5 +184,4 @@ pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Vec<LRResult<'a>> {
     result.push((cur, link));
   }
   result
-//  println!("{:?}", result);
 }

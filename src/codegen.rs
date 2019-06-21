@@ -1,213 +1,54 @@
-use crate::grammar::Grammar;
-use crate::printer::IndentPrinter;
-use crate::raw_grammar::RawFieldExt;
-use crate::lalr1_common::ParseTable;
+use re2dfa::dfa::Dfa;
 use std::collections::HashMap;
-use crate::abstract_grammar::AbstractGrammar;
+use lr::{Grammar, RawFieldExt, ParseTable, AbstractGrammar};
+use aho_corasick::AhoCorasick;
+use std::fmt::Write;
 
 pub trait Codegen {
-  fn gen(&self, g: &Grammar, table: &ParseTable) -> String;
+  fn gen(&self, g: &Grammar, table: &ParseTable, dfa: &Dfa, ec: &[u8; 128]) -> String;
 }
 
-#[allow(unused)]
-pub struct RustCodegen;
+pub struct RustCodegen {
+  pub log_token: bool,
+  pub log_reduce: bool,
+}
 
+fn min_u_of(x: u32) -> String {
+  match x {
+    0..=255 => "u8".into(),
+    256..=65535 => "u16".into(),
+    _ => "u32".into(),
+  }
+}
+
+// I once tried to make the generated code perfectly indented by IndentPrinter, and I almost succeeded
+// but such code is so unmaintainable, so I gave up, just use rustfmt or other tool to format the code...
 impl Codegen for RustCodegen {
-  fn gen(&self, g: &Grammar, table: &ParseTable) -> String {
-    let mut p = IndentPrinter::new();
-    p.ln(r#"#![allow(unused)]
-#![allow(unused_mut)]
-
-use regex::Regex;
-use std::collections::HashMap;"#).ln("");
-
-    if !g.raw.include.is_empty() {
-      p.lns(&g.raw.include).ln("");
-    }
-
-    p.lns(r#"#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum TokenType {"#).inc();
-    for &(nt, _) in &g.nt {
-      p.ln(format!("{},", nt));
-    }
-    for &(t, _) in &g.terminal {
-      p.ln(format!("{},", t));
-    }
-    p.dec().ln("}\n");
-
-//    p.lns(r#"#[derive(Debug, Clone, Copy)]
-//pub enum LexerState {"#).inc();
-//    for &state in &g.lex_state {
-//      p.ln(format!("{},", state));
-//    }
-//    p.dec().ln("}\n");
-
-//    p.lns(r#"macro_rules! map (
-//  { $($key:expr => $value:expr),+ } => {{
-//    let mut m = ::std::collections::HashMap::new();
-//    $( m.insert($key, $value); )+
-//    m
-//  }};
-//);"#).ln("");
-
-//    p.ln("lazy_static! {").inc();
-//    p.ln(format!("static ref LEX_RULES: [Vec<(Regex, fn(&mut Lexer) -> TokenType)>; {}] = [", g.lex.len())).inc();
-//    {
-//      let mut cnt = 0;
-//      for lex_state_rules in &g.lex {
-//        p.ln("vec![").inc();
-//        for (re, _, _) in lex_state_rules {
-//          // add enough # to prevent the re contains `#"`
-//          let raw = "#".repeat(re.matches('#').count() + 1);
-//          p.ln(format!(r#"(Regex::new(r{}"^{}"{}).unwrap(), lex_act{}),"#, raw, &re, raw, cnt));
-//          cnt += 1;
-//        }
-//        p.dec().ln("],");
-//      }
-//    }
-//    p.dec().ln("];\n"); // LEX_RULES
-
-//    p.ln(format!("static ref TABLE: [HashMap<u32, Act>; {}] = [", table.action.len())).inc();
-//    for act in &table.action {
-//      let mut sorted = act.1.iter().collect::<Vec<_>>();
-//      sorted.sort_unstable_by(|l, r| l.0.cmp(r.0));
-//
-//      let mut map = "map! { ".to_owned();
-//      // manually join...
-//      // rust's join seems still unstable now?
-//      for (i, (&link, act)) in sorted.iter().enumerate() {
-//        if i == 0 {
-//          map += &format!("{} => Act::{:?}", link, act[0]);
-//        } else {
-//          map += &format!(", {} => Act::{:?}", link, act[0]);
-//        }
-//      }
-//      map += " },";
-//      p.ln(map);
-//    }
-//    p.dec().ln("];"); // TABLE
-//    p.dec().ln("}\n"); // lazy_static
-
-    p.ln(format!("static PARSER_ACT: [fn(&mut Parser); {}] = [", g.prod_extra.len())).inc();
-    for i in 0..g.prod_extra.len() {
-      p.ln(format!("parser_act{}, ", i));
-    }
-    p.dec().ln("];\n");
-
-    p.ln(format!("static PRODUCTION_INFO: [(u32, u32); {}] = [", g.prod_extra.len())).inc();
-    for &(_, (lhs, rhs), _) in &g.prod_extra {
-      p.ln(format!("({}, {}),", lhs, g.prod[lhs as usize][rhs as usize].0.len()));
-    }
-    p.dec().ln("];\n");
-
-    p.write(r#"#[derive(Debug, Clone, Copy)]
-pub struct Token<'a> {
-  pub ty: TokenType,
-  pub piece: &'a [u8],
-  pub line: u32,
-  pub col: u32,
-}
-
-pub struct Lexer<'a> {
-  pub string: &'a [u8],
-  pub cur_line: u32,
-  pub cur_col: u32,
-}
-
-impl<'a> Lexer<'a> {
-  pub fn new(string: &[u8]) -> Lexer {
-    Lexer {
-      string,
-      cur_line: 1,
-      cur_col: 1,
-    }
-  }
-
-  pub fn next(&mut self) -> Option<Token<'a>> {
-    loop {
-      if self.string.is_empty() {
-        return Some(Token { ty: _Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col });
-      }
-      let (mut line, mut col) = (self.cur_line, self.cur_col);
-      let mut last_acc = _Eof; // this is arbitrary, just a value that cannot be returned by user defined function
-      let mut state = 0;
-      let mut i = 0;
-      while i < self.string.len() {
-        // '\0' should not be in alphabet
-        let ch = unsafe { *self.string.get_unchecked(i) };
-        let &ec = unsafe { CH2EC.get_unchecked((ch & 0x7F) as usize) };
-        let &nxt = unsafe { EDGE.get_unchecked(state as usize).get_unchecked(ec as usize) };
-        let &acc = unsafe { ACC.get_unchecked(nxt as usize) };
-        last_acc = if acc != _Eof { acc } else { last_acc };
-        state = nxt;
-        if nxt == 0 { // dead, should not eat this char
-          if last_acc == _Eof { // completely dead
-            return None;
-          } else {
-            // exec user defined function here
-            let piece = unsafe { std::slice::from_raw_parts(self.string.as_ptr(), i) };
-            self.string = unsafe { std::slice::from_raw_parts(self.string.as_ptr().add(i), self.string.len() - i) };
-            if last_acc != _Eps {
-              return Some(Token { ty: last_acc, piece, line, col });
-            } else {
-              line = self.cur_line;
-              col = self.cur_col;
-              last_acc = _Eof;
-              state = 0;
-              i = 0;
-            }
-          }
-        } else { // continue, eat this char
-          if ch == b'\n' {
-            self.cur_line += 1;
-            self.cur_col = 1;
-          } else {
-            self.cur_col += 1;
-          }
-          i += 1;
-        }
-      }
-      // end of file
-      if last_acc == _Eof { // completely dead
-        return None;
-      } else {
-        // exec user defined function here
-        let piece = unsafe { std::slice::from_raw_parts(self.string.as_ptr(), i) };
-        self.string = unsafe { std::slice::from_raw_parts(self.string.as_ptr().add(i), 0) };
-        if last_acc != _Eps {
-          return Some(Token { ty: last_acc, piece, line, col });
-        } else {
-          return Some(Token { ty: _Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col });
-        }
-      }
-    }
-  }
-}
-"#).ln("");
-
-//    if let Some(ext) = &g.raw.lexer_field_ext {
-//      for RawFieldExt { field, type_, init: _ } in ext {
-//        p.ln(format!("pub {}: {},", field, type_));
-//      }
-//    }
-//    p.dec().ln("}\n");
-
-//    aw.lexer_field_ext {
-//      for RawFieldExt { field, type_: _, init } in ext {
-//        p.ln(format!("{}: {},", field, init));
-//      }
-//    }
-//    p.dec().ln("}"); // Lexer
-//    p.dec().ln("}\n"); // new
-
-    p.lns("#[derive(Copy, Clone, Debug)]
-enum Act {
-  Acc,
-  Shift(u32),
-  Reduce(u32),
-  Goto(u32),
-}").ln("");
-
+  fn gen(&self, g: &Grammar, table: &ParseTable, dfa: &Dfa, ec: &[u8; 128]) -> String {
+    let template = include_str!("template/template.rs");
+    let pat = [
+      "{{INCLUDE}}",
+      "{{TOKEN_TYPE}}",
+      "{{U_LR_SIZE}}",
+      "{{STACK_ITEM}}",
+      "{{DFA_SIZE}}",
+      "{{ACC}}",
+      "{{EC}}",
+      "{{U_DFA_SIZE}}",
+      "{{EC_SIZE}}",
+      "{{DFA_EDGE}}",
+      "{{PARSER_FIELD}}",
+      "{{PARSER_INIT}}",
+      "{{U_LR_SIZE}}",
+      "{{U_PROD_LEN}}",
+      "{{U_PROD_SIZE}}",
+      "{{PROD}}",
+      "{{TOKEN_SIZE}}",
+      "{{LR_SIZE}}",
+      "{{LR_EDGE}}",
+      "{{PARSER_ACT}}",
+      "{{LOG_TOKEN}}",
+    ];
     let mut types = Vec::new();
     let mut types2id = HashMap::new();
     for &(_, ty) in &g.nt {
@@ -217,114 +58,142 @@ enum Act {
         id
       });
     }
-
-    p.ln("enum StackItem<'a> {").inc();
-    p.ln("_Token(Token<'a>),");
-    for (i, ty) in types.iter().enumerate() {
-      p.ln(format!("_{}({}),", i, ty));
-    }
-    p.dec().ln("}\n");
-
-    // use these 2 forward declaration to make the huge code block below not need format!()
-
-
-    p.write(r#"pub struct Parser<'a> {
-  value_stk: Vec<StackItem<'a>>,
-  state_stk: Vec<u32>,
-  lexer: Lexer<'a>,
-"#).inc();
-    if let Some(ext) = &g.raw.parser_field_ext {
-      for RawFieldExt { field, type_, init: _ } in ext {
-        p.ln(format!("pub {}: {},", field, type_));
-      }
-    }
-    p.dec().ln("}\n");
-
-    p.write(r#"impl<'a> Parser<'a> {
-  pub fn new(string: &'a str) -> Parser {
-    Parser {
-      value_stk: vec![],
-      state_stk: vec![0],
-      lexer: Lexer::new(string),
-"#).inc().inc().inc();
-    if let Some(ext) = &g.raw.parser_field_ext {
-      for RawFieldExt { field, type_: _, init } in ext {
-        p.ln(format!("{}: {},", field, init));
-      }
-    }
-    p.dec().ln("}").dec().ln("}");
-
-    let parse_res = g.nt[(g.prod_extra.last().unwrap().1).0 as usize].1;
-    let res_id = types2id[parse_res];
-    p.write(format!(r#"  pub fn parse(&mut self) -> Result<{}, Option<Token<'a>>> {{"#, parse_res));
-
-    p.write(r#"    let mut token = match self.lexer.next() { Some(t) => t, None => return Err(None) };
-    loop {
-      let state = *self.state_stk.last().unwrap();
-      let act = match TABLE[state as usize].get(&(token.ty as u32)) { Some(a) => *a, None => return Err(Some(token)) };
-
-      match act {
-        Act::Shift(s) => {
-          self.value_stk.push(StackItem::_Token(token));
-          self.state_stk.push(s);
-          token = match self.lexer.next() { Some(t) => t, None => return Err(None) };
+    let rep = [
+      // "{{INCLUDE}}"
+      g.raw.include.clone(),
+      { // "{{TOKEN_TYPE}}"
+        let mut s = String::new();
+        for &(nt, _) in &g.nt {
+          write!(s, "{}, ", nt).unwrap();
         }
-        Act::Reduce(r) => {
-          let info = PRODUCTION_INFO[r as usize];
-          for _ in 0..info.1 { self.state_stk.pop().unwrap(); }
-          PARSER_ACT[r as usize](self);
-          let cur = *self.state_stk.last().unwrap();
-          let nxt = match &TABLE[cur as usize][&info.0] { Act::Goto(n) => *n, _ => unreachable!() };
-          self.state_stk.push(nxt);
+        for &(t, _) in &g.terminal {
+          write!(s, "{}, ", t).unwrap();
         }
-        Act::Acc => {
-          self.state_stk.pop().unwrap();"#);
-    p.ln(format!(r#"          let res = match self.value_stk.pop() {{ Some(StackItem::_{}(r)) => r, _ => unreachable!() }};"#, res_id));
-    p.lns(r#"          return Ok(res);
+        s
+      },
+      // {{U_LR_SIZE}}
+      min_u_of(table.action.len() as u32),
+      { // "{{STACK_ITEM}}"
+        let mut s = "_token(token<'a>), ".to_owned();
+        for (i, ty) in types.iter().enumerate() {
+          write!(s, "_{}({}), ", i, ty).unwrap();
         }
-        _ => unreachable!(),
-      }
-    }
-  }
-}"#).ln("");
-
-//    {
-//      let mut cnt = 0;
-//      for lex_state_rules in &g.lex {
-//        for &(_, act, term) in lex_state_rules {
-//          p.ln(format!("fn lex_act{}(_l: &mut Lexer) -> TokenType {{", cnt)).inc();
-//          if !act.is_empty() { // just to make it prettier...
-//            p.lns(act);
-//          }
-//          p.ln(format!("TokenType::{}", term));
-//          p.dec().ln("}\n");
-//          cnt += 1;
-//        }
-//      }
-//    }
-
-    for (i, &(act, (lhs, rhs), _)) in g.prod_extra.iter().enumerate() {
-      p.ln(format!("fn parser_act{}(_p: &mut Parser) {{", i)).inc();
-      let rhs = &g.prod[lhs as usize][rhs as usize];
-      for (j, &x) in rhs.0.iter().enumerate().rev() {
-        let j = j + 1;
-        if x < AbstractGrammar::nt_num(g) {
-          let id = types2id[g.nt[x as usize].1];
-          p.ln(format!("let mut _{} = match _p.value_stk.pop() {{ Some(StackItem::_{}(x)) => x, _ => unreachable!() }};", j, id));
-        } else {
-          p.ln(format!("let mut _{} = match _p.value_stk.pop() {{ Some(StackItem::_Token(x)) => x, _ => unreachable!() }};", j));
+        s
+      },
+      // "{{DFA_SIZE}}" ,
+      dfa.nodes.len().to_string(),
+      { // "{{ACC}}"
+        let mut s = String::new();
+        for &(acc, _) in &dfa.nodes {
+          match acc {
+            Some(acc) => write!(s, "{}, ", g.terminal[acc as usize].0).unwrap(),
+            None => s += "_Eps, ",
+          }
         }
-      }
-      if !act.is_empty() { // just to make it prettier...
-        p.lns(act);
-      }
-      let id = types2id[g.nt[lhs as usize].1];
-      p.ln(format!("_p.value_stk.push(StackItem::_{}(_0));", id));
-      p.dec().ln("}\n");
-    }
-    let mut s = p.finish();
-    s.pop(); // // just to make it prettier...
-    s.pop();
-    s
+        s
+      },
+      { // "{{EC}}"
+        let mut s = String::new();
+        for ch in 0..128 {
+          write!(s, "{}, ", ec[ch]).unwrap();
+        }
+        s
+      },
+      // "{{U_DFA_SIZE}}"
+      min_u_of(dfa.nodes.len() as u32),
+      // "{{EC_SIZE}}"
+      (*ec.iter().max().unwrap() + 1).to_string(),
+      { // "{{DFA_EDGE}}"
+        let mut s = String::new();
+        let mut outs = vec![0; (*ec.iter().max().unwrap() + 1) as usize];
+        for (_, edges) in dfa.nodes.iter() {
+          for x in &mut outs { *x = 0; }
+          for (&k, &out) in edges {
+            outs[ec[k as usize] as usize] = out;
+          }
+          write!(s, "{:?}, ", outs).unwrap();
+        }
+        s
+      },
+      { // "{{PARSER_FIELD}}"
+        let mut s = String::new();
+        if let Some(ext) = &g.raw.parser_field_ext {
+          for RawFieldExt { field, type_, init: _ } in ext {
+            writeln!(s, "pub {}: {},", field, type_).unwrap();
+          }
+        }
+        s
+      },
+      { // "{{PARSER_INIT}}"
+        let mut s = String::new();
+        if let Some(ext) = &g.raw.parser_field_ext {
+          for RawFieldExt { field, type_: _, init } in ext {
+            writeln!(s, "{}: {},", field, init).unwrap();
+          }
+        }
+        s
+      },
+      //  "{{U_LR_SIZE}}"
+      min_u_of(table.action.len() as u32),
+      // "{{U_PROD_LEN}}"
+      g.prod_extra.iter().map(|&(_, (lhs, rhs), _)| g.prod[lhs as usize][rhs as usize].0.len()).max().unwrap().to_string(),
+      // "{{U_PROD_SIZE}}"
+      g.prod_extra.len().to_string(),
+      { // "{{PROD}}"
+        let mut s = String::new();
+        for &(_, (lhs, rhs), _) in &g.prod_extra {
+          write!(s, "({}, {}), ", lhs, g.prod[lhs as usize][rhs as usize].0.len()).unwrap();
+        }
+        s
+      },
+      // "{{TOKEN_SIZE}}" ,
+      (g.terminal.len() + g.nt.len()).to_string(),
+      // "{{LR_SIZE}}"
+      table.action.len().to_string(),
+      { // "{{LR_EDGE}}"
+        let mut s = String::new();
+        for (_, edges) in &table.action {
+          write!(s, "[").unwrap();
+          for i in 0..g.terminal.len() + g.nt.len() {
+            match edges.get(&(i as u32)) {
+              Some(act) => write!(s, "Act::{:?}, ", act[0]).unwrap(),
+              None => write!(s, "Act::Err, ").unwrap(),
+            }
+          }
+          write!(s, "], ").unwrap();
+        }
+        s
+      },
+      { // "{{PARSER_ACT}}"
+        let mut s = String::new();
+        for (i, &(act, (lhs, rhs), _)) in g.prod_extra.iter().enumerate() {
+          writeln!(s, "{} => {{", i).unwrap();
+          let rhs = &g.prod[lhs as usize][rhs as usize];
+          for (j, &x) in rhs.0.iter().enumerate().rev() {
+            let j = j + 1;
+            if x < AbstractGrammar::nt_num(g) {
+              let id = types2id[g.nt[x as usize].1];
+              writeln!(s, "let mut _{} = match self.value_stk.pop() {{ Some(StackItem::_{}(x)) => x, _ => impossible!() }};", j, id).unwrap();
+            } else {
+              writeln!(s, "let mut _{} = match self.value_stk.pop() {{ Some(StackItem::_Token(x)) => x, _ => impossible!() }};", j).unwrap();
+            }
+          }
+          if !act.is_empty() {
+            writeln!(s, "{}", act).unwrap();
+          }
+          if self.log_reduce {
+            writeln!(s, r#"println!("{{:?}}", _0);"#).unwrap();
+          }
+          let id = types2id[g.nt[lhs as usize].1];
+          writeln!(s, "self.value_stk.push(StackItem::_{}(_0));", id).unwrap();
+          writeln!(s, "}}").unwrap();
+        }
+        s
+      },
+      // "{{LOG_TOKEN}}"
+      if self.log_token { r#"println("{:?}", token);"#.to_owned() } else { "".to_owned() },
+    ];
+    let ac = AhoCorasick::new(&pat);
+    ac.replace_all(template, &rep)
   }
 }

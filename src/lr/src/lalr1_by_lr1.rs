@@ -67,12 +67,11 @@ fn get_lalr1_table<'a>(lr: &'a Vec<LRResult<'a>>) -> Vec<(LALR1State<'a>, HashMa
 }
 
 // merge lr1 states, and try to solve conflict using g's information
-#[allow(unused)]
 pub fn work<'a>(lr: &'a Vec<LRResult<'a>>, g: &'a impl AbstractGrammarExt<'a>) -> ParseTable<'a> {
   let lalr1_table = get_lalr1_table(lr);
   let mut action = Vec::with_capacity(lalr1_table.len());
   let (nt_num, token_num, eof) = (g.nt_num(), g.token_num(), g.eof());
-  for (i, (state, link)) in lalr1_table.iter().enumerate() {
+  for (_, (state, link)) in lalr1_table.iter().enumerate() {
     let mut act = HashMap::new();
     for (&k, &v) in link {
       if k < nt_num {

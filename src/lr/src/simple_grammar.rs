@@ -62,7 +62,6 @@ impl<'a> SimpleGrammar<'a> {
       prod[lhs as usize].push((rhs, idx as u32));
       all += 1;
     }
-    let last = prod.len() as u32;
     prod.push(vec![(vec![0], all)]); // all == lines().count()
     SimpleGrammar { prod, nt, t }
   }

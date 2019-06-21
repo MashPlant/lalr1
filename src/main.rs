@@ -1,30 +1,14 @@
-#[macro_use]
-extern crate smallvec;
-extern crate toml;
-extern crate serde;
-extern crate serde_derive;
-extern crate regex;
 extern crate re2dfa;
+extern crate lr;
+extern crate toml;
+extern crate aho_corasick;
 
-mod printer;
-mod raw_grammar;
-mod abstract_grammar;
-mod grammar;
-mod lr1;
-mod lalr1_by_lr1;
-mod bitset;
 mod codegen;
-mod lr0;
-mod lalr1_by_lr0;
-mod lalr1_common;
-mod simple_grammar;
 
-use crate::abstract_grammar::{AbstractGrammar, AbstractGrammarExt};
-use crate::raw_grammar::{Assoc, RawGrammar};
-use std::fs::{read_to_string, File};
-use crate::simple_grammar::SimpleGrammar;
-use std::io::Write;
-
+use lr::RawGrammar;
+use std::fs::read_to_string;
+//use std::io::Write;
+use crate::codegen::Codegen;
 
 fn main() {
 //  let s = read_to_string("test.g").unwrap();
@@ -46,25 +30,34 @@ fn main() {
   let mut g: RawGrammar = toml::from_str(&s).unwrap();
 
   let g = g.extend_grammar().unwrap();
+  let (dfa, ec) = re2dfa::re2dfa(g.raw.lexical.iter().map(|(re, _)| re)).unwrap();
+  eprintln!("dfa has {} states", dfa.nodes.len());
 
-  use std::env;
+  let a = lr::lr0::work(&g);
+  let a = lr::lalr1_by_lr0::work(&a, &g);
+  eprintln!("lalr1 fsm has {} states", a.action.len());
 
-  match env::args().nth(1) {
-    Some(ref one) if one.as_str() == "1" => {
-      let a = lr1::work(&g);
-      let a = lalr1_by_lr1::work(&a, &g);
-      use crate::codegen::RustCodegen;
-      println!("{}", g.gen(&RustCodegen, &a));
-      eprintln!("conflict: {:?}", a.conflict);
-    }
-    _ => {
-      let a = lr0::work(&g);
-      let a = lalr1_by_lr0::work(&a, &g);
-      use crate::codegen::RustCodegen;
-      println!("{}", g.gen(&RustCodegen, &a));
-      eprintln!("conflict: {:?}", a.conflict);
-    }
-  }
+  use crate::codegen::RustCodegen;
+  println!("{}", RustCodegen { log_token: false, log_reduce: true }.gen(&g, &a, &dfa, &ec));
+  eprintln!("conflict: {:?}", a.conflict);
+//  use std::env;
+
+//  match env::args().nth(1) {
+//    Some(ref one) if one.as_str() == "1" => {
+//      let a = lr1::work(&g);
+//      let a = lalr1_by_lr1::work(&a, &g);
+//      use crate::codegen::RustCodegen;
+//      println!("{}", g.gen(&RustCodegen, &a));
+//      eprintln!("conflict: {:?}", a.conflict);
+//    }
+//    _ => {
+//      let a = lr0::work(&g);
+//      let a = lalr1_by_lr0::work(&a, &g);
+//      use crate::codegen::RustCodegen;
+//      println!("{}", g.gen(&RustCodegen, &a));
+//      eprintln!("conflict: {:?}", a.conflict);
+//    }
+//  }
 
   //  let stub = GrammarStub {
 //    prod: vec![

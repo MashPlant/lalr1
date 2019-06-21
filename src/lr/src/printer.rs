@@ -30,18 +30,6 @@ impl IndentPrinter {
     self
   }
 
-  pub fn lns(&mut self, s: impl AsRef<str>) -> &mut Self {
-    for s in s.as_ref().split('\n') {
-      self.ln(s);
-    }
-    self
-  }
-
-  pub fn write(&mut self, s: impl AsRef<str>) -> &mut Self {
-    self.content.push_str(s.as_ref());
-    self
-  }
-
   pub fn finish(self) -> String {
     self.content
   }
