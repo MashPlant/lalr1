@@ -1,11 +1,5 @@
-[package]
-name = "lalr1"
-version = "0.1.0"
-authors = ["MashPlant <740678788@qq.com>"]
-edition = "2018"
-
-[dependencies]
-toml = "0.5"
-re2dfa = { git = "https://github.com/MashPlant/re2dfa" }
-lr = { path = "src/lr" }
-aho-corasick = "0.7"
+[workspace]
+members = [
+  "lalr1",
+  "lalr1-macro",
+]

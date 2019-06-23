@@ -127,8 +127,7 @@ impl RawGrammar {
               prod_rhs.push(t + nt.len() as u32);
               pri_assoc = terminal[t as usize].1;
             }
-            _ => {}
-//            _ => return Err(format!("Production rhs contains undefined item: `{}`", rhs)),
+            _ => return Err(format!("Production rhs contains undefined item: `{}`", rhs)),
           }
         }
         if let Some(prec) = rhs.prec.as_ref() {
