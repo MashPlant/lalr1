@@ -9,3 +9,10 @@ toml = "0.5"
 re2dfa = { git = "https://github.com/MashPlant/re2dfa" }
 lr = { path = "src/lr" }
 aho-corasick = "0.7"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "lalr1gen"
+path = "src/bin.rs"

@@ -13,7 +13,7 @@ pub struct RustCodegen {
   pub log_reduce: bool,
 }
 
-fn min_u_of(x: u32) -> String {
+pub fn min_u_of(x: u32) -> String {
   match x {
     0..=255 => "u8".into(),
     256..=65535 => "u16".into(),
@@ -68,10 +68,10 @@ impl Codegen for RustCodegen {
       { // "{{TOKEN_TYPE}}"
         let mut s = String::new();
         for &(nt, _) in &g.nt {
-          write!(s, "{}, ", nt).unwrap();
+          let _ = write!(s, "{}, ", nt);
         }
         for &(t, _) in &g.terminal {
-          write!(s, "{}, ", t).unwrap();
+          let _ = write!(s, "{}, ", t);
         }
         s
       },
@@ -80,7 +80,7 @@ impl Codegen for RustCodegen {
       { // "{{STACK_ITEM}}"
         let mut s = "_Token(Token<'a>), ".to_owned();
         for (i, ty) in types.iter().enumerate() {
-          write!(s, "_{}({}), ", i, ty).unwrap();
+          let _ = write!(s, "_{}({}), ", i, ty);
         }
         s
       },
@@ -90,7 +90,7 @@ impl Codegen for RustCodegen {
         let mut s = String::new();
         for &(acc, _) in &dfa.nodes {
           match acc {
-            Some(acc) => write!(s, "{}, ", g.raw.lexical[acc as usize].1).unwrap(),
+            Some(acc) => { let _ = write!(s, "{}, ", g.raw.lexical[acc as usize].1); }
             None => s += "_Eof, ",
           }
         }
@@ -99,7 +99,7 @@ impl Codegen for RustCodegen {
       { // "{{EC}}"
         let mut s = String::new();
         for ch in 0..128 {
-          write!(s, "{}, ", ec[ch]).unwrap();
+          let _ = write!(s, "{}, ", ec[ch]);
         }
         s
       },
@@ -115,7 +115,7 @@ impl Codegen for RustCodegen {
           for (&k, &out) in edges {
             outs[ec[k as usize] as usize] = out;
           }
-          write!(s, "{:?}, ", outs).unwrap();
+          let _ = write!(s, "{:?}, ", outs);
         }
         s
       },
@@ -123,7 +123,7 @@ impl Codegen for RustCodegen {
         let mut s = String::new();
         if let Some(ext) = &g.raw.parser_field_ext {
           for RawFieldExt { field, type_, init: _ } in ext {
-            writeln!(s, "pub {}: {},", field, type_).unwrap();
+            let _ = writeln!(s, "pub {}: {},", field, type_);
           }
         }
         s
@@ -132,7 +132,7 @@ impl Codegen for RustCodegen {
         let mut s = String::new();
         if let Some(ext) = &g.raw.parser_field_ext {
           for RawFieldExt { field, type_: _, init } in ext {
-            writeln!(s, "{}: {},", field, init).unwrap();
+            writeln!(s, "{}: {},", field, init);
           }
         }
         s
@@ -150,7 +150,7 @@ impl Codegen for RustCodegen {
       { // "{{PROD}}"
         let mut s = String::new();
         for &(_, (lhs, rhs), _) in &g.prod_extra {
-          write!(s, "({}, {}), ", lhs, g.prod[lhs as usize][rhs as usize].0.len()).unwrap();
+          let _ = write!(s, "({}, {}), ", lhs, g.prod[lhs as usize][rhs as usize].0.len());
         }
         s
       },
@@ -161,40 +161,40 @@ impl Codegen for RustCodegen {
       { // "{{LR_EDGE}}"
         let mut s = String::new();
         for (_, edges) in &table.action {
-          write!(s, "[").unwrap();
+          let _ = write!(s, "[");
           for i in 0..g.terminal.len() + g.nt.len() {
             match edges.get(&(i as u32)) {
-              Some(act) => write!(s, "Act::{:?}, ", act[0]).unwrap(),
-              None => write!(s, "Act::Err, ").unwrap(),
+              Some(act) => { let _ = write!(s, "Act::{:?}, ", act[0]); }
+              None => { let _ = write!(s, "Act::Err, "); }
             }
           }
-          write!(s, "], ").unwrap();
+          let _ = write!(s, "], ");
         }
         s
       },
       { // "{{PARSER_ACT}}"
         let mut s = String::new();
         for (i, &(act, (lhs, rhs), _)) in g.prod_extra.iter().enumerate() {
-          writeln!(s, "{} => {{", i).unwrap();
+          let _ = writeln!(s, "{} => {{", i);
           let rhs = &g.prod[lhs as usize][rhs as usize];
           for (j, &x) in rhs.0.iter().enumerate().rev() {
             let j = j + 1;
             if x < AbstractGrammar::nt_num(g) {
               let id = types2id[g.nt[x as usize].1];
-              writeln!(s, "let mut _{} = match self.value_stk.pop() {{ Some(StackItem::_{}(x)) => x, _ => impossible!() }};", j, id).unwrap();
+              let _ = writeln!(s, "let mut _{} = match self.value_stk.pop() {{ Some(StackItem::_{}(x)) => x, _ => impossible!() }};", j, id);
             } else {
-              writeln!(s, "let mut _{} = match self.value_stk.pop() {{ Some(StackItem::_Token(x)) => x, _ => impossible!() }};", j).unwrap();
+              let _ = writeln!(s, "let mut _{} = match self.value_stk.pop() {{ Some(StackItem::_Token(x)) => x, _ => impossible!() }};", j);
             }
           }
           if !act.is_empty() {
-            writeln!(s, "{}", act).unwrap();
+            let _ = writeln!(s, "{}", act);
           }
           if self.log_reduce {
-            writeln!(s, r#"println!("{{:?}}", _0);"#).unwrap();
+            let _ = writeln!(s, r#"println!("{{:?}}", _0);"#);
           }
           let id = types2id[g.nt[lhs as usize].1];
-          writeln!(s, "self.value_stk.push(StackItem::_{}(_0));", id).unwrap();
-          writeln!(s, "}}").unwrap();
+          let _ = writeln!(s, "self.value_stk.push(StackItem::_{}(_0));", id);
+          let _ = writeln!(s, "}}");
         }
         s
       },

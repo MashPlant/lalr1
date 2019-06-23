@@ -1,14 +1,6 @@
-extern crate re2dfa;
-extern crate lr;
-extern crate toml;
-extern crate aho_corasick;
-
-mod codegen;
-
 use lr::RawGrammar;
 use std::fs::read_to_string;
-//use std::io::Write;
-use crate::codegen::Codegen;
+use lalr1::codegen::Codegen;
 
 fn main() {
 //  let s = read_to_string("test.g").unwrap();
@@ -37,7 +29,7 @@ fn main() {
   let a = lr::lalr1_by_lr0::work(&a, &g);
   eprintln!("lalr1 fsm has {} states", a.action.len());
 
-  use crate::codegen::RustCodegen;
+  use lalr1::codegen::RustCodegen;
   println!("{}", RustCodegen { log_token: false, log_reduce: true }.gen(&g, &a, &dfa, &ec));
   eprintln!("conflict: {:?}", a.conflict);
 //  use std::env;

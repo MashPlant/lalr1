@@ -2,4 +2,5 @@
 members = [
   "lalr1",
   "lalr1-macro",
+  "tests",
 ]
