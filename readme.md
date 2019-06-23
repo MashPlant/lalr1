@@ -21,6 +21,8 @@ Quite a traditional approach. Use a toml to describe the grammar, and generate i
 Use rust's proc macro to describe the grammer.
 
 ```rust
+struct Parser;
+
 #[lalr1(Expr)]
 #[term(IntConst(r"\d+"))]
 #[term(_Eps(r"\s+"))]
