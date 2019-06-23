@@ -223,8 +223,11 @@ pub fn lalr1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> p
         }
       }
       if let Some(prec) = match method.attrs.get(1) {
-        Some(attr) => match attr.tts.clone().into_iter().next() {
-          Some(proc_macro2::TokenTree::Ident(ident)) => Some(ident.to_string()),
+        Some(attr) if attr.path.is_ident("prec") => match attr.tts.clone().into_iter().next() {
+          Some(proc_macro2::TokenTree::Group(group)) => match group.stream().into_iter().next() {
+            Some(proc_macro2::TokenTree::Ident(ident)) => Some(ident.to_string()),
+            _ => None,
+          }
           _ => None,
         }
         _ => None
