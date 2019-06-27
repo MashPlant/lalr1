@@ -75,7 +75,7 @@ impl Codegen for RustCodegen {
         for &(nt, _) in &g.nt {
           let _ = write!(s, "{}, ", nt);
         }
-        for &(t, _) in &g.terminal {
+        for &(t, _) in &g.terms {
           let _ = write!(s, "{}, ", t);
         }
         s
@@ -95,7 +95,7 @@ impl Codegen for RustCodegen {
         let mut s = String::new();
         for &(acc, _) in &dfa.nodes {
           match acc {
-            Some(acc) => { let _ = write!(s, "{}, ", g.raw.lexical[acc as usize].1); }
+            Some(acc) => { let _ = write!(s, "{}, ", g.raw.lexical.get_index(acc as usize).unwrap().1); }
             None => s += "_Eof, ",
           }
         }
@@ -160,14 +160,14 @@ impl Codegen for RustCodegen {
         s
       },
       // "{{TOKEN_SIZE}}" ,
-      (g.terminal.len() + g.nt.len()).to_string(),
+      (g.terms.len() + g.nt.len()).to_string(),
       // "{{LR_SIZE}}"
       table.action.len().to_string(),
       { // "{{LR_EDGE}}"
         let mut s = String::new();
         for (_, edges) in &table.action {
           let _ = write!(s, "[");
-          for i in 0..g.terminal.len() + g.nt.len() {
+          for i in 0..g.terms.len() + g.nt.len() {
             match edges.get(&(i as u32)) {
               Some(act) => { let _ = write!(s, "Act::{:?}, ", act[0]); }
               None => { let _ = write!(s, "Act::Err, "); }

@@ -1,6 +1,3 @@
-#![allow(unused)]
-#![allow(unused_mut)]
-
 #[cfg(not(feature = "unsafe_parser"))]
 macro_rules! index {
   ($arr: expr, $idx: expr) => { $arr[$idx as usize] };
@@ -105,7 +102,6 @@ impl<'a> Lexer<'a> {
       if last_acc == _Eof { // completely dead
         return None;
       } else {
-        // exec user defined function here
         let piece = &self.string[..i];
         self.string = &self.string[i..];
         if last_acc != _Eps {
@@ -126,15 +122,8 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-  pub fn new(string: &'a [u8]) -> Parser {
-    Parser {
-      value_stk: vec![],
-      state_stk: vec![0],
-      lexer: Lexer::new(string),
-      {{PARSER_INIT}}
-    }
-  }
-
+  #[allow(unused)]
+  #[allow(unused_mut)]
   pub fn parse(&mut self) -> Result<{{RESULT_TYPE}}, Option<Token<'a>>> {
     static PROD: [({{U_LR_SIZE}}, {{U_PROD_LEN}}); {{PROD_SIZE}}] = [{{PROD}}];
     static EDGE: [[Act; {{TOKEN_SIZE}}]; {{LR_SIZE}}] = [{{LR_EDGE}}];

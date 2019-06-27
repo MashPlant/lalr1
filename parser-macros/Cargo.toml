@@ -8,11 +8,14 @@ edition = "2018"
 syn = { version = "0.15", features = ["extra-traits", "full"] }
 proc-macro2 = "0.4"
 quote = "0.6"
-regex = "1"
 lalr1-core = { path = "../lalr1-core" }
 parser-gen = { path = "../parser-gen" }
 re2dfa = { git = "https://github.com/MashPlant/re2dfa" }
 grammar-config = { path = "../grammar-config" }
+toml = "0.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_derive = "1.0"
+indexmap = { version = "1.0.2", features = ["serde-1"] }
 
 [lib]
 proc-macro = true
