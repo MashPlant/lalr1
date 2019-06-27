@@ -2,8 +2,8 @@
 members = [
   "lalr1-core",
   "ll1-core",
-  "parse",
-  "codegen",
-  "macros",
+  "grammar-config",
+  "parser-gen",
+  "parser-macros",
   "tests",
 ]

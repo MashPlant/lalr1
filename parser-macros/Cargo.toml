@@ -1,5 +1,5 @@
 [package]
-name = "macros"
+name = "parser-macros"
 version = "0.1.0"
 authors = ["MashPlant <740678788@qq.com>"]
 edition = "2018"
@@ -10,7 +10,7 @@ proc-macro2 = "0.4"
 quote = "0.6"
 regex = "1"
 lalr1-core = { path = "../lalr1-core" }
-codegen = { path = "../codegen" }
+parser-gen = { path = "../parser-gen" }
 re2dfa = { git = "https://github.com/MashPlant/re2dfa" }
 
 [lib]

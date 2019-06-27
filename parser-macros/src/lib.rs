@@ -5,7 +5,7 @@ extern crate quote;
 extern crate regex;
 extern crate lalr1_core;
 extern crate re2dfa;
-extern crate codegen;
+extern crate parser_gen;
 
 use lalr1_core as lalr1;
 use std::collections::HashMap;
@@ -375,7 +375,7 @@ pub fn lalr1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> p
     let _ = write!(ec_info, "{}, ", ec[ch]);
   }
   let ec_info = ec_info.parse::<proc_macro2::TokenStream>().unwrap();
-  let u_dfa_size = codegen::min_u_of(dfa.nodes.len() as u32).parse::<proc_macro2::TokenStream>().unwrap();
+  let u_dfa_size = parser_gen::min_u_of(dfa.nodes.len() as u32).parse::<proc_macro2::TokenStream>().unwrap();
   let ec_size = *ec.iter().max().unwrap() as usize + 1;
   let mut dfa_edge = String::new();
   let mut outs = vec![0; ec_size];
@@ -387,8 +387,8 @@ pub fn lalr1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> p
     let _ = write!(dfa_edge, "{:?}, ", outs);
   }
   let dfa_edge = dfa_edge.parse::<proc_macro2::TokenStream>().unwrap();
-  let u_lr_size = codegen::min_u_of(table.action.len() as u32).parse::<proc_macro2::TokenStream>().unwrap();
-  let u_prod_len = codegen::min_u_of(g.prod_extra.iter().map(|&(_, (lhs, rhs), _)|
+  let u_lr_size = parser_gen::min_u_of(table.action.len() as u32).parse::<proc_macro2::TokenStream>().unwrap();
+  let u_prod_len = parser_gen::min_u_of(g.prod_extra.iter().map(|&(_, (lhs, rhs), _)|
     g.prod[lhs as usize][rhs as usize].0.len()).max().unwrap() as u32).parse::<proc_macro2::TokenStream>().unwrap();
   ;
   let prod_size = g.prod_extra.len();
