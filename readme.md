@@ -18,19 +18,40 @@ Quite a traditional approach. Use a toml to describe the grammar, and generate i
 
 ## #[lalr1]
 
-Use rust's proc macro to describe the grammer.
+Use rust's proc macro to describe the grammar.
 
 ```rust
+#![feature(proc_macro_hygiene)]
+extern crate parser_macros;
+
+use parser_macros::lalr1;
+
 struct Parser;
 
+// why am I using toml here for lexer?
+// because rust attributes have no advantage in describing the lexer over toml
+
 #[lalr1(Expr)]
-#[term(IntConst(r"\d+"))]
-#[term(_Eps(r"\s+"))]
-#[term(Add(r"\+" left) Sub("-" left))]
-#[term(Div("/" left) Mul(r"\*" left) Mod("%" left))]
-#[term(RParen(r"\)" no_assoc))]
-#[term(LParen(r"\("))]
-#[term(UMinus(no_assoc))]
+#[lex(r#"
+priority = [
+  { assoc = 'left', terms = ['Add', 'Sub'] },
+  { assoc = 'left', terms = ['Mul', 'Div', 'Mod'] },
+  { assoc = 'no_assoc', terms = ['UMinus'] },
+  { assoc = 'no_assoc', terms = ['RParen'] },
+]
+
+[lexical]
+'\(' = 'LParen'
+'\)' = 'RParen'
+'\d+' = 'IntConst'
+'\+' = 'Add'
+'-' = 'Sub'
+'\*' = 'Mul'
+'/' = 'Div'
+'%' = 'Mod'
+'\d+' = 'IntConst'
+'\s+' = '_Eps'
+"#)]
 impl Parser {
   #[rule(Expr -> Expr Add Expr)]
   fn expr_add(l: i32, _op: Token<'_>, r: i32) -> i32 {
@@ -82,6 +103,9 @@ impl Parser {
     int
   }
 }
+
+let mut p = Parser;
+assert_eq!(p.parse(Lexer::new(b"1 - 2 * (3 + 4 * 5 / 6) + -7 * -9 % 10")), Ok(-8));
 ```
 
 A pity is that I don't know how to expand macro in proc macro. If so, we can simply write
@@ -92,7 +116,7 @@ bin!(expr_sub, Sub, -);
 ...
 ```
 
-which is more straightforward.
+which is terser.
 
 ## What does lr fsm looks like
 
@@ -115,12 +139,12 @@ picture:
 
 lr0:
 
-![lr0](./lalr1/pic/lr0.png)
+![lr0](./pic/lr0.png)
 
 lr1:
 
-![lr1](./lalr1/pic/lr1.png)
+![lr1](./pic/lr1.png)
 
 lalr1:
 
-![lalr1](./lalr1/pic/lalr1.png)
+![lalr1](./pic/lalr1.png)
