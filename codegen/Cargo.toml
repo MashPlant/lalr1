@@ -1,18 +1,10 @@
 [package]
-name = "lalr1"
+name = "codegen"
 version = "0.1.0"
 authors = ["MashPlant <740678788@qq.com>"]
 edition = "2018"
 
 [dependencies]
-toml = "0.5"
 re2dfa = { git = "https://github.com/MashPlant/re2dfa" }
-lr = { path = "src/lr" }
 aho-corasick = "0.7"
-
-[lib]
-path = "src/lib.rs"
-
-[[bin]]
-name = "lalr1gen"
-path = "src/bin.rs"
+lalr1-core = { path = "../lalr1-core" }

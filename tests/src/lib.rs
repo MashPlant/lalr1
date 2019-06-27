@@ -1,7 +1,7 @@
 #![feature(proc_macro_hygiene)]
-extern crate lalr1_macro;
+extern crate macros;
 
-use lalr1_macro::lalr1;
+use macros::lalr1;
 
 struct Parser;
 

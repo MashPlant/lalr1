@@ -19,25 +19,19 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "lalr1"
+name = "codegen"
 version = "0.1.0"
 dependencies = [
  "aho-corasick 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "lr 0.1.0",
+ "lalr1-core 0.1.0",
  "re2dfa 1.0.0 (git+https://github.com/MashPlant/re2dfa)",
- "toml 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
-name = "lalr1-macro"
+name = "lalr1-core"
 version = "0.1.0"
 dependencies = [
- "lalr1 0.1.0",
- "proc-macro2 0.4.30 (registry+https://github.com/rust-lang/crates.io-index)",
- "quote 0.6.12 (registry+https://github.com/rust-lang/crates.io-index)",
- "re2dfa 1.0.0 (git+https://github.com/MashPlant/re2dfa)",
- "regex 1.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "syn 0.15.37 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lr 0.1.0",
 ]
 
 [[package]]
@@ -58,6 +52,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ll1-core"
+version = "0.1.0"
+
+[[package]]
 name = "lr"
 version = "0.1.0"
 dependencies = [
@@ -65,6 +63,19 @@ dependencies = [
  "serde 1.0.92 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.92 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 0.6.10 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "macros"
+version = "0.1.0"
+dependencies = [
+ "codegen 0.1.0",
+ "lalr1-core 0.1.0",
+ "proc-macro2 0.4.30 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote 0.6.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "re2dfa 1.0.0 (git+https://github.com/MashPlant/re2dfa)",
+ "regex 1.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 0.15.37 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -81,6 +92,10 @@ dependencies = [
  "memchr 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "version_check 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "parse"
+version = "0.1.0"
 
 [[package]]
 name = "print"
@@ -211,7 +226,7 @@ dependencies = [
 name = "tests"
 version = "0.1.0"
 dependencies = [
- "lalr1-macro 0.1.0",
+ "macros 0.1.0",
 ]
 
 [[package]]
@@ -220,14 +235,6 @@ version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "lazy_static 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "toml"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "serde 1.0.92 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -288,7 +295,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum static_assertions 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)" = "c19be23126415861cb3a23e501d34a708f7f9b2183c5252d690941c2e69199d5"
 "checksum syn 0.15.37 (registry+https://github.com/rust-lang/crates.io-index)" = "e11410033fd5cf69a1cf2084604e011190c56f11e08ffc53df880f5f65f1c6e4"
 "checksum thread_local 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "c6b53e329000edc2b34dbe8545fd20e55a333362d0a321909685a19bd28c3f1b"
-"checksum toml 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b8c96d7873fa7ef8bdeb3a9cda3ac48389b4154f32b9803b4bc26220b677b039"
 "checksum ucd-util 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "535c204ee4d8434478593480b8f86ab45ec9aae0e83c568ca81abf0fd0e88f86"
 "checksum unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc72304796d0818e357ead4e000d19c9c174ab23dc11093ac919054d20a6a7fc"
 "checksum unreachable 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "382810877fe448991dfc7f0dd6e3ae5d58088fd0ea5e35189655f84e6814fa56"

@@ -1,6 +1,9 @@
 [workspace]
 members = [
-  "lalr1",
-  "lalr1-macro",
+  "lalr1-core",
+  "ll1-core",
+  "parse",
+  "codegen",
+  "macros",
   "tests",
 ]
