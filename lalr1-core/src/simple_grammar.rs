@@ -1,5 +1,4 @@
-use crate::abstract_grammar::*;
-use crate::raw_grammar::Assoc;
+use grammar_config::*;
 use crate::lr0::LRItem;
 use crate::lr1::LRResult;
 use std::collections::HashMap;

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use crate::bitset::BitSet;
-use crate::abstract_grammar::AbstractGrammar;
+use grammar_config::AbstractGrammar;
 use std::cell::RefCell;
 use std::collections::vec_deque::VecDeque;
 use crate::lr0::LRItem;

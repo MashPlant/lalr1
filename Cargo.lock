@@ -21,11 +21,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "grammar-config"
 version = "0.1.0"
+dependencies = [
+ "regex 1.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.93 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.93 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.6.10 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "lalr1-core"
 version = "0.1.0"
 dependencies = [
+ "grammar-config 0.1.0",
  "regex 1.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.93 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.93 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -73,6 +80,7 @@ name = "parser-gen"
 version = "0.1.0"
 dependencies = [
  "aho-corasick 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "grammar-config 0.1.0",
  "lalr1-core 0.1.0",
  "re2dfa 1.0.0 (git+https://github.com/MashPlant/re2dfa)",
 ]
@@ -81,6 +89,7 @@ dependencies = [
 name = "parser-macros"
 version = "0.1.0"
 dependencies = [
+ "grammar-config 0.1.0",
  "lalr1-core 0.1.0",
  "parser-gen 0.1.0",
  "proc-macro2 0.4.30 (registry+https://github.com/rust-lang/crates.io-index)",

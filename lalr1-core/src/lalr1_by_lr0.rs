@@ -3,7 +3,7 @@
 use crate::bitset::BitSet;
 use crate::lr1::{LRCtx, LRState, LRResult};
 use crate::lr0::LRItem;
-use crate::abstract_grammar::AbstractGrammarExt;
+use grammar_config::AbstractGrammarExt;
 use crate::lalr1_common::*;
 use std::collections::HashMap;
 use smallvec::SmallVec;

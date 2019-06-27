@@ -8,6 +8,7 @@ edition = "2018"
 re2dfa = { git = "https://github.com/MashPlant/re2dfa" }
 aho-corasick = "0.7"
 lalr1-core = { path = "../lalr1-core" }
+grammar-config = { path = "../grammar-config" }
 
 [lib]
 path = "src/lib.rs"

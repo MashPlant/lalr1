@@ -1,8 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use crate::raw_grammar::Assoc;
+use grammar_config::{Assoc, AbstractGrammarExt};
 use crate::lr0::LRItem;
-use crate::abstract_grammar::AbstractGrammarExt;
 use smallvec::SmallVec;
 
 #[derive(Debug, Copy, Clone)]

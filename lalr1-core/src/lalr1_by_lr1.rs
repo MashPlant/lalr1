@@ -1,6 +1,6 @@
 use crate::lr1::*;
 use crate::lr0::LRItem;
-use crate::abstract_grammar::AbstractGrammarExt;
+use grammar_config::AbstractGrammarExt;
 use std::collections::HashMap;
 use crate::bitset::BitSet;
 use smallvec::SmallVec;

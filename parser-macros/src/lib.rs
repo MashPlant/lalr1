@@ -6,12 +6,13 @@ extern crate regex;
 extern crate lalr1_core;
 extern crate re2dfa;
 extern crate parser_gen;
+extern crate grammar_config;
 
 use lalr1_core as lalr1;
 use std::collections::HashMap;
 use regex::Regex;
 use quote::{ToTokens, quote};
-use lalr1::{Assoc, AbstractGrammar, AbstractGrammarExt};
+use grammar_config::{Assoc, AbstractGrammar, AbstractGrammarExt};
 use std::fmt::Write;
 
 fn parse_assoc(s: &str) -> Assoc {

@@ -12,6 +12,7 @@ regex = "1"
 lalr1-core = { path = "../lalr1-core" }
 parser-gen = { path = "../parser-gen" }
 re2dfa = { git = "https://github.com/MashPlant/re2dfa" }
+grammar-config = { path = "../grammar-config" }
 
 [lib]
 proc-macro = true
