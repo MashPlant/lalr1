@@ -15,8 +15,8 @@ pub struct Grammar<'a> {
   //          (name   , type_  )>
   pub nt: Vec<(&'a str, &'a str)>,
   pub prod: Vec<Vec<(ProdVec, u32)>>,
-  //                   act      (lhs, index of this prod in raw.prod[lhs])
-  pub prod_extra: Vec<(&'a str, (u32, u32), Option<(u32, Assoc)>)>,
+  //                   (act, arg)                     (lhs, index of this prod in raw.prod[lhs])    pri_assoc
+  pub prod_extra: Vec<((&'a str, Option<&'a Vec<(Option<String>, String)>>), (u32, u32), Option<(u32, Assoc)>)>,
 }
 
 // will add a production _Start -> Start, so need mut
@@ -33,19 +33,22 @@ pub fn extend_grammar(raw: &mut RawGrammar) -> Result<Grammar, String> {
 
   // getting production must be after this mut operation
   // this may seem stupid...
-  {
-    let start = raw.start.clone().unwrap_or_else(|| (raw.production[0].lhs.clone(), raw.production[0].type_.clone()));
+  let start = {
+    let start = raw.start.clone().unwrap_or_else(|| raw.production[0].lhs.clone());
     raw.production.push(RawProduction {
-      lhs: format!("_{}", start.0),
-      type_: start.1,
+      lhs: format!("_{}", start),
+      // determine later
+      type_: "".to_owned(),
       rhs: vec![RawProductionRhs {
-        rhs: start.0,
-        act: "let _0 = _1;".into(),
-        rhs_arg: unimplemented!(),
+        rhs: start.clone(),
+        act: "_1".to_owned(),
+        // the type "" is invalid, but will not be checked
+        rhs_arg: Some(vec![(Some("_1".to_owned()), "".to_owned())]),
         prec: None,
       }],
     });
-  }
+    start
+  };
 
   for prod in &raw.production {
     let lhs = prod.lhs.as_str();
@@ -56,22 +59,29 @@ pub fn extend_grammar(raw: &mut RawGrammar) -> Result<Grammar, String> {
     } else if term2id.contains_key(lhs) {
       return Err(format!("Non-terminal has a duplicate name with terminal: `{}`.", lhs));
     } else {
-      nt2id.entry(lhs).or_insert_with(|| {
-        let id = nt.len() as u32;
-        nt.push((lhs, prod.type_.as_str()));
-        id
-      });
+      match nt2id.get(lhs) {
+        None => {
+          let id = nt.len() as u32;
+          nt.push((lhs, prod.type_.as_str()));
+          nt2id.insert(lhs, id);
+        }
+        Some(&old) => if prod.type_.as_str() != nt[old as usize].1 {
+          return Err(format!("Non-terminal `{}` is assigned to different types: `{}` and `{}`.", lhs, nt[old as usize].1, prod.type_));
+        }
+      };
     }
   }
+  // set the type of _Start the same as Start
+  nt.last_mut().unwrap().1 = nt[nt2id[start.as_str()] as usize].1;
 
   let mut prod = vec![Vec::new(); nt.len()];
   let mut prod_extra = Vec::new();
   let mut prod_id = 0u32;
 
-  for raw in &raw.production {
-    let lhs = nt2id.get(raw.lhs.as_str()).unwrap();
+  for (idx, raw_prod) in raw.production.iter().enumerate() {
+    let lhs = nt2id.get(raw_prod.lhs.as_str()).unwrap();
     let lhs_prod = &mut prod[*lhs as usize];
-    for rhs in &raw.rhs {
+    for rhs in &raw_prod.rhs {
       let mut prod_rhs = ProdVec::new();
       let mut pri_assoc = None;
       for rhs in rhs.rhs.split_whitespace() {
@@ -82,12 +92,12 @@ pub fn extend_grammar(raw: &mut RawGrammar) -> Result<Grammar, String> {
             prod_rhs.push(t + nt.len() as u32);
             pri_assoc = terms[t as usize].1;
           }
-          _ => return Err(format!("Production rhs contains undefined item: `{}`", rhs)),
+          _ => return Err(format!("Production rhs contains undefined token: `{}`", rhs)),
         }
       }
       if let Some(prec) = rhs.prec.as_ref() {
         match term2id.get(prec.as_str()) {
-          None => return Err(format!("Prec uses undefined terminal: `{}`", prec)),
+          None => return Err(format!("Prec uses undefined term: `{}`", prec)),
           Some(&t) => {
             pri_assoc = terms[t as usize].1;
           }
@@ -95,11 +105,37 @@ pub fn extend_grammar(raw: &mut RawGrammar) -> Result<Grammar, String> {
       }
       let id = lhs_prod.len() as u32;
       lhs_prod.push((prod_rhs, prod_id));
-      prod_extra.push((rhs.act.as_str(), (*lhs, id), pri_assoc));
+      prod_extra.push(((rhs.act.as_str(), rhs.rhs_arg.as_ref()), (*lhs, id), pri_assoc));
       prod_id += 1;
+
+      // no type checking for _Start
+      if idx == raw.production.len() - 1 { break; }
+      // type checking
+      if let Some(rhs_arg) = &rhs.rhs_arg {
+        let rhs_tk = rhs.rhs.split_whitespace().collect::<Vec<_>>();
+        if rhs_arg.len() != rhs_tk.len() {
+          return Err(format!("Production `{} -> {}`'s rhs and method's arguments have different length: {} vs {}.",
+                             lhs, rhs.rhs, rhs_tk.len(), rhs_arg.len()));
+        }
+        for (&rhs_tk, (_, rhs_ty)) in rhs_tk.iter().zip(rhs_arg.iter()) {
+          match (nt2id.get(rhs_tk), term2id.get(rhs_tk)) {
+            (Some(&nt_id), _) => {
+              let nt_ty = &nt[nt_id as usize].1;
+              if nt_ty != rhs_ty {
+                return Err(format!("Production `{} -> {}`'s rhs and method's arguments have conflict signature: `{}` requires `{}`, while method takes `{}`.",
+                                   lhs, rhs.rhs, rhs_tk, nt_ty, rhs_ty));
+              }
+            }
+            (_, Some(_)) => if !rhs_ty.starts_with("Token") { // maybe user will use some lifetime specifier
+              return Err(format!("Production `{} -> {}`'s rhs and method 's arguments have conflict signature: `{}` requires Token, while method takes `{}`.",
+                                 lhs, rhs.rhs, rhs_tk, rhs_ty));
+            }
+            _ => {} // unreachable, bacause checked above
+          }
+        }
+      }
     }
   }
-
   Ok(Grammar { raw, nt, terms, prod, prod_extra })
 }
 

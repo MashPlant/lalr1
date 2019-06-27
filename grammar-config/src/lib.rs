@@ -25,9 +25,10 @@ pub struct RawGrammar {
   pub priority: Vec<RawPriorityRow>,
   /// map re to term
   pub lexical: IndexMap<String, String>,
-  pub parser_field_ext: Option<Vec<RawFieldExt>>,
-  //                (nt    , type  )
-  pub start: Option<(String, String)>,
+  /// this string should contain name & type
+  /// e.g.: "a: u32" for rust, "int a" for c++
+  pub parser_field: Option<Vec<String>>,
+  pub start: Option<String>,
   pub production: Vec<RawProduction>,
   /// None -> will define a struct Parser<'a> { _p: std::marker::PhantomData<&'a ()>,  parser_field_ext }
   /// Some -> will not define a struct
@@ -43,14 +44,6 @@ pub const ERR: &'static str = "_Err";
 pub struct RawPriorityRow {
   pub assoc: Assoc,
   pub terms: Vec<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct RawFieldExt {
-  pub field: String,
-  #[serde(rename = "type")]
-  pub type_: String,
-  pub init: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -180,6 +173,3 @@ pub fn parse_term<'a>(
         }
       }
 */
-pub fn prod_type_check() {
-  unimplemented!()
-}

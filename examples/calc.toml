@@ -1,6 +1,6 @@
 include = ""
 
-terminal = [
+priority = [
   { assoc = "left", terms = ["Or"] },
   { assoc = "left", terms = ["And"] },
   { assoc = "left", terms = ["BOr"] },

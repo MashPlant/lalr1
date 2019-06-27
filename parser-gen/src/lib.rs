@@ -4,7 +4,6 @@ extern crate grammar_config;
 
 use re2dfa::dfa::Dfa;
 use std::collections::HashMap;
-use grammar_config::{RawFieldExt, AbstractGrammar};
 use lalr1_core::{ParseTable, Grammar};
 use aho_corasick::AhoCorasick;
 use std::fmt::Write;
@@ -18,11 +17,11 @@ pub struct RustCodegen {
   pub log_reduce: bool,
 }
 
-pub fn min_u_of(x: u32) -> String {
+pub fn min_u_of(x: u32) -> &'static str {
   match x {
-    0..=255 => "u8".into(),
-    256..=65535 => "u16".into(),
-    _ => "u32".into(),
+    0..=255 => "u8",
+    256..=65535 => "u16",
+    _ => "u32",
   }
 }
 
@@ -32,29 +31,29 @@ impl Codegen for RustCodegen {
   fn gen(&self, g: &Grammar, table: &ParseTable, dfa: &Dfa, ec: &[u8; 128]) -> String {
     let template = include_str!("template/template.rs");
     let pat = [
-      "{{INCLUDE}}",
-      "{{TOKEN_TYPE}}",
-      "{{U_LR_SIZE}}",
-      "{{STACK_ITEM}}",
-      "{{DFA_SIZE}}",
-      "{{ACC}}",
-      "{{EC}}",
-      "{{U_DFA_SIZE}}",
-      "{{EC_SIZE}}",
-      "{{DFA_EDGE}}",
-      "{{PARSER_FIELD}}",
-      "{{PARSER_INIT}}",
-      "{{RESULT_TYPE}}",
-      "{{RESULT_ID}}",
-      "{{U_LR_SIZE}}",
-      "{{U_PROD_LEN}}",
-      "{{PROD_SIZE}}",
-      "{{PROD}}",
-      "{{TOKEN_SIZE}}",
-      "{{LR_SIZE}}",
-      "{{LR_EDGE}}",
-      "{{PARSER_ACT}}",
-      "{{LOG_TOKEN}}",
+      "{include}",
+      "{token_type}",
+      "{u_lr_size}",
+      "{stack_item}",
+      "{dfa_size}",
+      "{acc}",
+      "{ec}",
+      "{u_dfa_size}",
+      "{ec_size}",
+      "{dfa_edge}",
+      "{parser_struct}",
+      "{parser_type}",
+      "{res_type}",
+      "{res_id}",
+      "{u_lr_size}",
+      "{u_prod_len}",
+      "{prod_size}",
+      "{prod}",
+      "{token_size}",
+      "{lr_size}",
+      "{lr_edge}",
+      "{parser_act}",
+      "{log_token}",
     ];
     let mut types = Vec::new();
     let mut types2id = HashMap::new();
@@ -65,33 +64,31 @@ impl Codegen for RustCodegen {
         id
       });
     }
-    let parse_res = g.nt[(g.prod_extra.last().unwrap().1).0 as usize].1;
+    let parse_res = g.nt.last().unwrap().1;
     let res_id = types2id[parse_res];
     let rep = [
-      // "{{INCLUDE}}"
+      // "{include}"
       g.raw.include.clone(),
-      { // "{{TOKEN_TYPE}}"
+      { // "{token_type}"
         let mut s = String::new();
-        for &(nt, _) in &g.nt {
-          let _ = write!(s, "{}, ", nt);
-        }
-        for &(t, _) in &g.terms {
+        let _ = write!(s, "{} = {}, ", g.terms[0].0, g.nt.len());
+        for &(t, _) in g.terms.iter().skip(1) {
           let _ = write!(s, "{}, ", t);
         }
         s
       },
-      // {{U_LR_SIZE}}
-      min_u_of(table.action.len() as u32),
-      { // "{{STACK_ITEM}}"
+      // "{u_lr_size}"
+      min_u_of(table.action.len() as u32).to_owned(),
+      { // "{stack_item}"
         let mut s = "_Token(Token<'a>), ".to_owned();
         for (i, ty) in types.iter().enumerate() {
           let _ = write!(s, "_{}({}), ", i, ty);
         }
         s
       },
-      // "{{DFA_SIZE}}" ,
+      // "{dfa_size}" ,
       dfa.nodes.len().to_string(),
-      { // "{{ACC}}"
+      { // "{acc}"
         let mut s = String::new();
         for &(acc, _) in &dfa.nodes {
           match acc {
@@ -101,18 +98,18 @@ impl Codegen for RustCodegen {
         }
         s
       },
-      { // "{{EC}}"
+      { // "{ec}"
         let mut s = String::new();
         for ch in 0..128 {
           let _ = write!(s, "{}, ", ec[ch]);
         }
         s
       },
-      // "{{U_DFA_SIZE}}"
-      min_u_of(dfa.nodes.len() as u32),
-      // "{{EC_SIZE}}"
+      // "{u_dfa_size}"
+      min_u_of(dfa.nodes.len() as u32).to_owned(),
+      // "{ec_size}"
       (*ec.iter().max().unwrap() + 1).to_string(),
-      { // "{{DFA_EDGE}}"
+      { // "{dfa_edge}"
         let mut s = String::new();
         let mut outs = vec![0; (*ec.iter().max().unwrap() + 1) as usize];
         for (_, edges) in dfa.nodes.iter() {
@@ -124,46 +121,47 @@ impl Codegen for RustCodegen {
         }
         s
       },
-      { // "{{PARSER_FIELD}}"
+      { // "{parser_struct}"
         let mut s = String::new();
-        if let Some(ext) = &g.raw.parser_field_ext {
-          for RawFieldExt { field, type_, init: _ } in ext {
-            let _ = writeln!(s, "pub {}: {},", field, type_);
+        if g.raw.parser_def.is_none() {
+          let _ = writeln!(s, "struct Parser {{");
+          if let Some(ext) = &g.raw.parser_field {
+            for field in ext {
+              let _ = writeln!(s, "{},", field);
+            }
           }
+          let _ = writeln!(s, "}}");
         }
         s
       },
-      { // "{{PARSER_INIT}}"
-        let mut s = String::new();
-        if let Some(ext) = &g.raw.parser_field_ext {
-          for RawFieldExt { field, type_: _, init } in ext {
-            let _ = writeln!(s, "{}: {},", field, init);
-          }
+      { // "{parser_type}"
+        match &g.raw.parser_def {
+          Some(def) => def.clone(),
+          None => "Parser".to_owned(),
         }
-        s
       },
-      // "{{RESULT_TYPE}}"
+      // "{res_type}"
       parse_res.to_owned(),
-      // "{{RESULT_ID}}"
+      // "{res_id}"
       res_id.to_string(),
-      // "{{U_LR_SIZE}}"
-      min_u_of(table.action.len() as u32),
-      // "{{U_PROD_LEN}}"
-      min_u_of(g.prod_extra.iter().map(|&(_, (lhs, rhs), _)| g.prod[lhs as usize][rhs as usize].0.len()).max().unwrap() as u32),
-      // "{{PROD_SIZE}}"
+      // "{u_lr_size}"
+      min_u_of(table.action.len() as u32).to_owned(),
+      // "{u_prod_len}"
+      min_u_of(g.prod_extra.iter().map(|&(_, (lhs, rhs), _)| g.prod[lhs as usize][rhs as usize].0.len()).max().unwrap() as u32).to_owned(),
+      // "{prod_size}"
       g.prod_extra.len().to_string(),
-      { // "{{PROD}}"
+      { // "{prod}"
         let mut s = String::new();
         for &(_, (lhs, rhs), _) in &g.prod_extra {
           let _ = write!(s, "({}, {}), ", lhs, g.prod[lhs as usize][rhs as usize].0.len());
         }
         s
       },
-      // "{{TOKEN_SIZE}}" ,
+      // "{token_size}" ,
       (g.terms.len() + g.nt.len()).to_string(),
-      // "{{LR_SIZE}}"
+      // "{lr_size}"
       table.action.len().to_string(),
-      { // "{{LR_EDGE}}"
+      { // "{lr_edge}"
         let mut s = String::new();
         for (_, edges) in &table.action {
           let _ = write!(s, "[");
@@ -177,33 +175,31 @@ impl Codegen for RustCodegen {
         }
         s
       },
-      { // "{{PARSER_ACT}}"
+      { // "{parser_act}"
         let mut s = String::new();
-        for (i, &(act, (lhs, rhs), _)) in g.prod_extra.iter().enumerate() {
+        for (i, &((act, args), (lhs, idx), _)) in g.prod_extra.iter().enumerate() {
           let _ = writeln!(s, "{} => {{", i);
-          let rhs = &g.prod[lhs as usize][rhs as usize];
+          let rhs = &g.prod[lhs as usize][idx as usize];
           for (j, &x) in rhs.0.iter().enumerate().rev() {
-            let j = j + 1;
-            if x < AbstractGrammar::nt_num(g) {
+            let name = match args {
+              Some(args) => args[j].0.as_ref().map(|s| s.as_str()).unwrap_or("_"),
+              None => "_",
+            };
+            if x < g.nt.len() as u32 {
               let id = types2id[g.nt[x as usize].1];
-              let _ = writeln!(s, "let mut _{} = match self.value_stk.pop() {{ Some(StackItem::_{}(x)) => x, _ => impossible!() }};", j, id);
+              let _ = writeln!(s, "let {} = match value_stk.pop() {{ Some(StackItem::_{}(x)) => x, _ => impossible!() }};", name, id);
             } else {
-              let _ = writeln!(s, "let mut _{} = match self.value_stk.pop() {{ Some(StackItem::_Token(x)) => x, _ => impossible!() }};", j);
+              let _ = writeln!(s, "let {} = match value_stk.pop() {{ Some(StackItem::_Token(x)) => x, _ => impossible!() }};", name);
             }
           }
-          if !act.is_empty() {
-            let _ = writeln!(s, "{}", act);
-          }
-          if self.log_reduce {
-            let _ = writeln!(s, r#"println!("{{:?}}", _0);"#);
-          }
+          let _ = writeln!(s, "let _0 = {{ {} }};", act);
           let id = types2id[g.nt[lhs as usize].1];
-          let _ = writeln!(s, "self.value_stk.push(StackItem::_{}(_0));", id);
+          let _ = writeln!(s, "value_stk.push(StackItem::_{}(_0));", id);
           let _ = writeln!(s, "}}");
         }
         s
       },
-      // "{{LOG_TOKEN}}"
+      // "{log_token}"
       if self.log_token { r#"println("{:?}", token);"#.to_owned() } else { "".to_owned() },
     ];
     let ac = AhoCorasick::new(&pat);

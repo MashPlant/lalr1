@@ -19,17 +19,15 @@ macro_rules! impossible {
   () => { unsafe { std::hint::unreachable_unchecked() } };
 }
 
-{{INCLUDE}}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TokenType { {token_type} }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum TokenType { {{TOKEN_TYPE}} }
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Act { Shift({u_lr_size}), Reduce({u_lr_size}), Goto({u_lr_size}), Acc, Err }
 
-#[derive(Copy, Clone, Debug)]
-pub enum Act { Shift({{U_LR_SIZE}}), Reduce({{U_LR_SIZE}}), Goto({{U_LR_SIZE}}), Acc, Err }
+pub enum StackItem<'a> { {stack_item} }
 
-pub enum StackItem<'a> { {{STACK_ITEM}} }
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Token<'a> {
   pub ty: TokenType,
   pub piece: &'a [u8],
@@ -45,18 +43,14 @@ pub struct Lexer<'a> {
 
 impl<'a> Lexer<'a> {
   pub fn new(string: &[u8]) -> Lexer {
-    Lexer {
-      string,
-      cur_line: 1,
-      cur_col: 1,
-    }
+    Lexer { string, cur_line: 1, cur_col: 1 }
   }
 
   pub fn next(&mut self) -> Option<Token<'a>> {
     use TokenType::*;
-    static ACC: [TokenType; {{DFA_SIZE}}] = [{{ACC}}];
-    static EC: [u8; 128] = [{{EC}}];
-    static EDGE: [[{{U_DFA_SIZE}}; {{EC_SIZE}}]; {{DFA_SIZE}}] = [{{DFA_EDGE}}];
+    static ACC: [TokenType; {dfa_size}] = [{acc}];
+    static EC: [u8; 128] = [{ec}];
+    static DFA_EDGE: [[{u_dfa_size}; {ec_size}]; {dfa_size}] = [{dfa_edge}];
     loop {
       if self.string.is_empty() {
         return Some(Token { ty: _Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col });
@@ -68,7 +62,7 @@ impl<'a> Lexer<'a> {
       while i < self.string.len() {
         let ch = index!(self.string, i);
         let ec = index!(EC, ch & 0x7F);
-        let nxt = index!(index!(EDGE, state), ec);
+        let nxt = index!(index!(DFA_EDGE, state), ec);
         let acc = index!(ACC, nxt);
         last_acc = if acc != _Eof { acc } else { last_acc };
         state = nxt;
@@ -114,43 +108,50 @@ impl<'a> Lexer<'a> {
   }
 }
 
-pub struct Parser<'a> {
-  pub value_stk: Vec<StackItem<'a>>,
-  pub state_stk: Vec<{{U_LR_SIZE}}>,
-  pub lexer: Lexer<'a>,
-  {{PARSER_FIELD}}
+impl<'a> Iterator for Lexer<'a> {
+  type Item = Token<'a>;
+  fn next(&mut self) -> Option<Self::Item> {
+    Lexer::next(self)
+  }
 }
 
-impl<'a> Parser<'a> {
+{parser_struct}
+
+impl {parser_type} {
   #[allow(unused)]
   #[allow(unused_mut)]
-  pub fn parse(&mut self) -> Result<{{RESULT_TYPE}}, Option<Token<'a>>> {
-    static PROD: [({{U_LR_SIZE}}, {{U_PROD_LEN}}); {{PROD_SIZE}}] = [{{PROD}}];
-    static EDGE: [[Act; {{TOKEN_SIZE}}]; {{LR_SIZE}}] = [{{LR_EDGE}}];
-    let mut token = match self.lexer.next() { Some(t) => t, None => return Err(None) };{{LOG_TOKEN}}
+  pub fn parse<'a, L: IntoIterator<Item=Token<'a>>>(&mut self, lexer: L) -> Result<{res_type}, Option<Token<'a>>> {
+    static PROD: [({u_lr_size}, {u_prod_len}); {prod_size}] = [{prod}];
+    static LR_EDGE: [[Act; {token_size}]; {lr_size}] = [{lr_edge}];
+    let mut value_stk: Vec<StackItem<'a>> = vec![];
+    let mut state_stk: Vec<{u_lr_size}> = vec![0];
+    let mut lexer = lexer.into_iter();
+    let mut token = match lexer.next() { Some(t) => t, None => return Err(None) };
+    {log_token}
     loop {
-      let state = index!(self.state_stk, self.state_stk.len() - 1);
-      let act = index!(index!(EDGE, state), token.ty);
+      let state = index!(state_stk, state_stk.len() - 1);
+      let act = index!(index!(LR_EDGE, state), token.ty);
       match act {
         Act::Shift(s) => {
-          self.value_stk.push(StackItem::_Token(token));
-          self.state_stk.push(s);
-          token = match self.lexer.next() { Some(t) => t, None => return Err(None) };{{LOG_TOKEN}}
+          value_stk.push(StackItem::_Token(token));
+          state_stk.push(s);
+          token = match lexer.next() { Some(t) => t, None => return Err(None) };
+          {log_token}
         }
         Act::Reduce(r) => {
           let prod = index!(PROD, r);
-          for _ in 0..prod.1 { match self.state_stk.pop() { None => impossible!(), Some(_) => {} }; }
+          for _ in 0..prod.1 { match state_stk.pop() { None => impossible!(), Some(_) => {} }; }
           match r {
-            {{PARSER_ACT}}
+            {parser_act}
             _ => impossible!(),
           }
-          let cur = index!(self.state_stk, self.state_stk.len() - 1);
-          let nxt = match index!(index!(EDGE, cur), prod.0) { Act::Goto(n) => n, _ => impossible!() };
-          self.state_stk.push(nxt);
+          let cur = index!(state_stk, state_stk.len() - 1);
+          let nxt = match index!(index!(LR_EDGE, cur), prod.0) { Act::Goto(n) => n, _ => impossible!() };
+          state_stk.push(nxt);
         }
         Act::Acc => {
-          match self.state_stk.pop() { None => impossible!(), Some(_) => {} };
-          let res = match self.value_stk.pop() { Some(StackItem::_{{RESULT_ID}}(r)) => r, _ => impossible!() };
+          match state_stk.pop() { None => impossible!(), Some(_) => {} };
+          let res = match value_stk.pop() { Some(StackItem::_{res_id}(r)) => r, _ => impossible!() };
           return Ok(res);
         }
         Act::Err => return Err(Some(token)),

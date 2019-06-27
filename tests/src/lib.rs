@@ -6,13 +6,26 @@ use parser_macros::lalr1;
 struct Parser;
 
 #[lalr1(Expr)]
-#[term(IntConst(r"\d+"))]
-#[term(_Eps(r"\s+"))]
-#[term(Add(r"\+" left) Sub("-" left))]
-#[term(Div("/" left) Mul(r"\*" left) Mod("%" left))]
-#[term(RParen(r"\)" no_assoc))]
-#[term(LParen(r"\("))]
-#[term(UMinus(no_assoc))]
+#[lex(r#"
+priority = [
+  { assoc = 'left', terms = ['Add', 'Sub'] },
+  { assoc = 'left', terms = ['Mul', 'Div', 'Mod'] },
+  { assoc = 'no_assoc', terms = ['UMinus'] },
+  { assoc = 'no_assoc', terms = ['RParen'] },
+]
+
+[lexical]
+'\(' = 'LParen'
+'\)' = 'RParen'
+'\d+' = 'IntConst'
+'\+' = 'Add'
+'-' = 'Sub'
+'\*' = 'Mul'
+'/' = 'Div'
+'%' = 'Mod'
+'\d+' = 'IntConst'
+'\s+' = '_Eps'
+"#)]
 impl Parser {
   #[rule(Expr -> Expr Add Expr)]
   fn expr_add(l: i32, _op: Token<'_>, r: i32) -> i32 {
