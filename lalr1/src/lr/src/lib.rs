@@ -14,7 +14,6 @@ pub mod lr0;
 pub mod lalr1_by_lr0;
 pub mod lalr1_common;
 pub mod simple_grammar;
-mod printer;
 
 pub use crate::abstract_grammar::*;
 pub use crate::raw_grammar::*;

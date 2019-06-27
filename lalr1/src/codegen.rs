@@ -132,7 +132,7 @@ impl Codegen for RustCodegen {
         let mut s = String::new();
         if let Some(ext) = &g.raw.parser_field_ext {
           for RawFieldExt { field, type_: _, init } in ext {
-            writeln!(s, "{}: {},", field, init);
+            let _ = writeln!(s, "{}: {},", field, init);
           }
         }
         s

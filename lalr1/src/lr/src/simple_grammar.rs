@@ -3,7 +3,7 @@ use crate::raw_grammar::Assoc;
 use crate::lr0::LRItem;
 use crate::lr1::LRResult;
 use std::collections::HashMap;
-use crate::printer::IndentPrinter;
+use std::fmt::Write;
 
 #[derive(Debug)]
 pub struct SimpleGrammar<'a> {
@@ -13,7 +13,7 @@ pub struct SimpleGrammar<'a> {
 }
 
 impl<'a> SimpleGrammar<'a> {
-  // very simple, no err check...
+  // very simple, no err check, will panic when handling illegal input...
   pub fn from_text(text: &'a str) -> SimpleGrammar {
     let mut nt = Vec::new();
     let mut t = Vec::new();
@@ -25,7 +25,6 @@ impl<'a> SimpleGrammar<'a> {
     t.push("#");
     nt2id.insert("ε", 0);
     nt2id.insert("#", 1);
-
 
     for line in text.lines() {
       let mut sp = line.split("->");
@@ -73,36 +72,14 @@ impl<'a> SimpleGrammar<'a> {
   }
 
   pub fn print_lr1(&self, lr1: &Vec<LRResult<'a>>) -> String {
-    let mut p = IndentPrinter::new();
-    p.ln("digraph g {").inc();
+    let mut s = "digraph g {".to_owned();
     for (idx, (state, link)) in lr1.iter().enumerate() {
       for (&k, &v) in link {
-        p.ln(format!(r#"{} -> {} [label="{}"];"#, idx, v, self.token_at(k)));
+        let _ = writeln!(s, r#"{} -> {} [label="{}"];"#, idx, v, self.token_at(k));
       }
       let mut state_text = String::new();
       for (item, look_ahead) in &state.items {
-        let mut lhs = 0;
-        // a naive search... no need to optimize after all
-        'out: for (idx, prods) in self.prod.iter().enumerate() {
-          for prod in prods {
-            if prod.1 == item.prod_id {
-              lhs = idx;
-              break 'out;
-            }
-          }
-        }
-        if lhs == self.nt.len() - 1 { // added S'
-          state_text += &format!("{}'→", self.nt[0]);
-        } else {
-          state_text += &format!("{}→", self.nt[lhs]);
-        }
-        for i in 0..item.dot {
-          state_text += self.token_at(item.prod[i as usize]);
-        }
-        state_text.push('.');
-        for i in item.dot..item.prod.len() as u32 {
-          state_text += self.token_at(item.prod[i as usize]);
-        }
+        self.state_text_common(&item, &mut state_text);
         state_text.push(',');
         for i in self.nt.len()..self.nt.len() + self.t.len() {
           if look_ahead.test(i as u32) {
@@ -115,51 +92,54 @@ impl<'a> SimpleGrammar<'a> {
       }
       state_text.pop();
       state_text.pop(); // extra \n
-      p.ln(format!(r#"{}[shape=box, label="{}"]"#, idx, state_text));
+      let _ = writeln!(s, r#"{}[shape=box, label="{}"]"#, idx, state_text);
     }
-    p.dec().ln("}");
-    p.finish()
+    s.push('}');
+    s
   }
 
   pub fn print_lr0(&self, lr0: &Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>) -> String {
-    let mut p = IndentPrinter::new();
-    p.ln("digraph g {").inc();
+    let mut s = "digraph g {".to_owned();
     for (idx, (state, link)) in lr0.iter().enumerate() {
       for (&k, &v) in link {
-        p.ln(format!(r#"{} -> {} [label="{}"];"#, idx, v, self.token_at(k)));
+        let _ = writeln!(s, r#"{} -> {} [label="{}"];"#, idx, v, self.token_at(k));
       }
       let mut state_text = String::new();
       for item in state {
-        let mut lhs = 0;
-        // a naive search... no need to optimize after all
-        'out: for (idx, prods) in self.prod.iter().enumerate() {
-          for prod in prods {
-            if prod.1 == item.prod_id {
-              lhs = idx;
-              break 'out;
-            }
-          }
-        }
-        if lhs == self.nt.len() - 1 { // added S'
-          state_text += &format!("{}'→", self.nt[0]);
-        } else {
-          state_text += &format!("{}→", self.nt[lhs]);
-        }
-        for i in 0..item.dot {
-          state_text += self.token_at(item.prod[i as usize]);
-        }
-        state_text.push('.');
-        for i in item.dot..item.prod.len() as u32 {
-          state_text += self.token_at(item.prod[i as usize]);
-        }
+        self.state_text_common(&item, &mut state_text);
         state_text += r#"\n"#;
       }
       state_text.pop();
       state_text.pop(); // extra \n
-      p.ln(format!(r#"{}[shape=box, label="{}"]"#, idx, state_text));
+      let _ = writeln!(s, r#"{}[shape=box, label="{}"]"#, idx, state_text);
     }
-    p.dec().ln("}");
-    p.finish()
+    s.push('}');
+    s
+  }
+
+  fn state_text_common(&self, item: &LRItem, state_text: &mut String) {
+    let mut lhs = 0;
+    // a naive search... no need to optimize after all
+    'out: for (idx, prods) in self.prod.iter().enumerate() {
+      for prod in prods {
+        if prod.1 == item.prod_id {
+          lhs = idx;
+          break 'out;
+        }
+      }
+    }
+    if lhs == self.nt.len() - 1 { // added S'
+      let _ = write!(state_text, "{}'→", self.nt[0]);
+    } else {
+      let _ = write!(state_text, "{}→", self.nt[lhs]);
+    }
+    for i in 0..item.dot {
+      *state_text += self.token_at(item.prod[i as usize]);
+    }
+    state_text.push('.');
+    for i in item.dot..item.prod.len() as u32 {
+      *state_text += self.token_at(item.prod[i as usize]);
+    }
   }
 }
 
