@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 parser-macros = { path = "../parser-macros" }
+lazy_static = "1.3.0"

@@ -1,12 +1,14 @@
 extern crate re2dfa;
 extern crate lalr1_core;
 extern crate grammar_config;
+extern crate ll1_core;
 
 use re2dfa::dfa::Dfa;
 use std::collections::HashMap;
 use lalr1_core::LRTable;
-use grammar_config::Grammar;
+use grammar_config::{Grammar, AbstractGrammar};
 use aho_corasick::AhoCorasick;
+use ll1_core::LLCtx;
 use std::fmt::Write;
 
 pub struct RustCodegen {
@@ -36,7 +38,8 @@ impl RustCodegen {
     (types, types2id)
   }
 
-  fn gen_common(&self, g: &Grammar, dfa: &Dfa, ec: &[u8; 128], types: &[&str]) -> String {
+  fn gen_common(&self, g: &Grammar, dfa: &Dfa, ec: &[u8; 128], types: &[&str],
+                stack_need_fail: bool) -> String {
     let template = include_str!("template/common.rs.template");
     let pat = [
       "{include}",
@@ -63,6 +66,9 @@ impl RustCodegen {
       },
       { // "{stack_item}"
         let mut s = "_Token(Token<'a>), ".to_owned();
+        if stack_need_fail {
+          let _ = write!(s, "_Fail, ");
+        }
         for (i, ty) in types.iter().enumerate() {
           let _ = write!(s, "_{}({}), ", i, ty);
         }
@@ -119,14 +125,40 @@ impl RustCodegen {
     ];
     AhoCorasick::new(&pat).replace_all(template, &rep)
   }
+
+  fn gen_act(&self, g: &Grammar, types2id: &HashMap<&str, u32>,
+             handle_unexpect_stack: &str) -> String {
+    let mut s = String::new();
+    for (i, &((act, args), (lhs, idx), _)) in g.prod_extra.iter().enumerate() {
+      let _ = writeln!(s, "{} => {{", i);
+      let rhs = &g.prod[lhs as usize][idx as usize];
+      for (j, &x) in rhs.0.iter().enumerate().rev() {
+        let name = match args {
+          Some(args) => args[j].0.as_ref().map(|s| s.as_str()).unwrap_or("_"),
+          None => "_",
+        };
+        if x < g.nt.len() as u32 {
+          let id = types2id[g.nt[x as usize].1];
+          let _ = writeln!(s, "let {} = match value_stk.pop() {{ Some(StackItem::_{}(x)) => x, _ => {} }};", name, id, handle_unexpect_stack);
+        } else {
+          let _ = writeln!(s, "let {} = match value_stk.pop() {{ Some(StackItem::_Token(x)) => x, _ => {} }};", name, handle_unexpect_stack);
+        }
+      }
+      let id = types2id[g.nt[lhs as usize].1];
+      let _ = writeln!(s, "StackItem::_{}({{ {} }})", id, act);
+      let _ = writeln!(s, "}}");
+    }
+    s
+  }
 }
 
+// value_stk.push(
 // I once tried to make the generated code perfectly indented by IndentPrinter, and I almost succeeded
 // but such code is so unmaintainable, so I gave up, just use rustfmt or other tool to format the code...
 impl RustCodegen {
   pub fn gen_lalr1(&self, g: &Grammar, table: &LRTable, dfa: &Dfa, ec: &[u8; 128]) -> String {
     let (types, types2id) = self.gather_types(g);
-    let common = self.gen_common(g, dfa, ec, &types);
+    let common = self.gen_common(g, dfa, ec, &types, false);
     let template = include_str!("template/lalr1.rs.template");
     let pat = [
       "{u_lr_size}",
@@ -189,32 +221,74 @@ impl RustCodegen {
         }
         s
       },
-      { // "{parser_act}"
+      // "{parser_act}"
+      self.gen_act(g, &types2id, "impossible!()"),
+      // "{log_token}"
+      if self.log_token { r#"println("{:?}", token);"#.to_owned() } else { "".to_owned() },
+    ];
+    common + &AhoCorasick::new(&pat).replace_all(template, &rep)
+  }
+
+  pub fn gen_ll1(&self, g: &Grammar, ll: &LLCtx, dfa: &Dfa, ec: &[u8; 128]) -> String {
+    let (types, types2id) = self.gather_types(g);
+    let common = self.gen_common(g, dfa, ec, &types, true);
+    let template = include_str!("template/ll1.rs.template");
+    let pat = [
+      "{nt_num}",
+      "{follow}",
+      "{begin}",
+      "{table}",
+      "{parser_type}",
+      "{parser_act}",
+    ];
+    let rep = [
+      // "{nt_num}",
+      g.nt_num().to_string(),
+      { // "{follow}",
         let mut s = String::new();
-        for (i, &((act, args), (lhs, idx), _)) in g.prod_extra.iter().enumerate() {
-          let _ = writeln!(s, "{} => {{", i);
-          let rhs = &g.prod[lhs as usize][idx as usize];
-          for (j, &x) in rhs.0.iter().enumerate().rev() {
-            let name = match args {
-              Some(args) => args[j].0.as_ref().map(|s| s.as_str()).unwrap_or("_"),
-              None => "_",
-            };
-            if x < g.nt.len() as u32 {
-              let id = types2id[g.nt[x as usize].1];
-              let _ = writeln!(s, "let {} = match value_stk.pop() {{ Some(StackItem::_{}(x)) => x, _ => impossible!() }};", name, id);
-            } else {
-              let _ = writeln!(s, "let {} = match value_stk.pop() {{ Some(StackItem::_Token(x)) => x, _ => impossible!() }};", name);
+        for follow in &ll.follow.nt_follow {
+          let _ = write!(s, "set!(");
+          for i in 0..g.token_num() {
+            if follow.test(i as usize) {
+              let _ = write!(s, "{}, ", i);
             }
           }
-          let _ = writeln!(s, "let _0 = {{ {} }};", act);
-          let id = types2id[g.nt[lhs as usize].1];
-          let _ = writeln!(s, "value_stk.push(StackItem::_{}(_0));", id);
-          let _ = writeln!(s, "}}");
+          let _ = writeln!(s, "),");
         }
         s
       },
-      // "{log_token}"
-      if self.log_token { r#"println("{:?}", token);"#.to_owned() } else { "".to_owned() },
+      { // "{begin}",
+        let mut s = String::new();
+        for table in &ll.table {
+          let _ = write!(s, "set!(");
+          for (&predict, _) in table {
+            let _ = write!(s, "{}, ", predict);
+          }
+          let _ = writeln!(s, "),");
+        }
+        s
+      },
+      { // "{table}",
+        let mut s = String::new();
+        for table in &ll.table {
+          let _ = write!(s, "map!(");
+          for (&predict, prod_ids) in table {
+            let (_, (lhs, idx), _) = g.prod_extra[prod_ids[0] as usize];
+            let (prod, _) = &g.prod[lhs as usize][idx as usize];
+            let _ = write!(s, "{} => vec!{:?}, ", predict, prod);
+          }
+          let _ = writeln!(s, "),");
+        }
+        s
+      },
+      { // "{parser_type}"
+        match &g.raw.parser_def {
+          Some(def) => def.clone(),
+          None => "Parser".to_owned(),
+        }
+      },
+      // "{parser_act}",
+      self.gen_act(g, &types2id, "return StackItem::_Fail"),
     ];
     common + &AhoCorasick::new(&pat).replace_all(template, &rep)
   }

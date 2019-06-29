@@ -1,6 +1,7 @@
 extern crate syn;
 extern crate proc_macro;
 extern crate lalr1_core;
+extern crate ll1_core;
 extern crate re2dfa;
 extern crate parser_gen;
 extern crate grammar_config;
@@ -42,8 +43,12 @@ fn parse_string(lit: &proc_macro2::Literal) -> String {
   s[s.find('\"').unwrap() + 1..s.rfind('\"').unwrap()].to_owned()
 }
 
-#[proc_macro_attribute]
-pub fn lalr1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+enum Mode {
+  LALR1,
+  LL1,
+}
+
+fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mode) ->  proc_macro::TokenStream{
   let parser_impl = match syn::parse::<syn::ItemImpl>(input) {
     Ok(parser_impl) => parser_impl,
     Err(_) => panic!("Attribute `lalr1` can only be applied to an impl block."),
@@ -128,11 +133,30 @@ pub fn lalr1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> p
     .unwrap_or_else(|(idx, reason)| panic!("Invalid regex {}, reason: {}.", raw.lexical.get_index(idx).unwrap().0, reason));
   let g = grammar_config::extend_grammar(&mut raw)
     .unwrap_or_else(|err| panic!("Grammar is invalid, reason: `{}`.", err));
-  let lr0 = lalr1_core::lr0::work(&g);
-  let table = lalr1_core::lalr1_by_lr0::work(&lr0, &g);
-  for _conflict in &table.conflict {
-    unimplemented!()
+  match mode {
+    Mode::LALR1 => {
+      let lr0 = lalr1_core::lr0::work(&g);
+      let table = lalr1_core::lalr1_by_lr0::work(&lr0, &g);
+      for _conflict in &table.conflict {
+        unimplemented!()
+      }
+      let code = RustCodegen { log_token: false, log_reduce: false }.gen_lalr1(&g, &table, &dfa, &ec);
+      code.parse().unwrap()
+    }
+    Mode::LL1 => {
+      let ll = ll1_core::LLCtx::new(&g);
+      let code = RustCodegen { log_token: false, log_reduce: false }.gen_ll1(&g, &ll, &dfa, &ec);
+      code.parse().unwrap()
+    }
   }
-  let code = RustCodegen { log_token: false, log_reduce: false }.gen_lalr1(&g, &table, &dfa, &ec);
-  code.parse().unwrap()
+}
+
+#[proc_macro_attribute]
+pub fn lalr1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+  work(attr, input, Mode::LALR1)
+}
+
+#[proc_macro_attribute]
+pub fn ll1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+  work(attr, input, Mode::LL1)
 }

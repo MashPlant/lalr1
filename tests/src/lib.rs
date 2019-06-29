@@ -1,11 +1,12 @@
 #![feature(proc_macro_hygiene)]
 extern crate parser_macros;
+extern crate lazy_static;
 
-use parser_macros::lalr1;
+use parser_macros::*;
 
 struct Parser;
 
-#[lalr1(Expr)]
+#[ll1(Expr)]
 #[lex(r#"
 priority = [
   { assoc = 'left', terms = ['Add', 'Sub'] },

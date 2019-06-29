@@ -1,11 +1,13 @@
 extern crate grammar_config;
 extern crate bitset;
 extern crate smallvec;
+extern crate indexmap;
 
 use grammar_config::AbstractGrammar;
 use bitset::BitSet;
 use std::collections::HashMap;
 use smallvec::SmallVec;
+use indexmap::IndexMap;
 
 pub struct First {
   pub token_num: usize,
@@ -111,6 +113,9 @@ impl Follow {
         }
       }
     }
+    for follow in &mut nt_follow {
+      follow.clear(first.eps);
+    }
     Follow { nt_follow }
   }
 }
@@ -119,7 +124,8 @@ pub struct LLCtx {
   pub first: First,
   pub follow: Follow,
   // u32: id of prod(it is easy to get prod by id, but not the reverse)
-  pub ps: Vec<HashMap<u32, BitSet>>,
+  // use IndexMap to solve conflict(who comes first has priority)
+  pub ps: Vec<IndexMap<u32, BitSet>>,
   pub table: Vec<HashMap<u32, SmallVec<[u32; 1]>>>,
 }
 
@@ -129,7 +135,7 @@ impl LLCtx {
     let follow = Follow::new(g, &first);
     let mut ps = Vec::new();
     for i in 0..first.nt_num() {
-      let mut psi = HashMap::new();
+      let mut psi = IndexMap::new();
       for prod in g.get_prod(i as u32) {
         let mut predict = first.first(prod.0.as_ref());
         if predict.test(first.eps) {

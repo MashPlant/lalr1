@@ -24,10 +24,11 @@ impl {parser_type} {
         Act::Reduce(r) => {
           let prod = index!(PROD, r);
           for _ in 0..prod.1 { match state_stk.pop() { None => impossible!(), Some(_) => {} }; }
-          match r {
+          let value = match r {
             {parser_act}
             _ => impossible!(),
-          }
+          };
+          value_stk.push(value);
           let cur = index!(state_stk, state_stk.len() - 1);
           let nxt = match index!(index!(LR_EDGE, cur), prod.0) { Act::Goto(n) => n, _ => impossible!() };
           state_stk.push(nxt);

@@ -1,0 +1,34 @@
+use lazy_static::lazy_static;
+
+macro_rules! set {
+  ($($x: expr,)*) => {{
+    let mut s = std::collections::HashSet::new();
+    $(s.insert($x);)*
+    s
+  }};
+}
+
+macro_rules! map {
+  ($($k: expr => $v: expr,)*) => {{
+    let mut m = std::collections::HashMap::new();
+    $(m.insert($k, $v);)*
+    m
+  }};
+}
+
+lazy_static! {
+  pub static ref FOLLOW: [std::collections::HashSet<u32>; {nt_num}] = [{follow}];
+  pub static ref BEGIN: [std::collections::HashSet<u32>; {nt_num}] = [{begin}];
+  pub static ref TABLE: [std::collections::HashMap<u32, Vec<u32>>; {nt_num}] = [{table}];
+}
+
+impl {parser_type} {
+  #[allow(unused)]
+  #[allow(unused_mut)]
+  pub fn act<'s>(lhs: u32, mut value_stk: Vec<StackItem<'s>>) -> StackItem<'s> {
+    match lhs {
+      {parser_act}
+      _ => impossible!(),
+    }
+  }
+}
