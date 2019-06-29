@@ -1,8 +1,11 @@
 extern crate grammar_config;
 extern crate bitset;
+extern crate smallvec;
 
 use grammar_config::AbstractGrammar;
 use bitset::BitSet;
+use std::collections::HashMap;
+use smallvec::SmallVec;
 
 pub struct First {
   pub token_num: usize,
@@ -21,32 +24,24 @@ impl First {
       while changed {
         changed = false;
         for i in 0..nt_num {
-          for prod in g.get_prod(i as u32) {
+          'out: for prod in g.get_prod(i as u32) {
             let lhs = nt_first[i].as_mut_ptr();
-            if prod.0.as_ref().is_empty() {
-              changed |= !BitSet::test_raw(lhs, eps);
-              BitSet::set_raw(lhs, eps);
-            }
-            let mut all_have_eps = true;
             for &ch in prod.0.as_ref() {
               let ch = ch as usize;
               if ch < nt_num {
                 let rhs = nt_first[ch].as_ptr();
                 changed |= BitSet::or_raw(lhs, rhs, inner_len);
                 if !BitSet::test_raw(rhs, eps) {
-                  all_have_eps = false;
-                  break;
+                  continue 'out;
                 }
               } else {
                 changed |= !BitSet::test_raw(lhs, ch);
                 BitSet::set_raw(lhs, ch);
-                all_have_eps = false;
-                break;
+                continue 'out;
               }
             }
-            if all_have_eps {
-              BitSet::set_raw(lhs, eps);
-            }
+            changed |= !BitSet::test_raw(lhs, eps);
+            BitSet::set_raw(lhs, eps);
           }
         }
       }
@@ -59,16 +54,19 @@ impl First {
     for &ch in string {
       let ch = ch as usize;
       if ch < self.nt_num() {
-        let rhs = &self.nt_first[ch];
+        let rhs = &self.nt_first[ch as usize];
         ret.or(rhs);
+        ret.clear(self.eps);
         if !rhs.test(self.eps) {
-          break;
+          return ret;
         }
       } else {
         ret.set(ch);
-        break;
+        return ret;
       }
     }
+    // reach here, so string -> eps
+    ret.set(self.eps);
     ret
   }
 
@@ -77,9 +75,83 @@ impl First {
   }
 }
 
-pub struct Follow {}
+pub struct Follow {
+  pub nt_follow: Vec<BitSet>,
+}
+
+impl Follow {
+  pub fn new<'a>(g: &'a impl AbstractGrammar<'a>, first: &First) -> Follow {
+    let eof = g.eof() as usize;
+    assert!(first.nt_num() <= eof && eof < first.token_num);
+    let mut nt_follow = vec![BitSet::new(first.token_num); first.nt_num()];
+    nt_follow[g.start().0 as usize].set(eof);
+    let inner_len = BitSet::calc_inner_len(first.token_num);
+    let mut first_cache = HashMap::new();
+    unsafe {
+      let mut changed = true;
+      while changed {
+        changed = false;
+        for i in 0..first.nt_num() {
+          for prod in g.get_prod(i as u32) {
+            let lhs_follow = nt_follow[i].as_ptr();
+            let prod = prod.0.as_ref();
+            for (i, &ch) in prod.iter().enumerate() {
+              let ch = ch as usize;
+              if ch < first.nt_num() {
+                let ch_follow = nt_follow[ch].as_mut_ptr();
+                let remain = &prod[i + 1..];
+                let remain_first = first_cache.entry(remain).or_insert_with(|| first.first(remain));
+                changed |= BitSet::or_raw(ch_follow, remain_first.as_ptr(), inner_len);
+                if remain_first.test(first.eps) {
+                  changed |= BitSet::or_raw(ch_follow, lhs_follow, inner_len);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    Follow { nt_follow }
+  }
+}
 
 pub struct LLCtx {
-  first: First,
-  follow: Follow,
+  pub first: First,
+  pub follow: Follow,
+  // u32: id of prod(it is easy to get prod by id, but not the reverse)
+  pub ps: Vec<HashMap<u32, BitSet>>,
+  pub table: Vec<HashMap<u32, SmallVec<[u32; 1]>>>,
+}
+
+impl LLCtx {
+  pub fn new<'a>(g: &'a impl AbstractGrammar<'a>) -> LLCtx {
+    let first = First::new(g);
+    let follow = Follow::new(g, &first);
+    let mut ps = Vec::new();
+    for i in 0..first.nt_num() {
+      let mut psi = HashMap::new();
+      for prod in g.get_prod(i as u32) {
+        let mut predict = first.first(prod.0.as_ref());
+        if predict.test(first.eps) {
+          predict.or(&follow.nt_follow[i]);
+          predict.clear(first.eps);
+        }
+        psi.insert(prod.1, predict);
+      }
+      ps.push(psi);
+    }
+    let mut table = Vec::new();
+    for ps in &ps {
+      let mut tbi = HashMap::new();
+      for (&prod, predict) in ps {
+        for i in 0..first.token_num {
+          if predict.test(i) {
+            tbi.entry(i as u32).or_insert_with(|| SmallVec::new()).push(prod);
+          }
+        }
+      }
+      table.push(tbi);
+    }
+    LLCtx { first, follow, ps, table }
+  }
 }

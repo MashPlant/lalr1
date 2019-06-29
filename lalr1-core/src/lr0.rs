@@ -91,7 +91,7 @@ pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Vec<(Vec<LRItem<'a>>, HashMa
   let ctx = LRCtx { token_num: g.token_num(), nt_num: g.nt_num() };
   let mut ss = HashMap::new();
   let init = ctx.closure({
-                           let start = g.start();
+                           let start = g.start().1;
                            let mut init = HashSet::new();
                            init.insert(LRItem { prod: start.0.as_ref(), prod_id: start.1, dot: 0 });
                            init

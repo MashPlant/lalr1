@@ -74,7 +74,8 @@ pub trait AbstractGrammar<'a> {
   // iter of (right hand side of production, production id)
   type ProdIter: IntoIterator<Item=&'a (Self::ProdRef, u32)>;
 
-  fn start(&'a self) -> &'a (Self::ProdRef, u32);
+  // return (start lhs, (start prod rhs, start prod id))
+  fn start(&'a self) -> (u32, &'a (Self::ProdRef, u32));
 
   // eps & eof & err are 3 special terms in the grammar
   // eps: indicate lexer produces a term which should be neglected by parser; also used in computing first & follow

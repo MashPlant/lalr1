@@ -28,7 +28,7 @@ pub struct ConflictInfo {
 }
 
 #[derive(Debug)]
-pub struct ParseTable<'a> {
+pub struct LRTable<'a> {
   // in most cases there is no conflict, so use a small vec of inline capacity = 1
   pub action: Vec<(Vec<&'a LRItem<'a>>, HashMap<u32, SmallVec<[ParserAct; 1]>>)>,
   pub conflict: Vec<ConflictInfo>,
@@ -92,16 +92,15 @@ pub fn try_solve_conflict<'a>(t: &mut Vec<(Vec<&'a LRItem<'a>>, HashMap<u32, Sma
       match acts.len() {
         1 => true,
         2 => {
-          let (s, r) = (acts[0], acts[1]);
-          match (s, r) {
+          match (acts[0], acts[1]) {
             (ParserAct::Reduce(r1), ParserAct::Reduce(r2)) => {
               let used = r1.min(r2);
               *acts = smallvec![ParserAct::Reduce(used)];
               reports.push(ConflictInfo { ty: ConflictType::RR { r1, r2 }, state: state_id as u32, ch });
               true
             }
-            (ParserAct::Reduce(r), ParserAct::Shift(s)) => solve_sr(state_id as u32, ch, s, r, acts, &mut reports, g),
-            (ParserAct::Shift(s), ParserAct::Reduce(r)) => solve_sr(state_id as u32, ch, s, r, acts, &mut reports, g),
+            (ParserAct::Reduce(r), ParserAct::Shift(s)) | (ParserAct::Shift(s), ParserAct::Reduce(r)) =>
+              solve_sr(state_id as u32, ch, s, r, acts, &mut reports, g),
             _ => unreachable!("There should be a bug in lr process"),
           }
         }

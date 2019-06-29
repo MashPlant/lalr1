@@ -67,7 +67,7 @@ fn get_lalr1_table<'a>(lr: &'a Vec<LRResult<'a>>) -> Vec<(LALR1State<'a>, HashMa
 }
 
 // merge lr1 states, and try to solve conflict using g's information
-pub fn work<'a>(lr: &'a Vec<LRResult<'a>>, g: &'a impl AbstractGrammarExt<'a>) -> ParseTable<'a> {
+pub fn work<'a>(lr: &'a Vec<LRResult<'a>>, g: &'a impl AbstractGrammarExt<'a>) -> LRTable<'a> {
   let lalr1_table = get_lalr1_table(lr);
   let mut action = Vec::with_capacity(lalr1_table.len());
   let (nt_num, token_num, eof) = (g.nt_num(), g.token_num(), g.eof());
@@ -80,7 +80,7 @@ pub fn work<'a>(lr: &'a Vec<LRResult<'a>>, g: &'a impl AbstractGrammarExt<'a>) -
         act.insert(k, smallvec![ParserAct::Shift(v)]);
       }
     }
-    let start_id = g.start().1;
+    let start_id = (g.start().1).1;
     for (item, look_ahead) in &state.items {
       if item.dot == item.prod.len() as u32 {
         if look_ahead.test(eof as usize) && item.prod_id == start_id {
@@ -98,5 +98,5 @@ pub fn work<'a>(lr: &'a Vec<LRResult<'a>>, g: &'a impl AbstractGrammarExt<'a>) -
     action.push((state.items.iter().map(|item| item.0).collect(), act));
   }
   let conflict = try_solve_conflict(&mut action, g);
-  ParseTable { action, conflict }
+  LRTable { action, conflict }
 }

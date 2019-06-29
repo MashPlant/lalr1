@@ -143,8 +143,9 @@ impl<'a> AbstractGrammar<'a> for Grammar<'a> {
   type ProdRef = ProdVec;
   type ProdIter = &'a Vec<(ProdVec, u32)>;
 
-  fn start(&'a self) -> &'a (Self::ProdRef, u32) {
-    &self.prod.last().unwrap()[0]
+  fn start(&'a self) -> (u32, &'a (Self::ProdRef, u32)) {
+    let last = self.prod.len() - 1;
+    (last as u32, &self.prod[last][0])
   }
 
   // assume first term

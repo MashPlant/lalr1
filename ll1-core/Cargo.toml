@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 grammar-config = { path = "../grammar-config" }
 bitset = { git = "https://github.com/MashPlant/bitset" }
+smallvec = "0.6.9"

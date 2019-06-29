@@ -64,6 +64,7 @@ version = "0.1.0"
 dependencies = [
  "bitset 0.1.0 (git+https://github.com/MashPlant/bitset)",
  "grammar-config 0.1.0",
+ "smallvec 0.6.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

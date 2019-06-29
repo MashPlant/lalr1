@@ -16,7 +16,7 @@ fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a im
     .map(|(items, _)| vec![BitSet::new(ctx.0.token_num); items.len()]).collect::<Vec<_>>();
   let mut clo_cache = HashMap::new();
   let mut prop = Vec::new();
-  let start_prod = g.start().0.as_ref();
+  let start_prod = (g.start().1).0.as_ref();
 
   for (i, item) in lr0[0].0.iter().enumerate() {
     if item.prod == start_prod {
@@ -73,12 +73,12 @@ fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a im
   }).collect::<Vec<_>>()
 }
 
-pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> ParseTable<'a> {
+pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> LRTable<'a> {
   let result = _lalr1_only(lr0, g);
 
   let mut action = Vec::with_capacity(lr0.len());
   let eof = g.eof();
-  let start_id = g.start().1;
+  let start_id = (g.start().1).1;
   let token_num = g.token_num();
   for (i, (state, link)) in lr0.iter().enumerate() {
     let mut act = HashMap::new();
@@ -107,7 +107,7 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl 
   }
 
   let conflict = try_solve_conflict(&mut action, g);
-  ParseTable { action, conflict }
+  LRTable { action, conflict }
 }
 
 // the return type is the same with lr1::work

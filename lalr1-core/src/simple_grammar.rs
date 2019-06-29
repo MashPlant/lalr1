@@ -148,8 +148,9 @@ impl<'a> AbstractGrammar<'a> for SimpleGrammar<'a> {
   type ProdRef = Vec<u32>;
   type ProdIter = &'a Vec<(Vec<u32>, u32)>;
 
-  fn start(&'a self) -> &'a (Self::ProdRef, u32) {
-    &self.prod.last().unwrap()[0]
+  fn start(&'a self) -> (u32, &'a (Self::ProdRef, u32)) {
+    let last = self.prod.len() - 1;
+    (last as u32, &self.prod[last][0])
   }
 
   fn eps(&self) -> u32 {

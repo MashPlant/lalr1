@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 use grammar_config::AbstractGrammar;
-use std::cell::RefCell;
 use std::collections::vec_deque::VecDeque;
 use ll1_core::First;
 use crate::lr0::LRItem;
 use crate::bitset::BitSet;
-use std::ops::Deref;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LRState<'a> {
@@ -85,7 +83,7 @@ pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Vec<LRResult<'a>> {
   let mut ctx = LRCtx(First::new(g));
   let mut ss = HashMap::new();
   let init = ctx.closure({
-                           let start = g.start();
+                           let start = g.start().1;
                            let item = LRItem { prod: start.0.as_ref(), prod_id: start.1, dot: 0 };
                            let mut look_ahead = BitSet::new(g.token_num() as usize);
                            look_ahead.set(g.eof() as usize);

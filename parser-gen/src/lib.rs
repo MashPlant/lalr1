@@ -4,7 +4,7 @@ extern crate grammar_config;
 
 use re2dfa::dfa::Dfa;
 use std::collections::HashMap;
-use lalr1_core::ParseTable;
+use lalr1_core::LRTable;
 use grammar_config::Grammar;
 use aho_corasick::AhoCorasick;
 use std::fmt::Write;
@@ -124,7 +124,7 @@ impl RustCodegen {
 // I once tried to make the generated code perfectly indented by IndentPrinter, and I almost succeeded
 // but such code is so unmaintainable, so I gave up, just use rustfmt or other tool to format the code...
 impl RustCodegen {
-  pub fn gen_lalr1(&self, g: &Grammar, table: &ParseTable, dfa: &Dfa, ec: &[u8; 128]) -> String {
+  pub fn gen_lalr1(&self, g: &Grammar, table: &LRTable, dfa: &Dfa, ec: &[u8; 128]) -> String {
     let (types, types2id) = self.gather_types(g);
     let common = self.gen_common(g, dfa, ec, &types);
     let template = include_str!("template/lalr1.rs.template");
