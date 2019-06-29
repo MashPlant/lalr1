@@ -23,10 +23,7 @@ pub(crate) struct LRCtx {
 
 impl LRCtx {
   pub fn new<'a>(g: &'a impl AbstractGrammar<'a>) -> LRCtx {
-    //                                                        this + 1
-    // is for lalr1_by_lr0.rs, it is a terminal not in g, helping wo calculate the propagation of look_ahead
-    // this bit will be always 0 otherwise
-    let (token_num, nt_num, eps) = (g.token_num() + 1, g.nt_num(), g.eps());
+    let (token_num, nt_num, eps) = (g.token_num(), g.nt_num(), g.eps());
     let nt_first = vec![RefCell::new(BitSet::new(token_num as usize)); nt_num as usize];
     let mut changed = true;
     while changed {

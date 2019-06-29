@@ -50,7 +50,7 @@ pub fn lalr1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> p
   };
   let start = match attr.clone().into_iter().next() {
     Some(proc_macro::TokenTree::Ident(ident)) => ident.to_string(),
-    _ => panic!("Fail to parse start non-terminal, expect `#[lalr1(StartName)]."),
+    _ => panic!("Fail to parse start non-term, expect `#[lalr1(StartName)]."),
   };
   let parser_type = parser_impl.self_ty.as_ref();
   let parser_def = Some(parser_type.into_token_stream().to_string());

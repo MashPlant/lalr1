@@ -4,7 +4,6 @@ use crate::lr1::LRResult;
 use std::collections::HashMap;
 use std::fmt::Write;
 
-#[derive(Debug)]
 pub struct SimpleGrammar<'a> {
   prod: Vec<Vec<(Vec<u32>, u32)>>,
   nt: Vec<&'a str>,
@@ -20,10 +19,13 @@ impl<'a> SimpleGrammar<'a> {
     let mut t2id = HashMap::new();
     let mut prod = Vec::new();
     let mut all = 0;
+    // TODO: test it
     t.push("ε");
     t.push("#");
-    nt2id.insert("ε", 0);
-    nt2id.insert("#", 1);
+    t.push("");
+    t2id.insert("ε", 0);
+    t2id.insert("#", 1);
+    t2id.insert("", 2);
 
     for line in text.lines() {
       let mut sp = line.split("->");
@@ -150,14 +152,16 @@ impl<'a> AbstractGrammar<'a> for SimpleGrammar<'a> {
     &self.prod.last().unwrap()[0]
   }
 
-  // first terminal
   fn eps(&self) -> u32 {
     self.prod.len() as u32
   }
 
-  // second terminal
   fn eof(&self) -> u32 {
     self.prod.len() as u32 + 1
+  }
+
+  fn err(&self) -> u32 {
+    self.prod.len() as u32 + 2
   }
 
   fn token_num(&self) -> u32 {
@@ -173,7 +177,7 @@ impl<'a> AbstractGrammar<'a> for SimpleGrammar<'a> {
   }
 }
 
-// not supported, just a simple grammar
+// doesn't really have, just a simple grammar
 impl<'a> AbstractGrammarExt<'a> for SimpleGrammar<'a> {
   fn prod_pri_assoc(&self, _id: u32) -> Option<(u32, Assoc)> {
     None

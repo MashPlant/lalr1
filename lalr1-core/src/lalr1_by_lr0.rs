@@ -24,6 +24,7 @@ fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a im
     }
   }
 
+  let special_term = g.err() as usize;
   for (i, (state, link)) in lr0.iter().enumerate() {
     for (item_id, &item) in state.iter().enumerate() {
       // only consider lr0 core item
@@ -32,7 +33,7 @@ fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a im
         let clo = clo_cache.entry(item.unique_id()).or_insert_with(||
           ctx.closure({
                         let mut look_ahead = BitSet::new(ctx.token_num as usize);
-                        look_ahead.set(ctx.token_num as usize - 1);
+                        look_ahead.set(special_term);
                         let mut init = HashMap::new();
                         init.insert(item, look_ahead);
                         init
@@ -47,7 +48,7 @@ fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a im
           let goto_item_idx = lr0[goto_state as usize].0.iter().enumerate().find(|item| item.1.unique_id() == goto_item_id).unwrap().0;
           let goto_look_ahead = &mut look_ahead[goto_state as usize][goto_item_idx];
           goto_look_ahead.or(&clo_item_look_ahead);
-          if clo_item_look_ahead.test(ctx.token_num  as usize - 1) {
+          if clo_item_look_ahead.test(special_term) {
             prop.push((from, goto_look_ahead.as_mut_ptr()));
           }
         }
@@ -89,11 +90,11 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl 
     }
     for (item, (_, look_ahead)) in state.iter().zip(result[i].items.iter()) {
       if item.dot == item.prod.len() as u32 {
-        if look_ahead.test(g.eof()  as usize) && item.prod_id == start_id {
+        if look_ahead.test(g.eof() as usize) && item.prod_id == start_id {
           act.insert(eof, smallvec![ParserAct::Acc]);
         } else {
           for i in 0..token_num {
-            if look_ahead.test(i  as usize) {
+            if look_ahead.test(i as usize) {
               // maybe conflict here
               act.entry(i).or_insert_with(|| SmallVec::new()).push(ParserAct::Reduce(item.prod_id));
             }

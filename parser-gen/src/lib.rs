@@ -75,7 +75,7 @@ impl RustCodegen {
         for &(acc, _) in &dfa.nodes {
           match acc {
             Some(acc) => { let _ = write!(s, "{}, ", g.raw.lexical.get_index(acc as usize).unwrap().1); }
-            None => s += "_Eof, ",
+            None => { let _ = write!(s, "{}, ", grammar_config::ERR); }
           }
         }
         s

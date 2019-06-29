@@ -4,6 +4,7 @@ extern crate indexmap;
 extern crate smallvec;
 
 pub mod grammar;
+
 pub use grammar::*;
 
 use serde::{Serialize, Deserialize};
@@ -66,7 +67,7 @@ pub struct RawProductionRhs {
 }
 
 // about the distribution of non-terminal & terminal & eof & eps on u32:
-// non-terminal: 0..nt_num(), terminal & eof & eps: nt_num()..token_num()
+// non-term: 0..nt_num(), term & eof & eps & err: nt_num()..token_num()
 pub trait AbstractGrammar<'a> {
   // the right hand side of production
   type ProdRef: AsRef<[u32]> + 'a;
@@ -75,9 +76,16 @@ pub trait AbstractGrammar<'a> {
 
   fn start(&'a self) -> &'a (Self::ProdRef, u32);
 
+  // eps & eof & err are 3 special terms in the grammar
+  // eps: indicate lexer produces a term which should be neglected by parser; also used in computing first & follow
+  // eof: indicate lexer consumes all its input; also used in computing look_ahead
+  // err: indicate lexer meets a unrecognizable char; also used in lalr1_by_lr0 for the "special term"
+  // lexer should not return eps; when lexer returns eof/err, parser should return Err(token)
   fn eps(&self) -> u32;
 
   fn eof(&self) -> u32;
+
+  fn err(&self) -> u32;
 
   fn token_num(&self) -> u32;
 
@@ -114,22 +122,21 @@ pub fn parse_term<'a>(
   priority: &'a [RawPriorityRow],
   lexical: &'a IndexMap<String, String>,
 ) -> Result<(Vec<(&'a str, Option<(u32, Assoc)>)>, HashMap<&'a str, u32>), String> {
-  let mut terms = vec![(EPS, None), (EOF, None)];
+  let mut terms = vec![(EPS, None), (EOF, None), (ERR, None)];
   let mut term2id = HashMap::new();
   term2id.insert(EPS, 0);
   term2id.insert(EOF, 1);
+  term2id.insert(ERR, 2);
 
   for (pri, pri_row) in priority.iter().enumerate() {
     let pri_assoc = (pri as u32, pri_row.assoc);
     for term in pri_row.terms.iter().map(String::as_str) {
-      if term == EPS {
-        return Err(format!("Cannot assign priority to builtin term `{}`.", EPS));
-      } else if term == EOF {
-        return Err(format!("Cannot assign priority to builtin term `{}`.", EOF));
+      if term == EPS || term == EOF || term == ERR {
+        return Err(format!("Cannot assign priority to builtin term `{}`.", term));
       } else if !VALID_NAME.is_match(term) {
         return Err(format!("Term is not a valid variable name: `{}`.", term));
       } else if term2id.contains_key(term) {
-        return Err(format!("Find duplicate term in assigning priority: `{}`.", term));
+        return Err(format!("Duplicate term when assigning priority: `{}`.", term));
       } else {
         term2id.insert(term, terms.len() as u32);
         terms.push((term, Some(pri_assoc)));
@@ -139,8 +146,8 @@ pub fn parse_term<'a>(
 
   for l in lexical {
     let (_, term) = (l.0.as_str(), l.1.as_str());
-    if term == EOF {
-      return Err(format!("User define lex rule cannot return token `{}`.", EOF));
+    if term == EOF || term == ERR {
+      return Err(format!("User define lex rule cannot return token `{}`.", term));
     } else if term != EPS && !VALID_NAME.is_match(term) {
       return Err(format!("Term is not a valid variable name: `{}`.", term));
     }
@@ -152,36 +159,3 @@ pub fn parse_term<'a>(
   }
   Ok((terms, term2id))
 }
-
-/*
-      if rhs_ty.len() != rhs_tk.len() {
-        panic!("Production `{}`'s rhs and method `{}`'s arguments have different length.", rule, method.sig.ident);
-      }
-      for (&rhs_tk, rhs_ty) in rhs_tk.iter().zip(rhs_ty.iter()) {
-        match rhs_ty {
-          ArgInfo::Self_ => panic!("Method `{}` takes self argument in illegal position.", method.sig.ident),
-          ArgInfo::Arg { name, ty } => {
-            name_rhs.push(name.clone());
-            match (nt2id.get(rhs_tk), term2id.get(rhs_tk)) {
-              (Some(&nt_id), _) => {
-                let nt_ty = &nt[nt_id as usize].1;
-                if nt_ty != ty {
-                  panic!("Production `{}`'s rhs and method `{}`'s arguments have conflict signature: `{}` requires `{}`, while method takes `{}`.",
-                         rule, method.sig.ident, rhs_tk, nt_ty, ty);
-                }
-                prod_rhs.push(nt_id);
-              }
-              (_, Some(&t)) => {
-                if !ty.starts_with("Token") { // maybe user will use some lifetime specifier
-                  panic!("Production `{}`'s rhs and method `{}`'s arguments have conflict signature: `{}` requires Token, while method takes `{}`.",
-                         rule, method.sig.ident, rhs_tk, ty);
-                }
-                prod_rhs.push(t + nt.len() as u32 + 1); // +1 for push a _start to nt later
-                pri_assoc = terms[t as usize].1;
-              }
-              (None, None) => panic!("Production rhs contains undefined item: `{}`", rhs_tk),
-            }
-          }
-        }
-      }
-*/
