@@ -1,0 +1,46 @@
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum Act { Shift({u_lr_size}), Reduce({u_lr_size}), Goto({u_lr_size}), Acc, Err }
+
+impl {parser_type} {
+  #[allow(unused)]
+  #[allow(unused_mut)]
+  pub fn parse<'l, L: IntoIterator<Item=Token<'l>>>(&mut self, lexer: L) -> Result<{res_type}, Option<Token<'l>>> {
+    static PROD: [({u_lr_size}, {u_prod_len}); {prod_size}] = [{prod}];
+    static LR_EDGE: [[Act; {token_size}]; {lr_size}] = [{lr_edge}];
+    let mut value_stk: Vec<StackItem<'l>> = vec![];
+    let mut state_stk: Vec<{u_lr_size}> = vec![0];
+    let mut lexer = lexer.into_iter();
+    let mut token = match lexer.next() { Some(t) => t, None => return Err(None) };
+    {log_token}
+    loop {
+      let state = index!(state_stk, state_stk.len() - 1);
+      let act = index!(index!(LR_EDGE, state), token.ty);
+      match act {
+        Act::Shift(s) => {
+          value_stk.push(StackItem::_Token(token));
+          state_stk.push(s);
+          token = match lexer.next() { Some(t) => t, None => return Err(None) };
+          {log_token}
+        }
+        Act::Reduce(r) => {
+          let prod = index!(PROD, r);
+          for _ in 0..prod.1 { match state_stk.pop() { None => impossible!(), Some(_) => {} }; }
+          match r {
+            {parser_act}
+            _ => impossible!(),
+          }
+          let cur = index!(state_stk, state_stk.len() - 1);
+          let nxt = match index!(index!(LR_EDGE, cur), prod.0) { Act::Goto(n) => n, _ => impossible!() };
+          state_stk.push(nxt);
+        }
+        Act::Acc => {
+          match state_stk.pop() { None => impossible!(), Some(_) => {} };
+          let res = match value_stk.pop() { Some(StackItem::_{res_id}(r)) => r, _ => impossible!() };
+          return Ok(res);
+        }
+        Act::Err => return Err(Some(token)),
+        _ => impossible!(),
+      }
+    }
+  }
+}

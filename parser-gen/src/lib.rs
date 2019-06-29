@@ -8,10 +8,6 @@ use lalr1_core::{ParseTable, Grammar};
 use aho_corasick::AhoCorasick;
 use std::fmt::Write;
 
-pub trait Codegen {
-  fn gen(&self, g: &Grammar, table: &ParseTable, dfa: &Dfa, ec: &[u8; 128]) -> String;
-}
-
 pub struct RustCodegen {
   pub log_token: bool,
   pub log_reduce: bool,
@@ -25,36 +21,8 @@ pub fn min_u_of(x: u32) -> &'static str {
   }
 }
 
-// I once tried to make the generated code perfectly indented by IndentPrinter, and I almost succeeded
-// but such code is so unmaintainable, so I gave up, just use rustfmt or other tool to format the code...
-impl Codegen for RustCodegen {
-  fn gen(&self, g: &Grammar, table: &ParseTable, dfa: &Dfa, ec: &[u8; 128]) -> String {
-    let template = include_str!("template/template.rs");
-    let pat = [
-      "{include}",
-      "{token_type}",
-      "{u_lr_size}",
-      "{stack_item}",
-      "{dfa_size}",
-      "{acc}",
-      "{ec}",
-      "{u_dfa_size}",
-      "{ec_size}",
-      "{dfa_edge}",
-      "{parser_struct}",
-      "{parser_type}",
-      "{res_type}",
-      "{res_id}",
-      "{u_lr_size}",
-      "{u_prod_len}",
-      "{prod_size}",
-      "{prod}",
-      "{token_size}",
-      "{lr_size}",
-      "{lr_edge}",
-      "{parser_act}",
-      "{log_token}",
-    ];
+impl RustCodegen {
+  fn gather_types<'a>(&self, g: &Grammar<'a>) -> (Vec<&'a str>, HashMap<&'a str, u32>) {
     let mut types = Vec::new();
     let mut types2id = HashMap::new();
     for &(_, ty) in &g.nt {
@@ -64,8 +32,23 @@ impl Codegen for RustCodegen {
         id
       });
     }
-    let parse_res = g.nt.last().unwrap().1;
-    let res_id = types2id[parse_res];
+    (types, types2id)
+  }
+
+  fn gen_common(&self, g: &Grammar, dfa: &Dfa, ec: &[u8; 128], types: &[&str]) -> String {
+    let template = include_str!("template/common.rs.template");
+    let pat = [
+      "{include}",
+      "{token_type}",
+      "{stack_item}",
+      "{dfa_size}",
+      "{acc}",
+      "{ec}",
+      "{u_dfa_size}",
+      "{ec_size}",
+      "{dfa_edge}",
+      "{parser_struct}",
+    ];
     let rep = [
       // "{include}"
       g.raw.include.clone(),
@@ -77,8 +60,6 @@ impl Codegen for RustCodegen {
         }
         s
       },
-      // "{u_lr_size}"
-      min_u_of(table.action.len() as u32).to_owned(),
       { // "{stack_item}"
         let mut s = "_Token(Token<'a>), ".to_owned();
         for (i, ty) in types.iter().enumerate() {
@@ -134,6 +115,38 @@ impl Codegen for RustCodegen {
         }
         s
       },
+    ];
+    AhoCorasick::new(&pat).replace_all(template, &rep)
+  }
+}
+
+// I once tried to make the generated code perfectly indented by IndentPrinter, and I almost succeeded
+// but such code is so unmaintainable, so I gave up, just use rustfmt or other tool to format the code...
+impl RustCodegen {
+  pub fn gen_lalr1(&self, g: &Grammar, table: &ParseTable, dfa: &Dfa, ec: &[u8; 128]) -> String {
+    let (types, types2id) = self.gather_types(g);
+    let common = self.gen_common(g, dfa, ec, &types);
+    let template = include_str!("template/lalr1.rs.template");
+    let pat = [
+      "{u_lr_size}",
+      "{parser_type}",
+      "{res_type}",
+      "{res_id}",
+      "{u_lr_size}",
+      "{u_prod_len}",
+      "{prod_size}",
+      "{prod}",
+      "{token_size}",
+      "{lr_size}",
+      "{lr_edge}",
+      "{parser_act}",
+      "{log_token}",
+    ];
+    let parse_res = g.nt.last().unwrap().1;
+    let res_id = types2id[parse_res];
+    let rep = [
+      // "{u_lr_size}"
+      min_u_of(table.action.len() as u32).to_owned(),
       { // "{parser_type}"
         match &g.raw.parser_def {
           Some(def) => def.clone(),
@@ -202,7 +215,6 @@ impl Codegen for RustCodegen {
       // "{log_token}"
       if self.log_token { r#"println("{:?}", token);"#.to_owned() } else { "".to_owned() },
     ];
-    let ac = AhoCorasick::new(&pat);
-    ac.replace_all(template, &rep)
+    common + &AhoCorasick::new(&pat).replace_all(template, &rep)
   }
 }

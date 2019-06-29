@@ -13,7 +13,7 @@ use quote::ToTokens;
 use grammar_config::{RawPriorityRow, RawProduction, RawProductionRhs, RawGrammar};
 use serde::{Serialize, Deserialize};
 use indexmap::IndexMap;
-use parser_gen::{Codegen, RustCodegen};
+use parser_gen::RustCodegen;
 
 enum ArgInfo {
   Self_,
@@ -89,7 +89,7 @@ pub fn lalr1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> p
       };
       match rule_split.next() { Some("->") => {} _ => panic!("The rule `{}` method `{}` defined doesn't have a `->`.", rule, method.sig.ident), };
       // is there a better way to get the remain part(with spaces) of this iterator?
-      let rhs = rule_split.map(|s|{
+      let rhs = rule_split.map(|s| {
         let mut s = s.to_owned();
         s.push(' ');
         s
@@ -133,6 +133,6 @@ pub fn lalr1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> p
   for _conflict in &table.conflict {
     unimplemented!()
   }
-  let code = RustCodegen { log_token: false, log_reduce: false }.gen(&g, &table, &dfa, &ec);
+  let code = RustCodegen { log_token: false, log_reduce: false }.gen_lalr1(&g, &table, &dfa, &ec);
   code.parse().unwrap()
 }
