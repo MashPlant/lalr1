@@ -2,11 +2,11 @@
 extern crate smallvec;
 extern crate regex;
 extern crate grammar_config;
+extern crate bitset;
 
 pub mod grammar;
 pub mod lr1;
 pub mod lalr1_by_lr1;
-mod bitset;
 pub mod lr0;
 pub mod lalr1_by_lr0;
 pub mod lalr1_common;

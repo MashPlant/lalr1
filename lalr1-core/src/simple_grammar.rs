@@ -81,7 +81,7 @@ impl<'a> SimpleGrammar<'a> {
         self.state_text_common(&item, &mut state_text);
         state_text.push(',');
         for i in self.nt.len()..self.nt.len() + self.t.len() {
-          if look_ahead.test(i as u32) {
+          if look_ahead.test(i) {
             state_text += self.token_at(i as u32);
             state_text.push('/');
           }

@@ -27,7 +27,7 @@ impl LRCtx {
     // is for lalr1_by_lr0.rs, it is a terminal not in g, helping wo calculate the propagation of look_ahead
     // this bit will be always 0 otherwise
     let (token_num, nt_num, eps) = (g.token_num() + 1, g.nt_num(), g.eps());
-    let nt_first = vec![RefCell::new(BitSet::new(token_num)); nt_num as usize];
+    let nt_first = vec![RefCell::new(BitSet::new(token_num as usize)); nt_num as usize];
     let mut changed = true;
     while changed {
       changed = false;
@@ -35,8 +35,8 @@ impl LRCtx {
         for prod in g.get_prod(i) {
           if prod.0.as_ref().is_empty() {
             let mut lhs = nt_first[i as usize].borrow_mut();
-            changed |= !lhs.test(eps);
-            lhs.set(eps);
+            changed |= !lhs.test(eps as usize);
+            lhs.set(eps as usize);
           }
           let mut all_have_eps = true;
           for &ch in prod.0.as_ref() {
@@ -45,20 +45,20 @@ impl LRCtx {
               if ch != i {
                 changed |= nt_first[i as usize].borrow_mut().or(rhs);
               }
-              if !rhs.test(eps) {
+              if !rhs.test(eps as usize) {
                 all_have_eps = false;
                 break;
               }
             } else {
               let mut borrow = nt_first[i as usize].borrow_mut();
-              changed |= !borrow.test(ch);
-              borrow.set(ch);
+              changed |= !borrow.test(ch as usize);
+              borrow.set(ch as usize);
               all_have_eps = false;
               break;
             }
           }
           if all_have_eps {
-            nt_first[i as usize].borrow_mut().set(eps);
+            nt_first[i as usize].borrow_mut().set(eps as usize);
           }
         }
       }
@@ -73,17 +73,17 @@ impl LRCtx {
 
   // one beta, and many a
   pub fn first(&mut self, beta: &[u32], a: &BitSet) -> BitSet {
-    let mut ret = BitSet::new(self.token_num);
+    let mut ret = BitSet::new(self.token_num as usize);
     for &ch in beta {
       if ch < self.nt_num {
         let rhs = &self.nt_first[ch as usize];
         ret.or(rhs);
-        ret.clear(self.eps);
-        if !rhs.test(self.eps) {
+        ret.clear(self.eps as usize);
+        if !rhs.test(self.eps as usize) {
           return ret;
         }
       } else {
-        ret.set(ch);
+        ret.set(ch as usize);
         return ret;
       }
     }
@@ -153,8 +153,8 @@ pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Vec<LRResult<'a>> {
   let init = ctx.closure({
                            let start = g.start();
                            let item = LRItem { prod: start.0.as_ref(), prod_id: start.1, dot: 0 };
-                           let mut look_ahead = BitSet::new(g.token_num());
-                           look_ahead.set(g.eof());
+                           let mut look_ahead = BitSet::new(g.token_num() as usize);
+                           look_ahead.set(g.eof() as usize);
                            let mut init = HashMap::new();
                            init.insert(item, look_ahead);
                            init

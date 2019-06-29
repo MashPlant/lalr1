@@ -83,11 +83,11 @@ pub fn work<'a>(lr: &'a Vec<LRResult<'a>>, g: &'a impl AbstractGrammarExt<'a>) -
     let start_id = g.start().1;
     for (item, look_ahead) in &state.items {
       if item.dot == item.prod.len() as u32 {
-        if look_ahead.test(eof) && item.prod_id == start_id {
+        if look_ahead.test(eof as usize) && item.prod_id == start_id {
           act.insert(eof, smallvec![ParserAct::Acc]);
         } else {
           for i in 0..token_num {
-            if look_ahead.test(i) {
+            if look_ahead.test(i as usize) {
               // maybe conflict here
               act.entry(i).or_insert_with(|| SmallVec::new()).push(ParserAct::Reduce(item.prod_id));
             }
