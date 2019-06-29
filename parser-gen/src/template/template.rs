@@ -120,10 +120,10 @@ impl<'a> Iterator for Lexer<'a> {
 impl {parser_type} {
   #[allow(unused)]
   #[allow(unused_mut)]
-  pub fn parse<'a, L: IntoIterator<Item=Token<'a>>>(&mut self, lexer: L) -> Result<{res_type}, Option<Token<'a>>> {
+  pub fn parse<'l, L: IntoIterator<Item=Token<'l>>>(&mut self, lexer: L) -> Result<{res_type}, Option<Token<'l>>> {
     static PROD: [({u_lr_size}, {u_prod_len}); {prod_size}] = [{prod}];
     static LR_EDGE: [[Act; {token_size}]; {lr_size}] = [{lr_edge}];
-    let mut value_stk: Vec<StackItem<'a>> = vec![];
+    let mut value_stk: Vec<StackItem<'l>> = vec![];
     let mut state_stk: Vec<{u_lr_size}> = vec![0];
     let mut lexer = lexer.into_iter();
     let mut token = match lexer.next() { Some(t) => t, None => return Err(None) };

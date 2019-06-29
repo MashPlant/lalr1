@@ -1,8 +1,5 @@
 extern crate serde;
 extern crate serde_derive;
-extern crate regex;
-#[macro_use]
-extern crate lazy_static;
 extern crate indexmap;
 
 use serde::{Serialize, Deserialize};
@@ -92,9 +89,20 @@ pub trait AbstractGrammarExt<'a>: AbstractGrammar<'a> {
   fn term_pri_assoc(&self, ch: u32) -> Option<(u32, Assoc)>;
 }
 
-lazy_static! {
-  pub static ref VALID_NAME: regex::Regex = regex::Regex::new("^[a-zA-Z][a-zA-Z_0-9]*$").unwrap();
+pub struct ValidName;
+
+impl ValidName {
+  pub fn is_match(&self, s: &str) -> bool {
+    let mut chs = s.chars();
+    match chs.next() {
+      Some(ch) if ch.is_ascii_alphabetic() => chs.all(|ch| ch.is_ascii_alphabetic() || ch == '_'),
+      _ => false,
+    }
+  }
 }
+
+// use this instead of a function for compatibility, I used to use a regex here
+pub const VALID_NAME: ValidName = ValidName;
 
 /// input: the two field in RawGrammar(or constructed in other ways)
 /// return: (Vec<(term, pri_assoc)>, term2id)
