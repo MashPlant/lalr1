@@ -1,6 +1,10 @@
 extern crate serde;
 extern crate serde_derive;
 extern crate indexmap;
+extern crate smallvec;
+
+pub mod grammar;
+pub use grammar::*;
 
 use serde::{Serialize, Deserialize};
 use indexmap::IndexMap;

@@ -126,7 +126,7 @@ pub fn lalr1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> p
   };
   let (dfa, ec) = re2dfa::re2dfa(raw.lexical.iter().map(|(k, _)| k))
     .unwrap_or_else(|(idx, reason)| panic!("Invalid regex {}, reason: {}.", raw.lexical.get_index(idx).unwrap().0, reason));
-  let g = lalr1_core::grammar::extend_grammar(&mut raw)
+  let g = grammar_config::extend_grammar(&mut raw)
     .unwrap_or_else(|err| panic!("Grammar is invalid, reason: `{}`.", err));
   let lr0 = lalr1_core::lr0::work(&g);
   let table = lalr1_core::lalr1_by_lr0::work(&lr0, &g);

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use smallvec::SmallVec;
-use grammar_config::{
+use crate::{
   RawGrammar, RawProduction, RawProductionRhs, Assoc, AbstractGrammar, AbstractGrammarExt,
   VALID_NAME,
 };
@@ -21,7 +21,7 @@ pub struct Grammar<'a> {
 
 // will add a production _Start -> Start, so need mut
 pub fn extend_grammar(raw: &mut RawGrammar) -> Result<Grammar, String> {
-  let (terms, term2id) = grammar_config::parse_term(&raw.priority, &raw.lexical)?;
+  let (terms, term2id) = crate::parse_term(&raw.priority, &raw.lexical)?;
   let mut nt = Vec::new();
   let mut nt2id = HashMap::new();
 

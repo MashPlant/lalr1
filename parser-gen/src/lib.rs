@@ -4,7 +4,8 @@ extern crate grammar_config;
 
 use re2dfa::dfa::Dfa;
 use std::collections::HashMap;
-use lalr1_core::{ParseTable, Grammar};
+use lalr1_core::ParseTable;
+use grammar_config::Grammar;
 use aho_corasick::AhoCorasick;
 use std::fmt::Write;
 
