@@ -11,7 +11,7 @@ dependencies = [
 [[package]]
 name = "bitset"
 version = "0.1.0"
-source = "git+https://github.com/MashPlant/bitset#3eaec7f956b62d7d326134c4bdac9a301e925857"
+source = "git+https://github.com/MashPlant/bitset#739f96a685f6bce093df20dea1852f6f2ee492af"
 
 [[package]]
 name = "cfg-if"
@@ -42,6 +42,7 @@ version = "0.1.0"
 dependencies = [
  "bitset 0.1.0 (git+https://github.com/MashPlant/bitset)",
  "grammar-config 0.1.0",
+ "ll1-core 0.1.0",
  "smallvec 0.6.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

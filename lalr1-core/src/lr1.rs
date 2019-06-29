@@ -1,9 +1,11 @@
 use std::collections::HashMap;
-use crate::bitset::BitSet;
 use grammar_config::AbstractGrammar;
 use std::cell::RefCell;
 use std::collections::vec_deque::VecDeque;
+use ll1_core::First;
 use crate::lr0::LRItem;
+use crate::bitset::BitSet;
+use std::ops::Deref;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LRState<'a> {
@@ -14,79 +16,15 @@ pub struct LRState<'a> {
 //  pub link: HashMap<u32, u32>,
 }
 
-pub(crate) struct LRCtx {
-  pub token_num: u32,
-  pub nt_num: u32,
-  pub eps: u32,
-  pub nt_first: Vec<BitSet>,
-}
+pub struct LRCtx(pub First);
 
 impl LRCtx {
-  pub fn new<'a>(g: &'a impl AbstractGrammar<'a>) -> LRCtx {
-    let (token_num, nt_num, eps) = (g.token_num(), g.nt_num(), g.eps());
-    let nt_first = vec![RefCell::new(BitSet::new(token_num as usize)); nt_num as usize];
-    let mut changed = true;
-    while changed {
-      changed = false;
-      for i in 0..nt_num {
-        for prod in g.get_prod(i) {
-          if prod.0.as_ref().is_empty() {
-            let mut lhs = nt_first[i as usize].borrow_mut();
-            changed |= !lhs.test(eps as usize);
-            lhs.set(eps as usize);
-          }
-          let mut all_have_eps = true;
-          for &ch in prod.0.as_ref() {
-            if ch < nt_num {
-              let rhs = &nt_first[ch as usize].borrow();
-              if ch != i {
-                changed |= nt_first[i as usize].borrow_mut().or(rhs);
-              }
-              if !rhs.test(eps as usize) {
-                all_have_eps = false;
-                break;
-              }
-            } else {
-              let mut borrow = nt_first[i as usize].borrow_mut();
-              changed |= !borrow.test(ch as usize);
-              borrow.set(ch as usize);
-              all_have_eps = false;
-              break;
-            }
-          }
-          if all_have_eps {
-            nt_first[i as usize].borrow_mut().set(eps as usize);
-          }
-        }
-      }
-    }
-    LRCtx {
-      token_num,
-      nt_num,
-      eps,
-      nt_first: nt_first.into_iter().map(|x| x.into_inner()).collect(),
-    }
-  }
-
   // one beta, and many a
-  pub fn first(&mut self, beta: &[u32], a: &BitSet) -> BitSet {
-    let mut ret = BitSet::new(self.token_num as usize);
-    for &ch in beta {
-      if ch < self.nt_num {
-        let rhs = &self.nt_first[ch as usize];
-        ret.or(rhs);
-        ret.clear(self.eps as usize);
-        if !rhs.test(self.eps as usize) {
-          return ret;
-        }
-      } else {
-        ret.set(ch as usize);
-        return ret;
-      }
-    }
-    // reach here, so beta -> eps(but ret doesn't contain eps)
-    ret.or(a);
-    ret
+  pub fn first(&self, beta: &[u32], a: &BitSet) -> BitSet {
+    let mut beta_first = self.0.first(beta);
+    beta_first.clear(self.0.eps);
+    beta_first.or(a);
+    beta_first
   }
 
   pub fn go<'a>(&mut self, state: &LRState<'a>, mov: u32, g: &'a impl AbstractGrammar<'a>) -> LRState<'a> {
@@ -114,7 +52,7 @@ impl LRCtx {
       }
       let b = item.prod[item.dot as usize];
       let beta = &item.prod[item.dot as usize + 1..];
-      if b < self.nt_num {
+      if b < (self.0.nt_num() as u32) {
         let first = self.first(beta, &look_ahead);
         for new_prod in g.get_prod(b) {
           let new_item = LRItem { prod: new_prod.0.as_ref(), prod_id: new_prod.1, dot: 0 };
@@ -144,8 +82,7 @@ impl LRCtx {
 pub type LRResult<'a> = (LRState<'a>, HashMap<u32, u32>);
 
 pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Vec<LRResult<'a>> {
-  let mut ctx = LRCtx::new(g);
-
+  let mut ctx = LRCtx(First::new(g));
   let mut ss = HashMap::new();
   let init = ctx.closure({
                            let start = g.start();
@@ -162,7 +99,7 @@ pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Vec<LRResult<'a>> {
   q.push_back(init);
   while let Some(cur) = q.pop_front() {
     let mut link = HashMap::new();
-    for mov in 0..ctx.token_num {
+    for mov in 0..ctx.0.token_num as u32 {
       let ns = ctx.go(&cur, mov, g);
       if !ns.items.is_empty() {
         let id = match ss.get(&ns.items) {

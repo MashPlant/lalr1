@@ -8,3 +8,4 @@ edition = "2018"
 smallvec = "0.6.9"
 grammar-config = { path = "../grammar-config" }
 bitset = { git = "https://github.com/MashPlant/bitset" }
+ll1-core = { path = "../ll1-core" }

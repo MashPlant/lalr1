@@ -7,12 +7,13 @@ use grammar_config::AbstractGrammarExt;
 use crate::lalr1_common::*;
 use std::collections::HashMap;
 use smallvec::SmallVec;
+use ll1_core::First;
 
 // inner version, the return value doesn't contain `link`
 fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<LRState<'a>> {
-  let mut ctx = LRCtx::new(g);
+  let mut ctx = LRCtx(First::new(g));
   let mut look_ahead = lr0.iter()
-    .map(|(items, _)| vec![BitSet::new(ctx.token_num as usize); items.len()]).collect::<Vec<_>>();
+    .map(|(items, _)| vec![BitSet::new(ctx.0.token_num); items.len()]).collect::<Vec<_>>();
   let mut clo_cache = HashMap::new();
   let mut prop = Vec::new();
   let start_prod = g.start().0.as_ref();
@@ -32,7 +33,7 @@ fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a im
         // ctx.closure is really slow, so add a cache here
         let clo = clo_cache.entry(item.unique_id()).or_insert_with(||
           ctx.closure({
-                        let mut look_ahead = BitSet::new(ctx.token_num as usize);
+                        let mut look_ahead = BitSet::new(ctx.0.token_num);
                         look_ahead.set(special_term);
                         let mut init = HashMap::new();
                         init.insert(item, look_ahead);
