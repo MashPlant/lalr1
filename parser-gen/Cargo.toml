@@ -15,9 +15,5 @@ grammar-config = { path = "../grammar-config" }
 path = "src/lib.rs"
 
 [[bin]]
-name = "lalr1gen"
-path = "src/lalr1.rs"
-
-[[bin]]
-name = "ll1gen"
-path = "src/ll1.rs"
+name = "parsergen"
+path = "src/bin.rs"

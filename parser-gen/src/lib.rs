@@ -240,7 +240,12 @@ impl RustCodegen {
       "{table}",
       "{parser_type}",
       "{parser_act}",
+      "{res_type}",
+      "{res_nt_id}",
+      "{res_id}",
     ];
+    let parse_res = g.nt.last().unwrap().1;
+    let res_id = types2id[parse_res];
     let rep = [
       // "{nt_num}",
       g.nt_num().to_string(),
@@ -273,9 +278,10 @@ impl RustCodegen {
         for table in &ll.table {
           let _ = write!(s, "map!(");
           for (&predict, prod_ids) in table {
-            let (_, (lhs, idx), _) = g.prod_extra[prod_ids[0] as usize];
+            let prod_id = prod_ids[0] as usize;
+            let (_, (lhs, idx), _) = g.prod_extra[prod_id];
             let (prod, _) = &g.prod[lhs as usize][idx as usize];
-            let _ = write!(s, "{} => vec!{:?}, ", predict, prod);
+            let _ = write!(s, "{} => ({}, vec!{:?}), ", predict, prod_id, prod);
           }
           let _ = writeln!(s, "),");
         }
@@ -289,6 +295,12 @@ impl RustCodegen {
       },
       // "{parser_act}",
       self.gen_act(g, &types2id, "return StackItem::_Fail"),
+      // "{res_type}"
+      parse_res.to_owned(),
+      // "{res_nt_id}"
+      (g.nt.len() - 1).to_string(),
+      // "{res_id}"
+      res_id.to_string(),
     ];
     common + &AhoCorasick::new(&pat).replace_all(template, &rep)
   }

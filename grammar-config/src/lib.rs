@@ -108,7 +108,7 @@ impl ValidName {
   pub fn is_match(&self, s: &str) -> bool {
     let mut chs = s.chars();
     match chs.next() {
-      Some(ch) if ch.is_ascii_alphabetic() => chs.all(|ch| ch.is_ascii_alphabetic() || ch == '_'),
+      Some(ch) if ch.is_ascii_alphabetic() => chs.all(|ch| ch.is_ascii_alphanumeric() || ch == '_'),
       _ => false,
     }
   }

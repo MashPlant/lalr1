@@ -1,5 +1,3 @@
-use lazy_static::lazy_static;
-
 macro_rules! set {
   ($($x: expr,)*) => {{
     let mut s = std::collections::HashSet::new();
@@ -16,19 +14,30 @@ macro_rules! map {
   }};
 }
 
-lazy_static! {
+const NT_NUM: u32 = {nt_num};
+
+lazy_static::lazy_static! {
   pub static ref FOLLOW: [std::collections::HashSet<u32>; {nt_num}] = [{follow}];
   pub static ref BEGIN: [std::collections::HashSet<u32>; {nt_num}] = [{begin}];
-  pub static ref TABLE: [std::collections::HashMap<u32, Vec<u32>>; {nt_num}] = [{table}];
+  pub static ref TABLE: [std::collections::HashMap<u32, (u32, Vec<u32>)>; {nt_num}] = [{table}];
 }
 
 impl {parser_type} {
   #[allow(unused)]
   #[allow(unused_mut)]
-  pub fn act<'s>(lhs: u32, mut value_stk: Vec<StackItem<'s>>) -> StackItem<'s> {
+  pub fn act<'s>(&mut self, lhs: u32, mut value_stk: Vec<StackItem<'s>>) -> StackItem<'s> {
     match lhs {
       {parser_act}
       _ => impossible!(),
+    }
+  }
+
+  #[allow(unused)]
+  #[allow(unused_mut)]
+  pub fn parse<'a>(&mut self, mut lexer: Lexer<'a>) -> Option<{res_type}> {
+    match self._parse({res_nt_id}, &mut lexer.next(), &mut lexer, &std::collections::HashSet::new()) {
+      StackItem::_{res_id}(parse_res) => Some(parse_res),
+      _ => None
     }
   }
 }

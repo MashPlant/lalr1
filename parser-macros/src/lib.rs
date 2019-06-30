@@ -1,3 +1,4 @@
+#![feature(proc_macro_diagnostic)]
 extern crate syn;
 extern crate proc_macro;
 extern crate lalr1_core;
@@ -48,7 +49,7 @@ enum Mode {
   LL1,
 }
 
-fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mode) ->  proc_macro::TokenStream{
+fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mode) -> proc_macro::TokenStream {
   let parser_impl = match syn::parse::<syn::ItemImpl>(input) {
     Ok(parser_impl) => parser_impl,
     Err(_) => panic!("Attribute `lalr1` can only be applied to an impl block."),
@@ -132,7 +133,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
   let (dfa, ec) = re2dfa::re2dfa(raw.lexical.iter().map(|(k, _)| k))
     .unwrap_or_else(|(idx, reason)| panic!("Invalid regex {}, reason: {}.", raw.lexical.get_index(idx).unwrap().0, reason));
   let g = grammar_config::extend_grammar(&mut raw)
-    .unwrap_or_else(|err| panic!("Grammar is invalid, reason: `{}`.", err));
+    .unwrap_or_else(|err| panic!("Grammar is invalid, reason: {}.", err));
   match mode {
     Mode::LALR1 => {
       let lr0 = lalr1_core::lr0::work(&g);
@@ -144,8 +145,28 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
       code.parse().unwrap()
     }
     Mode::LL1 => {
+//      use grammar_config::AbstractGrammar;
       let ll = ll1_core::LLCtx::new(&g);
+//      println!("eof = {}, eps = {}", g.eof(), g.eps());
+//      println!("{:?}", ll.first.nt_first);
+//      println!("{:?}", ll.follow.nt_follow);
+//      println!("{:?}", ll.ps);
+//      println!("{:?}", ll.table);
+      for table in &ll.table {
+        for (&predict, prod_ids) in table {
+//          println!("{:?} {:?}", predict, prod_ids);
+          if prod_ids.len() > 1 {
+            use proc_macro::{Diagnostic, Level};
+            let first_prod = g.show_prod(prod_ids[0]);
+            for &other in prod_ids.iter().skip(1) {
+              Diagnostic::new(Level::Warning, format!("Conflict at prod `{}` and `{}`, both's PS contains term `{}`.",
+                                                      first_prod, g.show_prod(other), g.terms[predict as usize - g.nt.len()].0)).emit();
+            }
+          }
+        }
+      }
       let code = RustCodegen { log_token: false, log_reduce: false }.gen_ll1(&g, &ll, &dfa, &ec);
+//      println!("{}", code);
       code.parse().unwrap()
     }
   }

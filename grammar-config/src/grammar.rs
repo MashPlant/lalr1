@@ -19,6 +19,24 @@ pub struct Grammar<'a> {
   pub prod_extra: Vec<((&'a str, Option<&'a Vec<(Option<String>, String)>>), (u32, u32), Option<(u32, Assoc)>)>,
 }
 
+impl Grammar<'_> {
+  pub fn show_prod(&self, id: u32) -> String {
+    let (_, (lhs, idx), _) = self.prod_extra[id as usize];
+    let (prod, _) = &self.prod[lhs as usize][idx as usize];
+    let mut s = format!("{} -> ", self.nt[lhs as usize].0);
+    for &rhs in prod {
+      if rhs < self.nt_num() {
+        s += self.nt[rhs as usize].0;
+      } else {
+        s += self.terms[rhs as usize - self.nt.len()].0;
+      }
+      s.push(' ');
+    }
+    s.pop();
+    s
+  }
+}
+
 // will add a production _Start -> Start, so need mut
 pub fn extend_grammar(raw: &mut RawGrammar) -> Result<Grammar, String> {
   let (terms, term2id) = crate::parse_term(&raw.priority, &raw.lexical)?;
@@ -115,7 +133,7 @@ pub fn extend_grammar(raw: &mut RawGrammar) -> Result<Grammar, String> {
         let rhs_tk = rhs.rhs.split_whitespace().collect::<Vec<_>>();
         if rhs_arg.len() != rhs_tk.len() {
           return Err(format!("Production `{} -> {}`'s rhs and method's arguments have different length: {} vs {}.",
-                             lhs, rhs.rhs, rhs_tk.len(), rhs_arg.len()));
+                             raw_prod.lhs, rhs.rhs, rhs_tk.len(), rhs_arg.len()));
         }
         for (&rhs_tk, (_, rhs_ty)) in rhs_tk.iter().zip(rhs_arg.iter()) {
           match (nt2id.get(rhs_tk), term2id.get(rhs_tk)) {
@@ -123,12 +141,12 @@ pub fn extend_grammar(raw: &mut RawGrammar) -> Result<Grammar, String> {
               let nt_ty = &nt[nt_id as usize].1;
               if nt_ty != rhs_ty {
                 return Err(format!("Production `{} -> {}`'s rhs and method's arguments have conflict signature: `{}` requires `{}`, while method takes `{}`.",
-                                   lhs, rhs.rhs, rhs_tk, nt_ty, rhs_ty));
+                                   raw_prod.lhs, rhs.rhs, rhs_tk, nt_ty, rhs_ty));
               }
             }
             (_, Some(_)) => if !rhs_ty.starts_with("Token") { // maybe user will use some lifetime specifier
               return Err(format!("Production `{} -> {}`'s rhs and method 's arguments have conflict signature: `{}` requires Token, while method takes `{}`.",
-                                 lhs, rhs.rhs, rhs_tk, rhs_ty));
+                                 raw_prod.lhs, rhs.rhs, rhs_tk, rhs_ty));
             }
             _ => {} // unreachable, because checked above
           }
