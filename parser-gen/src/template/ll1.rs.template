@@ -22,7 +22,7 @@ lazy_static::lazy_static! {
   pub static ref TABLE: [std::collections::HashMap<u32, (u32, Vec<u32>)>; {nt_num}] = [{table}];
 }
 
-impl {parser_type} {
+impl<'p> {parser_type} {
   #[allow(unused)]
   #[allow(unused_mut)]
   pub fn act<'s>(&mut self, lhs: u32, mut value_stk: Vec<StackItem<'s>>) -> StackItem<'s> {
@@ -34,7 +34,7 @@ impl {parser_type} {
 
   #[allow(unused)]
   #[allow(unused_mut)]
-  pub fn parse<'a>(&mut self, mut lexer: Lexer<'a>) -> Option<{res_type}> {
+  pub fn parse<'l: 'p>(&mut self, mut lexer: Lexer<'l>) -> Option<{res_type}> {
     match self._parse({res_nt_id}, &mut lexer.next(), &mut lexer, &std::collections::HashSet::new()) {
       StackItem::_{res_id}(parse_res) => Some(parse_res),
       _ => None

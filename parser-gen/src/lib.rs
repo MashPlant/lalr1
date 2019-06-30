@@ -80,8 +80,8 @@ impl RustCodegen {
         let mut s = String::new();
         for &(acc, _) in &dfa.nodes {
           match acc {
-            Some(acc) => { let _ = write!(s, "{}, ", g.raw.lexical.get_index(acc as usize).unwrap().1); }
-            None => { let _ = write!(s, "{}, ", grammar_config::ERR); }
+            Some(acc) => { let _ = write!(s, "TokenType::{}, ", g.raw.lexical.get_index(acc as usize).unwrap().1); }
+            None => { let _ = write!(s, "TokenType::{}, ", grammar_config::ERR); }
           }
         }
         s

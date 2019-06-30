@@ -46,16 +46,15 @@ impl<'a> Lexer<'a> {
   }
 
   pub fn next(&mut self) -> Token<'a> {
-    use TokenType::*;
     static ACC: [TokenType; {dfa_size}] = [{acc}];
     static EC: [u8; 128] = [{ec}];
     static DFA_EDGE: [[{u_dfa_size}; {ec_size}]; {dfa_size}] = [{dfa_edge}];
     loop {
       if self.string.is_empty() {
-        return Token { ty: _Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col };
+        return Token { ty: TokenType::_Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col };
       }
       let (mut line, mut col) = (self.cur_line, self.cur_col);
-      let mut last_acc = _Err; // this is arbitrary, just a value that cannot be returned by user defined function
+      let mut last_acc = TokenType::_Err; // this is arbitrary, just a value that cannot be returned by user defined function
       let mut state = 0;
       let mut i = 0;
       while i < self.string.len() {
@@ -63,17 +62,17 @@ impl<'a> Lexer<'a> {
         let ec = index!(EC, ch & 0x7F);
         let nxt = index!(index!(DFA_EDGE, state), ec);
         let acc = index!(ACC, nxt);
-        last_acc = if acc != _Err { acc } else { last_acc };
+        last_acc = if acc != TokenType::_Err { acc } else { last_acc };
         state = nxt;
         if nxt == 0 { // dead, should not eat this char
           let piece = &self.string[..i];
           self.string = &self.string[i..];
-          if last_acc != _Eps {
+          if last_acc != TokenType::_Eps {
             return Token { ty: last_acc, piece, line, col };
           } else {
             line = self.cur_line;
             col = self.cur_col;
-            last_acc = _Err;
+            last_acc = TokenType::_Err;
             state = 0;
             i = 0;
           }
@@ -90,10 +89,10 @@ impl<'a> Lexer<'a> {
       // end of file
       let piece = &self.string[..i];
       self.string = &self.string[i..];
-      if last_acc != _Eps {
+      if last_acc != TokenType::_Eps {
         return Token { ty: last_acc, piece, line, col };
       } else {
-        return Token { ty: _Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col };
+        return Token { ty: TokenType::_Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col };
       }
     }
   }
