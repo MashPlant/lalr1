@@ -65,7 +65,7 @@ impl RustCodegen {
         s
       },
       { // "{stack_item}"
-        let mut s = "_Token(Token<'a>), ".to_owned();
+        let mut s = "_Token(Token<'p>), ".to_owned();
         if stack_need_fail {
           let _ = write!(s, "_Fail, ");
         }

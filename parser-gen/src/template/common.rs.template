@@ -24,28 +24,28 @@ macro_rules! impossible {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TokenType { {token_type} }
 
-pub enum StackItem<'a> { {stack_item} }
+pub enum StackItem<'p> { {stack_item} }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Token<'a> {
+pub struct Token<'l> {
   pub ty: TokenType,
-  pub piece: &'a [u8],
+  pub piece: &'l [u8],
   pub line: u32,
   pub col: u32,
 }
 
-pub struct Lexer<'a> {
-  pub string: &'a [u8],
+pub struct Lexer<'l> {
+  pub string: &'l [u8],
   pub cur_line: u32,
   pub cur_col: u32,
 }
 
-impl<'a> Lexer<'a> {
+impl<'l> Lexer<'l> {
   pub fn new(string: &[u8]) -> Lexer {
     Lexer { string, cur_line: 1, cur_col: 1 }
   }
 
-  pub fn next(&mut self) -> Token<'a> {
+  pub fn next(&mut self) -> Token<'l> {
     static ACC: [TokenType; {dfa_size}] = [{acc}];
     static EC: [u8; 128] = [{ec}];
     static DFA_EDGE: [[{u_dfa_size}; {ec_size}]; {dfa_size}] = [{dfa_edge}];
