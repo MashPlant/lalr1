@@ -131,6 +131,9 @@ impl RustCodegen {
     let mut s = String::new();
     for (i, &((act, args), (lhs, idx), _)) in g.prod_extra.iter().enumerate() {
       let _ = writeln!(s, "{} => {{", i);
+      if self.log_reduce {
+        let _ = writeln!(s, r#"println!("{}");"#, g.show_prod(i as u32));
+      }
       let rhs = &g.prod[lhs as usize][idx as usize];
       for (j, &x) in rhs.0.iter().enumerate().rev() {
         let name = match args {
@@ -224,7 +227,7 @@ impl RustCodegen {
       // "{parser_act}"
       self.gen_act(g, &types2id, "impossible!()"),
       // "{log_token}"
-      if self.log_token { r#"println("{:?}", token);"#.to_owned() } else { "".to_owned() },
+      if self.log_token { r#"println!("{:?}", token);"#.to_owned() } else { "".to_owned() },
     ];
     common + &AhoCorasick::new(&pat).replace_all(template, &rep)
   }

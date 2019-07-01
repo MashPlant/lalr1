@@ -3,6 +3,8 @@ use parser_macros::lalr1;
 struct Parser;
 
 #[lalr1(Expr)]
+#[log_reduce]
+#[log_token]
 #[lex(r#"
 priority = [
   { assoc = 'left', terms = ['Add', 'Sub'] },

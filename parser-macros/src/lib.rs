@@ -69,19 +69,32 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
     priority: Vec<RawPriorityRow>,
     lexical: IndexMap<String, String>,
   }
-  let raw_lexer = (match parser_impl.attrs.iter().next() {
-    Some(attr) if attr.path.is_ident("lex") => {
-      if let Some(proc_macro2::TokenTree::Group(group)) = attr.tts.clone().into_iter().next() {
-        let mut term_it = group.stream().into_iter();
-        if let Some(proc_macro2::TokenTree::Literal(lit)) = term_it.next() {
-          let cfg = parse_string(&lit);
-          // assume toml
-          Some(toml::from_str::<RawLexer>(&cfg).unwrap_or_else(|err| panic!("Fail to parse toml config of lexer, reason: `{}`.", err)))
-        } else { None }
-      } else { None }
+
+  const FAIL_TO_PARSE_LEXER: &'static str = "Fail to parse lexer, expect `#[lex(lexer toml string)].";
+  let mut raw_lexer = None;
+  let mut log_token = false;
+  let mut log_reduce = false;
+  for attr in &parser_impl.attrs {
+    if attr.path.is_ident("lex") {
+      match raw_lexer {
+        Some(_) => panic!("Find more than one lexer config."),
+        None => raw_lexer = if let Some(proc_macro2::TokenTree::Group(group)) = attr.tts.clone().into_iter().next() {
+          let mut term_it = group.stream().into_iter();
+          if let Some(proc_macro2::TokenTree::Literal(lit)) = term_it.next() {
+            let cfg = parse_string(&lit);
+            // assume toml
+            Some(toml::from_str::<RawLexer>(&cfg).unwrap_or_else(|err| panic!("Fail to parse toml config of lexer, reason: `{}`.", err)))
+          } else { panic!("{}", FAIL_TO_PARSE_LEXER) }
+        } else { panic!("{}", FAIL_TO_PARSE_LEXER) },
+      }
+    } else if attr.path.is_ident("log_token") {
+      log_token = true;
+    } else if attr.path.is_ident("log_reduce") {
+      log_reduce = true;
     }
-    _ => None,
-  }).unwrap_or_else(|| panic!("Fail to parse lexer file path, expect `#[lex(PathToLexerConfig)]."));
+  }
+  let raw_lexer = raw_lexer.unwrap_or_else(|| panic!("{}", FAIL_TO_PARSE_LEXER));
+
   let mut production = Vec::new();
   for item in &parser_impl.items {
     if let syn::ImplItem::Method(method) = item {
@@ -155,7 +168,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
           }
         }
       }
-      let code = RustCodegen { log_token: false, log_reduce: false }.gen_lalr1(&g, &table, &dfa, &ec);
+      let code = RustCodegen { log_token, log_reduce }.gen_lalr1(&g, &table, &dfa, &ec);
       code.parse().unwrap()
     }
     Mode::LL1 => {
@@ -171,7 +184,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
           }
         }
       }
-      let code = RustCodegen { log_token: false, log_reduce: false }.gen_ll1(&g, &ll, &dfa, &ec);
+      let code = RustCodegen { log_token, log_reduce }.gen_ll1(&g, &ll, &dfa, &ec);
       code.parse().unwrap()
     }
   }
