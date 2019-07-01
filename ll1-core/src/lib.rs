@@ -28,8 +28,8 @@ impl First {
         changed = false;
         for i in 0..nt_num {
           let lhs = nt_first[i].as_mut_ptr();
-          let mut all_have_eps = true;
           for prod in g.get_prod(i as u32) {
+            let mut all_have_eps = true;
             tmp.clear_all();
             for &ch in prod.0.as_ref() {
               let ch = ch as usize;

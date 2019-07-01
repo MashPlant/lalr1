@@ -4,6 +4,7 @@ use std::collections::vec_deque::VecDeque;
 use ll1_core::First;
 use crate::lr0::LRItem;
 use crate::bitset::BitSet;
+use std::ops::Deref;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LRState<'a> {
@@ -14,9 +15,17 @@ pub struct LRState<'a> {
 //  pub link: HashMap<u32, u32>,
 }
 
-pub struct LRCtx(pub First);
+pub struct LRCtx(First);
+
+impl Deref for LRCtx {
+  type Target = First;
+
+  fn deref(&self) -> &Self::Target { &self.0 }
+}
 
 impl LRCtx {
+  pub fn new<'a>(g: &'a impl AbstractGrammar<'a>) -> LRCtx { LRCtx(First::new(g)) }
+
   // one beta, and many a
   pub fn first(&self, beta: &[u32], a: &BitSet) -> BitSet {
     let mut beta_first = self.0.first(beta);
