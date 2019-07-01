@@ -41,7 +41,7 @@ impl Token {
 }
 '''
 
-terminal = [
+priority = [
   { assoc = "left", terms = ["Or"] },
   { assoc = "left", terms = ["And"] },
   { assoc = "left", terms = ["BOr"] },
@@ -60,81 +60,79 @@ terminal = [
   { assoc = "no_assoc", terms = ["Else"] },
 ]
 
-# this ordered, so a map may not be applicable here
-lexical = [
-  ["void", "Void"],
-  ["int", "Int"],
-  ["bool", "Bool"],
-  ["string", "String"],
-  ["new", "New"],
-  ["null", "Null"],
-  ["true", "True"],
-  ["false", "False"],
-  ["class", "Class"],
-  ["extends", "Extends"],
-  ["this", "This"],
-  ["while", "WhileTk"],
-  ["foreach", "ForeachTk"],
-  ["for", "ForTk"],
-  ["if", "IfTk"],
-  ["else", "Else"],
-  ["return", "ReturnTk"],
-  ["break", "BreakTk"],
-  ["Print", "PrintTk"],
-  ["ReadInteger", "ReadInteger"],
-  ["ReadLine", "ReadLine"],
-  ["static", "Static"],
-  ["instanceof", "InstanceOf"],
-  ["scopy", "SCopyTk"],
-  ["sealed", "Sealed"],
-  ["var", "Var"],
-  ["default", "Default"],
-  ["in", "In"],
-  ['\|\|\|', "GuardSplit"],
-  ["<=", "Le"],
-  [">=", "Ge"],
-  ["==", "Eq"],
-  ["!=", "Ne"],
-  ["&&", "And"],
-  ['\|\|', "Or"],
-  ["%%", "Repeat"],
-  ['\+\+', "Inc"],
-  ["--", "Dec"],
-  ["<<", "Shl"],
-  [">>", "Shr"],
-  ['\+', "Add"],
-  ["-", "Sub"],
-  ['\*', "Mul"],
-  ["/", "Div"],
-  ["%", "Mod"],
-  ["&", "BAnd"],
-  ['\|', "BOr"],
-  ["^", "BXor"],
-  ["=", "Assign"],
-  ["<", "Lt"],
-  [">", "Gt"],
-  ['\.', "Dot"],
-  [",", "Comma"],
-  [";", "Semicolon"],
-  ["!", "Not"],
-  ['\(', "LParenthesis"],
-  ['\)', "RParenthesis"],
-  ['\[', "LBracket"],
-  ['\]', "RBracket"],
-  ["{", "LBrace"],
-  ["}", "RBrace"],
-  [":", "Colon"],
-  ['"[^"\\]*(\\.[^"\\]*)*"', "StringConst"],
-  # this is an incomplete StringConst(EOF encountered), parser's senmatic rule will report the err
-  # line break in a StringConst will also be reported by parser's senmatic rule
-  ['"[^"\\]*(\\.[^"\\]*)*', "StringConst"],
-  ['//[^\n]*', "_Eps"],
-  ['\s+', "_Eps"],
-  ['\d+', "IntConst"],
-  ["[A-Za-z][_0-9A-Za-z]*", "Identifier"],
-]
+[lexical]
+"void" = "Void"
+"int" = "Int"
+"bool" = "Bool"
+"string" = "String"
+"new" = "New"
+"null" = "Null"
+"true" = "True"
+"false" = "False"
+"class" = "Class"
+"extends" = "Extends"
+"this" = "This"
+"while" = "WhileTk"
+"foreach" = "ForeachTk"
+"for" = "ForTk"
+"if" = "IfTk"
+"else" = "Else"
+"return" = "ReturnTk"
+"break" = "BreakTk"
+"Print" = "PrintTk"
+"ReadInteger" = "ReadInteger"
+"ReadLine" = "ReadLine"
+"static" = "Static"
+"instanceof" = "InstanceOf"
+"scopy" = "SCopyTk"
+"sealed" = "Sealed"
+"var" = "Var"
+"default" = "Default"
+"in" = "In"
+'\|\|\|' = "GuardSplit"
+"<=" = "Le"
+">=" = "Ge"
+"==" = "Eq"
+"!=" = "Ne"
+"&&" = "And"
+'\|\|' = "Or"
+"%%" = "Repeat"
+'\+\+' = "Inc"
+"--" = "Dec"
+"<<" = "Shl"
+">>" = "Shr"
+'\+' = "Add"
+"-" = "Sub"
+'\*' = "Mul"
+"/" = "Div"
+"%" = "Mod"
+"&" = "BAnd"
+'\|' = "BOr"
+"^" = "BXor"
+"=" = "Assign"
+"<" = "Lt"
+">" = "Gt"
+'\.' = "Dot"
+"," = "Comma"
+";" = "Semicolon"
+"!" = "Not"
+'\(' = "LParenthesis"
+'\)' = "RParenthesis"
+'\[' = "LBracket"
+'\]' = "RBracket"
+"{" = "LBrace"
+"}" = "RBrace"
+":" = "Colon"
+'"[^"\\]*(\\.[^"\\]*)*"' = "StringConst"
+# this is an incomplete StringConst(EOF encountered), parser's senmatic rule will report the err
+# line break in a StringConst will also be reported by parser's senmatic rule
+'"[^"\\]*(\\.[^"\\]*)*' = "StringConst"
+'//[^\n]*' = "_Eps"
+'\s+' = "_Eps"
+'\d+' = "IntConst"
+"[A-Za-z][_0-9A-Za-z]*" = "Identifier"
 
-parser_field_ext = [{ field = "errors", type = "Vec<String>", init = "vec![]" }]
+#parser_field = ["errors: Vec<String>"]
 
 [[production]]
 lhs = "Program"

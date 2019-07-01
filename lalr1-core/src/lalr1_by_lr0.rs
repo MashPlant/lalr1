@@ -68,6 +68,12 @@ fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a im
     }
   }
 
+  for look_ahead in &mut look_ahead {
+    for look_ahead in look_ahead {
+      look_ahead.clear(special_term);
+    }
+  }
+
   lr0.clone().into_iter().zip(look_ahead.into_iter()).map(|((state, _), look_ahead_s)| {
     ctx.closure(state.into_iter().zip(look_ahead_s.into_iter()).collect(), g)
   }).collect::<Vec<_>>()

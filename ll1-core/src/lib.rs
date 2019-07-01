@@ -20,30 +20,37 @@ impl First {
     let (token_num, nt_num, eps) = (g.token_num() as usize, g.nt_num() as usize, g.eps() as usize);
     assert!(nt_num <= eps && eps < token_num);
     let mut nt_first = vec![BitSet::new(token_num); nt_num];
+    let mut tmp = BitSet::new(token_num);
     let inner_len = BitSet::calc_inner_len(token_num);
     unsafe {
       let mut changed = true;
       while changed {
         changed = false;
         for i in 0..nt_num {
-          'out: for prod in g.get_prod(i as u32) {
-            let lhs = nt_first[i].as_mut_ptr();
+          let lhs = nt_first[i].as_mut_ptr();
+          let mut all_have_eps = true;
+          for prod in g.get_prod(i as u32) {
+            tmp.clear_all();
             for &ch in prod.0.as_ref() {
               let ch = ch as usize;
               if ch < nt_num {
                 let rhs = nt_first[ch].as_ptr();
-                changed |= BitSet::or_raw(lhs, rhs, inner_len);
+                BitSet::or_raw(tmp.as_mut_ptr(), rhs, inner_len);
+                tmp.clear_unchecked(eps);
                 if !BitSet::test_raw(rhs, eps) {
-                  continue 'out;
+                  all_have_eps = false;
+                  break;
                 }
               } else {
-                changed |= !BitSet::test_raw(lhs, ch);
-                BitSet::set_raw(lhs, ch);
-                continue 'out;
+                tmp.set_unchecked(ch);
+                all_have_eps = false;
+                break;
               }
             }
-            changed |= !BitSet::test_raw(lhs, eps);
-            BitSet::set_raw(lhs, eps);
+            if all_have_eps {
+              tmp.set_unchecked(eps);
+            }
+            changed |= BitSet::or_raw(lhs, tmp.as_ptr(), inner_len);
           }
         }
       }

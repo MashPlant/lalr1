@@ -20,8 +20,10 @@ impl LRCtx {
   // one beta, and many a
   pub fn first(&self, beta: &[u32], a: &BitSet) -> BitSet {
     let mut beta_first = self.0.first(beta);
-    beta_first.clear(self.0.eps);
-    beta_first.or(a);
+    if beta_first.test(self.0.eps) {
+      beta_first.clear(self.0.eps);
+      beta_first.or(a);
+    }
     beta_first
   }
 

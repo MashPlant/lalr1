@@ -97,6 +97,7 @@ dependencies = [
  "lalr1-core 0.1.0",
  "ll1-core 0.1.0",
  "re2dfa 1.0.0 (git+https://github.com/MashPlant/re2dfa)",
+ "toml 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

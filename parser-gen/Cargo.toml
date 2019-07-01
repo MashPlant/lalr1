@@ -10,6 +10,7 @@ aho-corasick = "0.7"
 lalr1-core = { path = "../lalr1-core" }
 ll1-core = { path = "../ll1-core" }
 grammar-config = { path = "../grammar-config" }
+toml = "0.5"
 
 [lib]
 path = "src/lib.rs"
