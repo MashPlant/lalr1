@@ -16,6 +16,8 @@ use grammar_config::{RawPriorityRow, RawProduction, RawProductionRhs, RawGrammar
 use serde::{Serialize, Deserialize};
 use indexmap::IndexMap;
 use parser_gen::RustCodegen;
+use lalr1_core::ConflictType;
+use proc_macro::{Diagnostic, Level};
 
 enum ArgInfo {
   Self_,
@@ -138,25 +140,29 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
     Mode::LALR1 => {
       let lr0 = lalr1_core::lr0::work(&g);
       let table = lalr1_core::lalr1_by_lr0::work(&lr0, &g);
-      for _conflict in &table.conflict {
-        unimplemented!()
+      for conflict in &table.conflict {
+        let ch = g.show_token(conflict.ch);
+        match conflict.ty {
+          ConflictType::SR { s, r } => {
+            let msg = format!("Shift-reduce conflict at state {} when faced with token `{}`, it can either shift {}, or reduce {}(`{}`).",
+                              conflict.state, ch, s, r, g.show_prod(r));
+            Diagnostic::new(Level::Warning, msg).emit();
+          }
+          ConflictType::RR { r1, r2 } => {
+            let msg = format!("Shift-shift conflict at state {} when faced with token `{}`, it can either reduce {}('{}'), or reduce {}(`{}`).",
+                              conflict.state, ch, r1, g.show_prod(r1), r2, g.show_prod(r2));
+            Diagnostic::new(Level::Warning, msg).emit();
+          }
+        }
       }
       let code = RustCodegen { log_token: false, log_reduce: false }.gen_lalr1(&g, &table, &dfa, &ec);
       code.parse().unwrap()
     }
     Mode::LL1 => {
-//      use grammar_config::AbstractGrammar;
       let ll = ll1_core::LLCtx::new(&g);
-//      println!("eof = {}, eps = {}", g.eof(), g.eps());
-//      println!("{:?}", ll.first.nt_first);
-//      println!("{:?}", ll.follow.nt_follow);
-//      println!("{:?}", ll.ps);
-//      println!("{:?}", ll.table);
       for table in &ll.table {
         for (&predict, prod_ids) in table {
-//          println!("{:?} {:?}", predict, prod_ids);
           if prod_ids.len() > 1 {
-            use proc_macro::{Diagnostic, Level};
             let first_prod = g.show_prod(prod_ids[0]);
             for &other in prod_ids.iter().skip(1) {
               Diagnostic::new(Level::Warning, format!("Conflict at prod `{}` and `{}`, both's PS contains term `{}`.",
@@ -166,7 +172,6 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
         }
       }
       let code = RustCodegen { log_token: false, log_reduce: false }.gen_ll1(&g, &ll, &dfa, &ec);
-//      println!("{}", code);
       code.parse().unwrap()
     }
   }

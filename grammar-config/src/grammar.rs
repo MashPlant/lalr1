@@ -20,16 +20,20 @@ pub struct Grammar<'a> {
 }
 
 impl Grammar<'_> {
+  pub fn show_token(&self, id: u32) -> &str {
+    if id < self.nt_num() {
+      self.nt[id as usize].0
+    } else {
+      self.terms[id as usize - self.nt.len()].0
+    }
+  }
+
   pub fn show_prod(&self, id: u32) -> String {
     let (_, (lhs, idx), _) = self.prod_extra[id as usize];
     let (prod, _) = &self.prod[lhs as usize][idx as usize];
     let mut s = format!("{} -> ", self.nt[lhs as usize].0);
     for &rhs in prod {
-      if rhs < self.nt_num() {
-        s += self.nt[rhs as usize].0;
-      } else {
-        s += self.terms[rhs as usize - self.nt.len()].0;
-      }
+      s += self.show_token(rhs);
       s.push(' ');
     }
     s.pop();
