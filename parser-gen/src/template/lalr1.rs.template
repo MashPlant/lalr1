@@ -9,15 +9,16 @@ impl<'p> {parser_type} {
     static LR_EDGE: [[Act; {token_size}]; {lr_size}] = [{lr_edge}];
     let mut value_stk: Vec<StackItem<'p>> = vec![];
     let mut state_stk: Vec<{u_lr_size}> = vec![0];
+    let mut state = 0;
     let mut token = lexer.next();
     {log_token}
     loop {
-      let state = index!(state_stk, state_stk.len() - 1);
       let act = index!(index!(LR_EDGE, state), token.ty);
       match act {
         Act::Shift(s) => {
           value_stk.push(StackItem::_Token(token));
           state_stk.push(s);
+          state = s;
           token = lexer.next();
           {log_token}
         }
@@ -32,6 +33,7 @@ impl<'p> {parser_type} {
           let cur = index!(state_stk, state_stk.len() - 1);
           let nxt = match index!(index!(LR_EDGE, cur), prod.0) { Act::Goto(n) => n, _ => impossible!() };
           state_stk.push(nxt);
+          state = nxt;
         }
         Act::Acc => {
           match state_stk.pop() { None => impossible!(), Some(_) => {} };

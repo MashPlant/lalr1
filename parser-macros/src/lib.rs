@@ -74,6 +74,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
   let mut raw_lexer = None;
   let mut log_token = false;
   let mut log_reduce = false;
+  let mut expand = false;
   for attr in &parser_impl.attrs {
     if attr.path.is_ident("lex") {
       match raw_lexer {
@@ -91,6 +92,8 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
       log_token = true;
     } else if attr.path.is_ident("log_reduce") {
       log_reduce = true;
+    } else if attr.path.is_ident("expand") {
+      expand = true;
     }
   }
   let raw_lexer = raw_lexer.unwrap_or_else(|| panic!("{}", FAIL_TO_PARSE_LEXER));
@@ -149,7 +152,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
     .unwrap_or_else(|(idx, reason)| panic!("Invalid regex {}, reason: {}.", raw.lexical.get_index(idx).unwrap().0, reason));
   let g = grammar_config::extend_grammar(&mut raw)
     .unwrap_or_else(|err| panic!("Grammar is invalid, reason: {}.", err));
-  match mode {
+  let code = match mode {
     Mode::LALR1 => {
       let lr0 = lalr1_core::lr0::work(&g);
       let table = lalr1_core::lalr1_by_lr0::work(&lr0, &g);
@@ -168,8 +171,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
           }
         }
       }
-      let code = RustCodegen { log_token, log_reduce }.gen_lalr1(&g, &table, &dfa, &ec);
-      code.parse().unwrap()
+      RustCodegen { log_token, log_reduce }.gen_lalr1(&g, &table, &dfa, &ec)
     }
     Mode::LL1 => {
       let ll = ll1_core::LLCtx::new(&g);
@@ -184,10 +186,13 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
           }
         }
       }
-      let code = RustCodegen { log_token, log_reduce }.gen_ll1(&g, &ll, &dfa, &ec);
-      code.parse().unwrap()
+      RustCodegen { log_token, log_reduce }.gen_ll1(&g, &ll, &dfa, &ec)
     }
+  };
+  if expand {
+    println!("{}", code);
   }
+  code.parse().unwrap()
 }
 
 #[proc_macro_attribute]
