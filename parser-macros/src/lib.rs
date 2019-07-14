@@ -74,6 +74,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
   let mut raw_lexer = None;
   let mut log_token = false;
   let mut log_reduce = false;
+  let mut use_unsafe = false;
   let mut expand = false;
   for attr in &parser_impl.attrs {
     if attr.path.is_ident("lex") {
@@ -92,8 +93,12 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
       log_token = true;
     } else if attr.path.is_ident("log_reduce") {
       log_reduce = true;
+    } else if attr.path.is_ident("use_unsafe") {
+      use_unsafe = true;
     } else if attr.path.is_ident("expand") {
       expand = true;
+    } else {
+      panic!("Expect one of `lex`, `log_token`, `log_reduce`, `use_unsafe`, `expand` here, found `{}`", attr.path.clone().into_token_stream());
     }
   }
   let raw_lexer = raw_lexer.unwrap_or_else(|| panic!("{}", FAIL_TO_PARSE_LEXER));
@@ -171,7 +176,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
           }
         }
       }
-      RustCodegen { log_token, log_reduce }.gen_lalr1(&g, &table, &dfa, &ec)
+      RustCodegen { log_token, log_reduce, use_unsafe }.gen_lalr1(&g, &table, &dfa, &ec)
     }
     Mode::LL1 => {
       let ll = ll1_core::LLCtx::new(&g);
@@ -186,7 +191,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
           }
         }
       }
-      RustCodegen { log_token, log_reduce }.gen_ll1(&g, &ll, &dfa, &ec)
+      RustCodegen { log_token, log_reduce, use_unsafe }.gen_ll1(&g, &ll, &dfa, &ec)
     }
   };
   if expand {

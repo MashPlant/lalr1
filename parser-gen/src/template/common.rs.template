@@ -1,34 +1,15 @@
 {include}
 
-#[cfg(not(feature = "unsafe_parser"))]
-macro_rules! index {
-  ($arr: expr, $idx: expr) => { $arr[$idx as usize] };
-}
-
-#[cfg(feature = "unsafe_parser")]
-macro_rules! index {
-  ($arr: expr, $idx: expr) => { unsafe { *$arr.get_unchecked($idx as usize) } };
-}
-
-// just another name for unreachable
-#[cfg(not(feature = "unsafe_parser"))]
-macro_rules! impossible {
-  () => { unreachable!() };
-}
-
-#[cfg(feature = "unsafe_parser")]
-macro_rules! impossible {
-  () => { unsafe { std::hint::unreachable_unchecked() } };
-}
+{macros}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TokenType { {token_type} }
+pub enum TokenKind { {token_kind} }
 
 pub enum StackItem<'p> { {stack_item} }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Token<'l> {
-  pub ty: TokenType,
+  pub ty: TokenKind,
   pub piece: &'l [u8],
   pub line: u32,
   pub col: u32,
@@ -46,15 +27,15 @@ impl<'l> Lexer<'l> {
   }
 
   pub fn next(&mut self) -> Token<'l> {
-    static ACC: [TokenType; {dfa_size}] = [{acc}];
+    static ACC: [TokenKind; {dfa_size}] = [{acc}];
     static EC: [u8; 128] = [{ec}];
     static DFA_EDGE: [[{u_dfa_size}; {ec_size}]; {dfa_size}] = [{dfa_edge}];
     loop {
       if self.string.is_empty() {
-        return Token { ty: TokenType::_Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col };
+        return Token { ty: TokenKind::_Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col };
       }
       let (mut line, mut col) = (self.cur_line, self.cur_col);
-      let mut last_acc = TokenType::_Err; // this is arbitrary, just a value that cannot be returned by user defined function
+      let mut last_acc = TokenKind::_Err; // this is arbitrary, just a value that cannot be returned by user defined function
       let mut state = 0;
       let mut i = 0;
       while i < self.string.len() {
@@ -62,17 +43,17 @@ impl<'l> Lexer<'l> {
         let ec = index!(EC, ch & 0x7F);
         let nxt = index!(index!(DFA_EDGE, state), ec);
         let acc = index!(ACC, nxt);
-        last_acc = if acc != TokenType::_Err { acc } else { last_acc };
+        last_acc = if acc != TokenKind::_Err { acc } else { last_acc };
         state = nxt;
         if nxt == 0 { // dead, should not eat this char
           let piece = &self.string[..i];
           self.string = &self.string[i..];
-          if last_acc != TokenType::_Eps {
+          if last_acc != TokenKind::_Eps {
             return Token { ty: last_acc, piece, line, col };
           } else {
             line = self.cur_line;
             col = self.cur_col;
-            last_acc = TokenType::_Err;
+            last_acc = TokenKind::_Err;
             state = 0;
             i = 0;
           }
@@ -89,10 +70,10 @@ impl<'l> Lexer<'l> {
       // end of file
       let piece = &self.string[..i];
       self.string = &self.string[i..];
-      if last_acc != TokenType::_Eps {
+      if last_acc != TokenKind::_Eps {
         return Token { ty: last_acc, piece, line, col };
       } else {
-        return Token { ty: TokenType::_Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col };
+        return Token { ty: TokenKind::_Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col };
       }
     }
   }

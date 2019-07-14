@@ -25,7 +25,7 @@ macro_rules! impossible {
 
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum TokenType { Expr, _Expr, _Eps, _Eof, Or, And, BOr, BXor, BAnd, Eq, Ne, Le, Ge, Lt, Gt, Shl, Shr, Add, Sub, Mul, Div, Mod, UMinus, Not, LBracket, RParenthesis, Repeat, IntConst }
+pub enum TokenKind { Expr, _Expr, _Eps, _Eof, Or, And, BOr, BXor, BAnd, Eq, Ne, Le, Ge, Lt, Gt, Shl, Shr, Add, Sub, Mul, Div, Mod, UMinus, Not, LBracket, RParenthesis, Repeat, IntConst }
 
 #[derive(Copy, Clone, Debug)]
 pub enum Act { Shift(u8), Reduce(u8), Goto(u8), Acc, Err }
@@ -34,7 +34,7 @@ pub enum StackItem<'a> { _Token(Token<'a>), _0(i64) }
 
 #[derive(Debug, Clone, Copy)]
 pub struct Token<'a> {
-  pub ty: TokenType,
+  pub ty: TokenKind,
   pub piece: &'a [u8],
   pub line: u32,
   pub col: u32,
@@ -56,8 +56,8 @@ impl<'a> Lexer<'a> {
   }
 
   pub fn next(&mut self) -> Option<Token<'a>> {
-    use TokenType::*;
-    static ACC: [TokenType; 24] = [_Eof, _Eof, IntConst, _Eps, Add, _Eof, Div, Mod, BXor, Gt, Mul, BOr, Lt, BAnd, Sub, Eq, Ne, Repeat, Ge, Shr, Or, Le, Shl, And, ];
+    use TokenKind::*;
+    static ACC: [TokenKind; 24] = [_Eof, _Eof, IntConst, _Eps, Add, _Eof, Div, Mod, BXor, Gt, Mul, BOr, Lt, BAnd, Sub, Eq, Ne, Repeat, Ge, Shr, Or, Le, Shl, And, ];
     static EC: [u8; 128] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 3, 4, 0, 0, 0, 5, 6, 0, 7, 0, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 0, 0, 10, 11, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 0, 0, 0, ];
     static EDGE: [[u8; 15]; 24] = [[0, 3, 5, 7, 13, 10, 4, 14, 6, 2, 12, 1, 9, 8, 11], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0], [0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 18, 19, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 22, 21, 0, 0, 0], [0, 0, 0, 0, 23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], ];
     loop {

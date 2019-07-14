@@ -15,6 +15,7 @@ use std::fmt::Write;
 pub struct RustCodegen {
   pub log_token: bool,
   pub log_reduce: bool,
+  pub use_unsafe: bool,
 }
 
 pub fn min_u_of(x: u32) -> &'static str {
@@ -44,7 +45,8 @@ impl RustCodegen {
     let template = include_str!("template/common.rs.template");
     let pat = [
       "{include}",
-      "{token_type}",
+      "{macros}",
+      "{token_kind}",
       "{stack_item}",
       "{dfa_size}",
       "{acc}",
@@ -57,7 +59,16 @@ impl RustCodegen {
     let rep = [
       // "{include}"
       g.raw.include.clone(),
-      { // "{token_type}"
+      { // "{macros}"
+        if self.use_unsafe {
+          r#"macro_rules! index { ($arr: expr, $idx: expr) => { unsafe { *$arr.get_unchecked($idx as usize) } }; }
+macro_rules! impossible { () => { unsafe { std::hint::unreachable_unchecked() } }; }"#.to_owned()
+        } else {
+          r#"macro_rules! index { ($arr: expr, $idx: expr) => { $arr[$idx as usize] }; }
+macro_rules! impossible { () => { unreachable!() }; }"#.to_owned()
+        }
+      },
+      { // "{token_kind}"
         let mut s = String::new();
         let _ = write!(s, "{} = {}, ", g.terms[0].0, g.nt.len());
         for &(t, _) in g.terms.iter().skip(1) {
@@ -81,8 +92,8 @@ impl RustCodegen {
         let mut s = String::new();
         for &(acc, _) in &dfa.nodes {
           match acc {
-            Some(acc) => { let _ = write!(s, "TokenType::{}, ", g.raw.lexical.get_index(acc as usize).unwrap().1); }
-            None => { let _ = write!(s, "TokenType::{}, ", grammar_config::ERR); }
+            Some(acc) => { let _ = write!(s, "TokenKind::{}, ", g.raw.lexical.get_index(acc as usize).unwrap().1); }
+            None => { let _ = write!(s, "TokenKind::{}, ", grammar_config::ERR); }
           }
         }
         s
