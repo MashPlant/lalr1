@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use grammar_config::AbstractGrammar;
 use std::collections::vec_deque::VecDeque;
 use ll1_core::First;

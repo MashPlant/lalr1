@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use smallvec::SmallVec;
 use crate::{
   RawGrammar, RawProduction, RawProductionRhs, Assoc, AbstractGrammar, AbstractGrammarExt,

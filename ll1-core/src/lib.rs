@@ -2,10 +2,11 @@ extern crate grammar_config;
 extern crate bitset;
 extern crate smallvec;
 extern crate indexmap;
+extern crate hashbrown;
 
 use grammar_config::AbstractGrammar;
 use bitset::BitSet;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use smallvec::SmallVec;
 use indexmap::IndexMap;
 

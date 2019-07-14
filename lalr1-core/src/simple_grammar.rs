@@ -1,7 +1,7 @@
 use grammar_config::*;
 use crate::lr0::LRItem;
 use crate::lr1::LRResult;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use std::fmt::Write;
 
 pub struct SimpleGrammar<'a> {

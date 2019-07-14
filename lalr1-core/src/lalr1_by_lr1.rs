@@ -1,7 +1,7 @@
 use crate::lr1::*;
 use crate::lr0::LRItem;
 use grammar_config::AbstractGrammarExt;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use crate::bitset::BitSet;
 use smallvec::SmallVec;
 use std::hash::{Hash, Hasher};

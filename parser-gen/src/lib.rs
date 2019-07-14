@@ -2,9 +2,10 @@ extern crate re2dfa;
 extern crate lalr1_core;
 extern crate grammar_config;
 extern crate ll1_core;
+extern crate hashbrown;
 
 use re2dfa::dfa::Dfa;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use lalr1_core::LRTable;
 use grammar_config::{Grammar, AbstractGrammar};
 use aho_corasick::AhoCorasick;

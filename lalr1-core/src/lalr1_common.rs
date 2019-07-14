@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use grammar_config::{Assoc, AbstractGrammarExt};
 use crate::lr0::LRItem;
 use smallvec::SmallVec;

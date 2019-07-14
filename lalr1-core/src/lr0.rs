@@ -1,5 +1,5 @@
 use grammar_config::AbstractGrammar;
-use std::collections::{HashMap, HashSet};
+use hashbrown::{HashMap, HashSet};
 use std::collections::vec_deque::VecDeque;
 use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;

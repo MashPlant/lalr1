@@ -1,5 +1,5 @@
 use parser_macros::ll1;
-use std::collections::{HashSet, HashMap};
+use hashbrown::{HashSet, HashMap};
 
 struct Parser;
 

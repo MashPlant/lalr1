@@ -3,6 +3,7 @@ extern crate smallvec;
 extern crate grammar_config;
 extern crate bitset;
 extern crate ll1_core;
+extern crate hashbrown;
 
 pub mod lr1;
 pub mod lalr1_by_lr1;
