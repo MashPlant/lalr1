@@ -40,7 +40,7 @@ impl RustCodegen {
     (types, types2id)
   }
 
-  fn gen_common(&self, g: &Grammar, dfa: &Dfa, ec: &[u8; 128], types: &[&str],
+  fn gen_common(&self, g: &Grammar, dfa: &Dfa, ec: &[u8; 256], types: &[&str],
                 stack_need_fail: bool) -> String {
     let template = include_str!("template/common.rs.template");
     let pat = [
@@ -100,7 +100,7 @@ macro_rules! impossible { () => { unreachable!() }; }"#.to_owned()
       },
       { // "{ec}"
         let mut s = String::new();
-        for ch in 0..128 {
+        for ch in 0..256 {
           let _ = write!(s, "{}, ", ec[ch]);
         }
         s
@@ -171,7 +171,7 @@ macro_rules! impossible { () => { unreachable!() }; }"#.to_owned()
 // I once tried to make the generated code perfectly indented by IndentPrinter, and I almost succeeded
 // but such code is so unmaintainable, so I gave up, just use rustfmt or other tool to format the code...
 impl RustCodegen {
-  pub fn gen_lalr1(&self, g: &Grammar, table: &LRTable, dfa: &Dfa, ec: &[u8; 128]) -> String {
+  pub fn gen_lalr1(&self, g: &Grammar, table: &LRTable, dfa: &Dfa, ec: &[u8; 256]) -> String {
     let (types, types2id) = self.gather_types(g);
     let common = self.gen_common(g, dfa, ec, &types, false);
     let template = include_str!("template/lalr1.rs.template");
@@ -244,7 +244,7 @@ impl RustCodegen {
     common + &AhoCorasick::new(&pat).replace_all(template, &rep)
   }
 
-  pub fn gen_ll1(&self, g: &Grammar, ll: &LLCtx, dfa: &Dfa, ec: &[u8; 128]) -> String {
+  pub fn gen_ll1(&self, g: &Grammar, ll: &LLCtx, dfa: &Dfa, ec: &[u8; 256]) -> String {
     let (types, types2id) = self.gather_types(g);
     let common = self.gen_common(g, dfa, ec, &types, true);
     let template = include_str!("template/ll1.rs.template");

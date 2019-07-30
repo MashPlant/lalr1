@@ -70,7 +70,7 @@ impl<'a> Lexer<'a> {
       let mut i = 0;
       while i < self.string.len() {
         let ch = index!(self.string, i);
-        let ec = index!(EC, ch & 0x7F);
+        let ec = index!(EC, ch);
         let nxt = index!(index!(EDGE, state), ec);
         let acc = index!(ACC, nxt);
         last_acc = if acc != _Eof { acc } else { last_acc };

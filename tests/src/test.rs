@@ -1,6 +1,3 @@
-#![feature(proc_macro_hygiene)]
-extern crate parser_macros;
-
 use parser_macros::lalr1;
 
 pub struct Parser;

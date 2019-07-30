@@ -28,7 +28,7 @@ impl<'l> Lexer<'l> {
 
   pub fn next(&mut self) -> Token<'l> {
     static ACC: [TokenKind; {dfa_size}] = [{acc}];
-    static EC: [u8; 128] = [{ec}];
+    static EC: [u8; 256] = [{ec}];
     static DFA_EDGE: [[{u_dfa_size}; {ec_size}]; {dfa_size}] = [{dfa_edge}];
     loop {
       if self.string.is_empty() {
@@ -40,7 +40,7 @@ impl<'l> Lexer<'l> {
       let mut i = 0;
       while i < self.string.len() {
         let ch = index!(self.string, i);
-        let ec = index!(EC, ch & 0x7F);
+        let ec = index!(EC, ch);
         let nxt = index!(index!(DFA_EDGE, state), ec);
         let acc = index!(ACC, nxt);
         last_acc = if acc != TokenKind::_Err { acc } else { last_acc };
