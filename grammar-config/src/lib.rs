@@ -1,9 +1,3 @@
-extern crate serde;
-extern crate serde_derive;
-extern crate indexmap;
-extern crate smallvec;
-extern crate hashbrown;
-
 pub mod grammar;
 
 pub use grammar::*;

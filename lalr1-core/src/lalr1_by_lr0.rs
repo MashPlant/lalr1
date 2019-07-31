@@ -1,21 +1,20 @@
 // "Compilers: Principles, Techniques and Tools" Algorithm 4.63
 
-use crate::{lr1::LRCtx, Lr1Item, Lr0Item, Lr1Closure};
-use crate::conflict::*;
+use crate::{lr1::LRCtx, Lr1Item, Lr1Closure, ParserAct, LrFsm, LrNode, TableItem, RawTable};
 use grammar_config::AbstractGrammarExt;
 use hashbrown::HashMap;
 use smallvec::{SmallVec, smallvec};
 use bitset::BitSet;
 
 // inner version, the return value doesn't contain `link`
-fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<Lr0Item<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<Lr1Closure<'a>> {
+fn _lalr1_only<'a>(lr0: &'a LrFsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<Lr1Closure<'a>> {
   let mut ctx = LRCtx::new(g);
   let mut lookahead = lr0.iter()
-    .map(|(items, _)| vec![BitSet::new(ctx.token_num); items.len()]).collect::<Vec<_>>();
+    .map(|LrNode { items, .. }| vec![BitSet::new(ctx.token_num); items.len()]).collect::<Vec<_>>();
   let mut prop = Vec::new();
   let start_prod = (g.start().1).0.as_ref();
 
-  for (i, item) in lr0[0].0.iter().enumerate() {
+  for (i, item) in lr0[0].items.iter().enumerate() {
     if item.prod == start_prod {
       lookahead[0][i].set(g.eof() as usize);
       break;
@@ -23,7 +22,7 @@ fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<Lr0Item<'a>>, HashMap<u32, u32>)>, g: &'a i
   }
 
   let special_term = g.err() as usize;
-  for (i, (state, link)) in lr0.iter().enumerate() {
+  for (i, LrNode { items: state, link }) in lr0.iter().enumerate() {
     for (item_id, &item) in state.iter().enumerate() {
       // only consider lr0 core item
       if item.prod == start_prod || item.dot != 0 {
@@ -41,7 +40,7 @@ fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<Lr0Item<'a>>, HashMap<u32, u32>)>, g: &'a i
           }
           let goto_state = link[&cl_item.prod[cl_item.dot as usize]];
           let goto_item_id = cl_item.unique_id() + 1; // dot + 1
-          let goto_item_idx = lr0[goto_state as usize].0.iter().enumerate().find(|item| item.1.unique_id() == goto_item_id).unwrap().0;
+          let goto_item_idx = lr0[goto_state as usize].items.iter().enumerate().find(|item| item.1.unique_id() == goto_item_id).unwrap().0;
           let goto_lookahead = &mut lookahead[goto_state as usize][goto_item_idx];
           goto_lookahead.or(&cl_lookahead);
           if cl_lookahead.test(special_term) {
@@ -65,19 +64,18 @@ fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<Lr0Item<'a>>, HashMap<u32, u32>)>, g: &'a i
 
   lookahead.iter_mut().for_each(|l| l.iter_mut().for_each(|l| l.clear(special_term)));
 
-  lr0.clone().into_iter().zip(lookahead.into_iter()).map(|((state, _), lookahead_s)| {
-    ctx.closure(state.into_iter().zip(lookahead_s.into_iter()).collect(), g)
+  lr0.iter().zip(lookahead.into_iter()).map(|(node, lookahead_s)| {
+    ctx.closure(node.items.clone().into_iter().zip(lookahead_s.into_iter()).collect(), g)
   }).collect::<Vec<_>>()
 }
 
-pub fn work<'a>(lr0: &'a Vec<(Vec<Lr0Item<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> LRTable<'a> {
+pub fn work<'a>(lr0: &'a LrFsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> RawTable<'a> {
   let result = _lalr1_only(lr0, g);
-
-  let mut action = Vec::with_capacity(lr0.len());
+  let mut table = Vec::with_capacity(lr0.len());
   let eof = g.eof();
   let start_id = (g.start().1).1;
   let token_num = g.token_num();
-  for (i, (state, link)) in lr0.iter().enumerate() {
+  for (i, LrNode { items: state, link }) in lr0.iter().enumerate() {
     let mut act = HashMap::new();
     for (&k, &v) in link {
       if k < g.nt_num() {
@@ -100,15 +98,8 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<Lr0Item<'a>>, HashMap<u32, u32>)>, g: &'a impl
         }
       }
     }
-    action.push((state.iter().map(|item| item).collect(), act));
+    table.push(TableItem { items: state, act });
   }
 
-  let conflict = try_solve_conflict(&mut action, g);
-  LRTable { action, conflict }
+  table
 }
-
-//// the return type is the same with lr1::work
-//pub fn lalr1_only<'a>(lr0: &'a Vec<(Vec<Lr0Item<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> LRFsm<'a> {
-//  let result = _lalr1_only(lr0, g);
-//  result.into_iter().zip(lr0.clone().into_iter()).map(|(state, (_, link))| (state, link)).collect()
-//}

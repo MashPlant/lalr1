@@ -1,12 +1,8 @@
-extern crate toml;
-extern crate grammar_config;
-extern crate lalr1_core;
-
 use grammar_config::{RawGrammar, extend_grammar, AbstractGrammar};
 
 fn main() {
   let decaf = include_str!("../../examples/decaf.toml");
-  for i in 0..100 {
+  for _ in 0..100 {
     let mut raw = toml::from_str::<RawGrammar>(decaf).unwrap();
     let g = extend_grammar(&mut raw).unwrap();
     let lr0 = lalr1_core::lr0::work(&g);

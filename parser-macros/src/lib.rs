@@ -1,24 +1,14 @@
-// TODO: attach more production info to the grammar, I myself need a lot of time to debug a grammar!
 #![feature(proc_macro_diagnostic)]
-extern crate syn;
 extern crate proc_macro;
-extern crate lalr1_core;
-extern crate ll1_core;
-extern crate re2dfa;
-extern crate parser_gen;
-extern crate grammar_config;
-extern crate toml;
-extern crate serde;
-extern crate serde_derive;
-extern crate quote;
 
 use quote::ToTokens;
 use grammar_config::{RawPriorityRow, RawProduction, RawProductionRhs, RawGrammar};
 use serde::{Serialize, Deserialize};
 use indexmap::IndexMap;
 use parser_gen::RustCodegen;
-use lalr1_core::{ConflictType, ParserAct};
+use lalr1_core::{ConflictKind, ParserAct};
 use proc_macro::{Diagnostic, Level};
+use std::{fs::File, io::Write};
 
 enum ArgInfo {
   Self_,
@@ -40,16 +30,25 @@ fn parse_arg(arg: &syn::FnArg) -> ArgInfo {
 }
 
 // is there a better way?
-// I mean, if there is not such a api, since it is so frequently used, why do these libs not wrap them?
+// if there is not such a api, since it is so frequently used, why do these libs not wrap them?
 // and if there is, why is the document SO HARD to find?
 fn parse_string(lit: &proc_macro2::Literal) -> String {
   let s = lit.to_string();
   s[s.find('\"').unwrap() + 1..s.rfind('\"').unwrap()].to_owned()
 }
 
+fn attr2strlit(attr: &syn::Attribute) -> Option<String> {
+  if let Some(proc_macro2::TokenTree::Group(group)) = attr.tts.clone().into_iter().next() {
+    let mut term_it = group.stream().into_iter();
+    if let Some(proc_macro2::TokenTree::Literal(lit)) = term_it.next() {
+      Some(parse_string(&lit))
+    } else { None }
+  } else { None }
+}
+
 enum Mode {
-  LALR1,
-  LL1,
+  Lalr1,
+  Ll1,
 }
 
 fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mode) -> proc_macro::TokenStream {
@@ -71,35 +70,29 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
     lexical: IndexMap<String, String>,
   }
 
-  const FAIL_TO_PARSE_LEXER: &'static str = "Fail to parse lexer, expect `#[lex(lexer toml string)].";
-  let mut raw_lexer = None;
-  let mut log_token = false;
-  let mut log_reduce = false;
-  let mut use_unsafe = false;
-  let mut expand = false;
+  const FAIL_TO_PARSE_LEXER: &str = "Fail to parse lexer, expect `#[lex(TomlOfLexer)].";
+
+  let (mut raw_lexer, mut verbose) = (None, None);
+  let (mut log_token, mut log_reduce, mut use_unsafe, mut expand) = (false, false, false, false);
   for attr in &parser_impl.attrs {
-    if attr.path.is_ident("lex") {
-      match raw_lexer {
+    let ident = attr.path.clone().into_token_stream().to_string();
+    match ident.as_str() {
+      "lex" => match raw_lexer {
         Some(_) => panic!("Find more than one lexer config."),
-        None => raw_lexer = if let Some(proc_macro2::TokenTree::Group(group)) = attr.tts.clone().into_iter().next() {
-          let mut term_it = group.stream().into_iter();
-          if let Some(proc_macro2::TokenTree::Literal(lit)) = term_it.next() {
-            let cfg = parse_string(&lit);
-            // assume toml
-            Some(toml::from_str::<RawLexer>(&cfg).unwrap_or_else(|err| panic!("Fail to parse toml config of lexer, reason: `{}`.", err)))
-          } else { panic!("{}", FAIL_TO_PARSE_LEXER) }
-        } else { panic!("{}", FAIL_TO_PARSE_LEXER) },
+        None => raw_lexer = if let Some(cfg) = attr2strlit(attr) {
+          Some(toml::from_str::<RawLexer>(&cfg).unwrap_or_else(|err| panic!("Fail to parse toml config of lexer, reason: `{}`.", err)))
+        } else { panic!(FAIL_TO_PARSE_LEXER) }
+      },
+      "verbose" => match verbose {
+        Some(_) => panic!("Find more than one verbose information output file."),
+        // unwrap it and Some it, make sure won't treat an invalid input as not an input
+        None => verbose = Some(attr2strlit(attr).unwrap_or_else(|| panic!("Fail to find verbose information output file from #[verbose(...)]"))),
       }
-    } else if attr.path.is_ident("log_token") {
-      log_token = true;
-    } else if attr.path.is_ident("log_reduce") {
-      log_reduce = true;
-    } else if attr.path.is_ident("use_unsafe") {
-      use_unsafe = true;
-    } else if attr.path.is_ident("expand") {
-      expand = true;
-    } else {
-      panic!("Expect one of `lex`, `log_token`, `log_reduce`, `use_unsafe`, `expand` here, found `{}`", attr.path.clone().into_token_stream());
+      "log_token" => log_token = true,
+      "log_reduce" => log_reduce = true,
+      "use_unsafe" => use_unsafe = true,
+      "expand" => expand = true,
+      _ => panic!("Expect one of `lex`, `verbose`, `log_token`, `log_reduce`, `use_unsafe`, `expand` here, found `{}`", ident),
     }
   }
   let raw_lexer = raw_lexer.unwrap_or_else(|| panic!("{}", FAIL_TO_PARSE_LEXER));
@@ -145,6 +138,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
       production.push(RawProduction { lhs, type_: lhs_ty, rhs: vec![RawProductionRhs { rhs, rhs_arg, act, prec }] });
     } else { panic!("Impl block should only contain methods."); }
   }
+
   let mut raw = RawGrammar {
     include: "".into(),
     priority: raw_lexer.priority,
@@ -159,23 +153,30 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
   let g = grammar_config::extend_grammar(&mut raw)
     .unwrap_or_else(|err| panic!("Grammar is invalid, reason: {}.", err));
   let code = match mode {
-    Mode::LALR1 => {
+    Mode::Lalr1 => {
       let lr0 = lalr1_core::lr0::work(&g);
-      let table = lalr1_core::lalr1_by_lr0::work(&lr0, &g);
-      for conflict in &table.conflict {
+      let original_table = lalr1_core::lalr1_by_lr0::work(&lr0, &g);
+      let mut table = original_table.clone();
+      let conflict = lalr1_core::conflict::solve(&mut table, &g);
+      if let Some(verbose) = verbose {
+        let mut f = File::open(&verbose).unwrap_or_else(|err| panic!("Fail to create verbose information output file `{}`, error: `{}`.", verbose, err));
+        let text =  parser_gen::show_fsm::text(&original_table, &table, &g);
+        f.write(text.as_bytes()).unwrap_or_else(|err| panic!("Fail to write into  verbose information output file `{}`, error: `{}`.", verbose, err));
+      }
+      for conflict in &conflict {
         let ch = g.show_token(conflict.ch);
-        match conflict.ty {
-          ConflictType::SR { s, r } => {
+        match conflict.kind {
+          ConflictKind::SR { s, r } => {
             let msg = format!("Shift-reduce conflict at state {} when faced with token `{}`, it can either shift {}, or reduce {}(`{}`).",
                               conflict.state, ch, s, r, g.show_prod(r));
             Diagnostic::new(Level::Warning, msg).emit();
           }
-          ConflictType::RR { r1, r2 } => {
+          ConflictKind::RR { r1, r2 } => {
             let msg = format!("Shift-shift conflict at state {} when faced with token `{}`, it can either reduce {}('{}'), or reduce {}(`{}`).",
                               conflict.state, ch, r1, g.show_prod(r1), r2, g.show_prod(r2));
             Diagnostic::new(Level::Warning, msg).emit();
           }
-          ConflictType::Many(ref acts) => {
+          ConflictKind::Many(ref acts) => {
             let mut msg = format!("Too many conflicts at state {} when faced with token `{}`:\n", conflict.state, ch);
             for a in acts {
               match a {
@@ -190,7 +191,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
       }
       RustCodegen { log_token, log_reduce, use_unsafe }.gen_lalr1(&g, &table, &dfa, &ec)
     }
-    Mode::LL1 => {
+    Mode::Ll1 => {
       let ll = ll1_core::LLCtx::new(&g);
       for table in &ll.table {
         for (&predict, prod_ids) in table {
@@ -206,18 +207,16 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
       RustCodegen { log_token, log_reduce, use_unsafe }.gen_ll1(&g, &ll, &dfa, &ec)
     }
   };
-  if expand {
-    println!("{}", code);
-  }
+  if expand { println!("{}", code); }
   code.parse().unwrap()
 }
 
 #[proc_macro_attribute]
 pub fn lalr1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-  work(attr, input, Mode::LALR1)
+  work(attr, input, Mode::Lalr1)
 }
 
 #[proc_macro_attribute]
 pub fn ll1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-  work(attr, input, Mode::LL1)
+  work(attr, input, Mode::Ll1)
 }

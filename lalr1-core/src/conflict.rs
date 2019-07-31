@@ -1,35 +1,7 @@
-use crate::{Lr0Item, Acts};
+use crate::{Acts, ParserAct, ConflictKind, Conflict, RawTable};
 use std::cmp::Ordering;
-use hashbrown::HashMap;
 use grammar_config::{Assoc, AbstractGrammarExt};
 use smallvec::smallvec;
-
-#[derive(Debug, Copy, Clone)]
-pub enum ParserAct {
-  Acc,
-  Shift(u32),
-  Reduce(u32),
-  // goto is for non-terminal, others are for terminal
-  // so they can be together in one table
-  Goto(u32),
-}
-
-pub enum ConflictType {
-  RR { r1: u32, r2: u32 },
-  SR { s: u32, r: u32 },
-  Many(Acts),
-}
-
-pub struct ConflictInfo {
-  pub ty: ConflictType,
-  pub state: u32,
-  pub ch: u32,
-}
-
-pub struct LRTable<'a> {
-  pub action: Vec<(Vec<&'a Lr0Item<'a>>, HashMap<u32, Acts>)>,
-  pub conflict: Vec<ConflictInfo>,
-}
 
 // Reference: https://docs.oracle.com/cd/E19504-01/802-5880/6i9k05dh3/index.html
 // A precedence and associativity is associated with each grammar rule.
@@ -46,7 +18,7 @@ pub struct LRTable<'a> {
 // If precedences are equal, then associativity is used.
 // Left associative implies reduce; right associative implies shift; nonassociating implies error.
 
-pub fn solve_sr<'a>(state: u32, ch: u32, s: u32, r: u32, acts: &mut Acts, reports: &mut Vec<ConflictInfo>, g: &'a impl AbstractGrammarExt<'a>) -> bool {
+pub fn solve_sr<'a>(state: u32, ch: u32, s: u32, r: u32, acts: &mut Acts, reports: &mut Vec<Conflict>, g: &'a impl AbstractGrammarExt<'a>) -> bool {
   *acts = match (g.prod_pri(r), g.term_pri_assoc(ch)) {
     (Some(prod_pri), Some((ch_pri, ch_assoc))) => {
       match prod_pri.cmp(&ch_pri) {
@@ -60,17 +32,17 @@ pub fn solve_sr<'a>(state: u32, ch: u32, s: u32, r: u32, acts: &mut Acts, report
       }
     }
     _ => {
-      reports.push(ConflictInfo { ty: ConflictType::SR { s, r }, state, ch });
+      reports.push(Conflict { kind: ConflictKind::SR { s, r }, state, ch });
       smallvec![ParserAct::Shift(s)]
     }
   };
   true
 }
 
-pub fn try_solve_conflict<'a>(t: &mut Vec<(Vec<&'a Lr0Item<'a>>, HashMap<u32, Acts>)>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<ConflictInfo> {
+pub fn solve<'a>(t: &mut RawTable<'a>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<Conflict> {
   let mut reports = Vec::new();
-  for (state_id, state) in t.iter_mut().enumerate() {
-    state.1.retain(|&ch, acts| {
+  for (idx, state) in t.iter_mut().enumerate() {
+    state.act.retain(|&ch, acts| {
       match acts.len() {
         1 => true,
         2 => {
@@ -78,16 +50,16 @@ pub fn try_solve_conflict<'a>(t: &mut Vec<(Vec<&'a Lr0Item<'a>>, HashMap<u32, Ac
             (ParserAct::Reduce(r1), ParserAct::Reduce(r2)) => {
               let used = r1.min(r2);
               *acts = smallvec![ParserAct::Reduce(used)];
-              reports.push(ConflictInfo { ty: ConflictType::RR { r1, r2 }, state: state_id as u32, ch });
+              reports.push(Conflict { kind: ConflictKind::RR { r1, r2 }, state: idx as u32, ch });
               true
             }
             (ParserAct::Reduce(r), ParserAct::Shift(s)) | (ParserAct::Shift(s), ParserAct::Reduce(r)) =>
-              solve_sr(state_id as u32, ch, s, r, acts, &mut reports, g),
+              solve_sr(idx as u32, ch, s, r, acts, &mut reports, g),
             _ => unreachable!("There should be a bug in lr."),
           }
         }
         _ => {
-          reports.push(ConflictInfo { ty: ConflictType::Many(acts.clone()), state: state_id as u32, ch });
+          reports.push(Conflict { kind: ConflictKind::Many(acts.clone()), state: idx as u32, ch });
           false // it doesn't matter whether this edge is retained, because no code can be generated
         }
       }

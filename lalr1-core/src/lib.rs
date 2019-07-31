@@ -8,10 +8,6 @@ pub mod lr0;
 pub mod lalr1_by_lr0;
 pub mod conflict;
 
-pub use crate::conflict::*;
-
-// define some common structs and types here
-
 #[derive(Clone, Copy)]
 pub struct Lr0Item<'a> {
   pub prod: &'a [u32],
@@ -51,10 +47,43 @@ pub type Lr0Closure<'a> = Vec<Lr0Item<'a>>;
 pub type Lr1Closure<'a> = Vec<Lr1Item<'a>>;
 
 pub struct LrNode<'a> {
-  pub items: Vec<Lr0Item<'a>>,
+  pub items: Lr0Closure<'a>,
   pub link: HashMap<u32, u32>,
 }
 
 pub type LrFsm<'a> = Vec<LrNode<'a>>;
 
+#[derive(Copy, Clone, Debug)]
+pub enum ParserAct {
+  Acc,
+  Shift(u32),
+  Reduce(u32),
+  Goto(u32),
+}
+
 pub type Acts = SmallVec<[ParserAct; 2]>;
+
+pub enum ConflictKind {
+  RR { r1: u32, r2: u32 },
+  SR { s: u32, r: u32 },
+  Many(Acts),
+}
+
+pub struct Conflict {
+  pub kind: ConflictKind,
+  pub state: u32,
+  pub ch: u32,
+}
+
+#[derive(Clone)]
+pub struct TableItem<'a> {
+  pub items: &'a Lr0Closure<'a>,
+  pub act: HashMap<u32, Acts>,
+}
+
+pub type RawTable<'a> = Vec<TableItem<'a>>;
+
+pub struct ActTable<'a> {
+  pub table: RawTable<'a>,
+  pub conflict: Vec<Conflict>,
+}

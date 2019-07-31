@@ -1,12 +1,8 @@
-extern crate re2dfa;
-extern crate lalr1_core;
-extern crate grammar_config;
-extern crate ll1_core;
-extern crate hashbrown;
+pub mod show_fsm;
 
 use re2dfa::dfa::Dfa;
 use hashbrown::HashMap;
-use lalr1_core::LRTable;
+use lalr1_core::{TableItem, RawTable};
 use grammar_config::{Grammar, AbstractGrammar};
 use aho_corasick::AhoCorasick;
 use ll1_core::LLCtx;
@@ -171,7 +167,7 @@ macro_rules! impossible { () => { unreachable!() }; }"#.to_owned()
 // I once tried to make the generated code perfectly indented by IndentPrinter, and I almost succeeded
 // but such code is so unmaintainable, so I gave up, just use rustfmt or other tool to format the code...
 impl RustCodegen {
-  pub fn gen_lalr1(&self, g: &Grammar, table: &LRTable, dfa: &Dfa, ec: &[u8; 256]) -> String {
+  pub fn gen_lalr1(&self, g: &Grammar, table: &RawTable, dfa: &Dfa, ec: &[u8; 256]) -> String {
     let (types, types2id) = self.gather_types(g);
     let common = self.gen_common(g, dfa, ec, &types, false);
     let template = include_str!("template/lalr1.rs.template");
@@ -194,7 +190,7 @@ impl RustCodegen {
     let res_id = types2id[parse_res];
     let rep = [
       // "{u_lr_size}"
-      min_u_of(table.action.len() as u32).to_owned(),
+      min_u_of(table.len() as u32).to_owned(),
       { // "{parser_type}"
         match &g.raw.parser_def {
           Some(def) => def.clone(),
@@ -206,7 +202,7 @@ impl RustCodegen {
       // "{res_id}"
       res_id.to_string(),
       // "{u_lr_size}"
-      min_u_of(table.action.len() as u32).to_owned(),
+      min_u_of(table.len() as u32).to_owned(),
       // "{u_prod_len}"
       min_u_of(g.prod_extra.iter().map(|&(_, (lhs, rhs), _)| g.prod[lhs as usize][rhs as usize].0.len()).max().unwrap() as u32).to_owned(),
       // "{prod_size}"
@@ -221,13 +217,13 @@ impl RustCodegen {
       // "{token_size}" ,
       (g.terms.len() + g.nt.len()).to_string(),
       // "{lr_size}"
-      table.action.len().to_string(),
+      table.len().to_string(),
       { // "{lr_edge}"
         let mut s = String::new();
-        for (_, edges) in &table.action {
+        for TableItem { act, .. } in table {
           let _ = write!(s, "[");
           for i in 0..g.terms.len() + g.nt.len() {
-            match edges.get(&(i as u32)) {
+            match act.get(&(i as u32)) {
               Some(act) => { let _ = write!(s, "Act::{:?}, ", act[0]); }
               None => { let _ = write!(s, "Act::Err, "); }
             }
