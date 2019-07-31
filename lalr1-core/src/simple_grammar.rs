@@ -180,7 +180,7 @@ impl<'a> AbstractGrammar<'a> for SimpleGrammar<'a> {
 
 // doesn't really have, just a simple grammar
 impl<'a> AbstractGrammarExt<'a> for SimpleGrammar<'a> {
-  fn prod_pri_assoc(&self, _id: u32) -> Option<(u32, Assoc)> {
+  fn prod_pri(&self, _id: u32) -> Option<u32> {
     None
   }
 

@@ -15,8 +15,8 @@ pub struct Grammar<'a> {
   //          (name   , type_  )>
   pub nt: Vec<(&'a str, &'a str)>,
   pub prod: Vec<Vec<(ProdVec, u32)>>,
-  //                   (act, arg)                     (lhs, index of this prod in raw.prod[lhs])    pri_assoc
-  pub prod_extra: Vec<((&'a str, Option<&'a Vec<(Option<String>, String)>>), (u32, u32), Option<(u32, Assoc)>)>,
+  //                   (act, arg)                     (lhs, index of this prod in raw.prod[lhs]) pri
+  pub prod_extra: Vec<((&'a str, Option<&'a Vec<(Option<String>, String)>>), (u32, u32), Option<u32>)>,
 }
 
 impl Grammar<'_> {
@@ -105,14 +105,14 @@ pub fn extend_grammar(raw: &mut RawGrammar) -> Result<Grammar, String> {
     let lhs_prod = &mut prod[*lhs as usize];
     for rhs in &raw_prod.rhs {
       let mut prod_rhs = ProdVec::new();
-      let mut pri_assoc = None;
+      let mut prod_pri = None;
       for rhs in rhs.rhs.split_whitespace() {
         // impossible to have a (Some(), Some()) here
         match (nt2id.get(rhs), term2id.get(rhs)) {
           (Some(&nt), _) => prod_rhs.push(nt),
           (_, Some(&t)) => {
             prod_rhs.push(t + nt.len() as u32);
-            pri_assoc = terms[t as usize].1;
+            prod_pri = terms[t as usize].1.map(|(pri, _)| pri);
           }
           _ => return Err(format!("Production rhs contains undefined token: `{}`", rhs)),
         }
@@ -121,13 +121,13 @@ pub fn extend_grammar(raw: &mut RawGrammar) -> Result<Grammar, String> {
         match term2id.get(prec.as_str()) {
           None => return Err(format!("Prec uses undefined term: `{}`", prec)),
           Some(&t) => {
-            pri_assoc = terms[t as usize].1;
+            prod_pri = terms[t as usize].1.map(|(pri, _)| pri);
           }
         }
       }
       let id = lhs_prod.len() as u32;
       lhs_prod.push((prod_rhs, prod_id));
-      prod_extra.push(((rhs.act.as_str(), rhs.rhs_arg.as_ref()), (*lhs, id), pri_assoc));
+      prod_extra.push(((rhs.act.as_str(), rhs.rhs_arg.as_ref()), (*lhs, id), prod_pri));
       prod_id += 1;
 
       // no type checking for _Start
@@ -199,7 +199,7 @@ impl<'a> AbstractGrammar<'a> for Grammar<'a> {
 }
 
 impl<'a> AbstractGrammarExt<'a> for Grammar<'a> {
-  fn prod_pri_assoc(&self, id: u32) -> Option<(u32, Assoc)> {
+  fn prod_pri(&self, id: u32) -> Option<u32> {
     self.prod_extra[id as usize].2
   }
 

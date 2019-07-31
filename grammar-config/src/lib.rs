@@ -98,7 +98,7 @@ pub trait AbstractGrammar<'a> {
 
 pub trait AbstractGrammarExt<'a>: AbstractGrammar<'a> {
   // id is returned from get_prod
-  fn prod_pri_assoc(&self, id: u32) -> Option<(u32, Assoc)>;
+  fn prod_pri(&self, id: u32) -> Option<u32>;
 
   fn term_pri_assoc(&self, ch: u32) -> Option<(u32, Assoc)>;
 }

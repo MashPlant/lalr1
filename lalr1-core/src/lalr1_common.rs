@@ -14,23 +14,20 @@ pub enum ParserAct {
   Goto(u32),
 }
 
-#[derive(Debug)]
 pub enum ConflictType {
   RR { r1: u32, r2: u32 },
   SR { s: u32, r: u32 },
+  Many(SmallVec<[ParserAct; 2]>),
 }
 
-#[derive(Debug)]
 pub struct ConflictInfo {
   pub ty: ConflictType,
   pub state: u32,
   pub ch: u32,
 }
 
-#[derive(Debug)]
 pub struct LRTable<'a> {
-  // in most cases there is no conflict, so use a small vec of inline capacity = 1
-  pub action: Vec<(Vec<&'a LRItem<'a>>, HashMap<u32, SmallVec<[ParserAct; 1]>>)>,
+  pub action: Vec<(Vec<&'a LRItem<'a>>, HashMap<u32, SmallVec<[ParserAct; 2]>>)>,
   pub conflict: Vec<ConflictInfo>,
 }
 
@@ -49,43 +46,28 @@ pub struct LRTable<'a> {
 // If precedences are equal, then associativity is used.
 // Left associative implies reduce; right associative implies shift; nonassociating implies error.
 
-pub fn solve_sr<'a>(state: u32, ch: u32, s: u32, r: u32, acts: &mut SmallVec<[ParserAct; 1]>, reports: &mut Vec<ConflictInfo>, g: &'a impl AbstractGrammarExt<'a>) -> bool {
-  match (g.prod_pri_assoc(r), g.term_pri_assoc(ch)) {
-    (Some((prod_pri, prod_assoc)), Some((ch_pri, ch_assoc))) => {
+pub fn solve_sr<'a>(state: u32, ch: u32, s: u32, r: u32, acts: &mut SmallVec<[ParserAct; 2]>, reports: &mut Vec<ConflictInfo>, g: &'a impl AbstractGrammarExt<'a>) -> bool {
+  *acts = match (g.prod_pri(r), g.term_pri_assoc(ch)) {
+    (Some(prod_pri), Some((ch_pri, ch_assoc))) => {
       match prod_pri.cmp(&ch_pri) {
-        Ordering::Less => {
-          *acts = smallvec![ParserAct::Shift(s)];
-          true
-        }
-        Ordering::Greater => {
-          *acts = smallvec![ParserAct::Reduce(r)];
-          true
-        }
-        Ordering::Equal => {
-          assert_eq!(prod_assoc, ch_assoc); // should I assert here? or if I don't assert, which to use?
-          match prod_assoc {
-            Assoc::Left => {
-              *acts = smallvec![ParserAct::Reduce(r)];
-              true
-            }
-            Assoc::Right => {
-              *acts = smallvec![ParserAct::Shift(s)];
-              true
-            }
-            Assoc::NoAssoc => false, // not retained
-          }
+        Ordering::Less => smallvec![ParserAct::Shift(s)],
+        Ordering::Greater => smallvec![ParserAct::Reduce(r)],
+        Ordering::Equal => match ch_assoc {
+          Assoc::Left => smallvec![ParserAct::Reduce(r)],
+          Assoc::Right => smallvec![ParserAct::Shift(s)],
+          Assoc::NoAssoc => return false,
         }
       }
     }
     _ => {
-      *acts = smallvec![ParserAct::Shift(s)];
       reports.push(ConflictInfo { ty: ConflictType::SR { s, r }, state, ch });
-      true
+      smallvec![ParserAct::Shift(s)]
     }
-  }
+  };
+  true
 }
 
-pub fn try_solve_conflict<'a>(t: &mut Vec<(Vec<&'a LRItem<'a>>, HashMap<u32, SmallVec<[ParserAct; 1]>>)>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<ConflictInfo> {
+pub fn try_solve_conflict<'a>(t: &mut Vec<(Vec<&'a LRItem<'a>>, HashMap<u32, SmallVec<[ParserAct; 2]>>)>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<ConflictInfo> {
   let mut reports = Vec::new();
   for (state_id, state) in t.iter_mut().enumerate() {
     state.1.retain(|&ch, acts| {
@@ -101,10 +83,13 @@ pub fn try_solve_conflict<'a>(t: &mut Vec<(Vec<&'a LRItem<'a>>, HashMap<u32, Sma
             }
             (ParserAct::Reduce(r), ParserAct::Shift(s)) | (ParserAct::Shift(s), ParserAct::Reduce(r)) =>
               solve_sr(state_id as u32, ch, s, r, acts, &mut reports, g),
-            _ => unreachable!("There should be a bug in lr process"),
+            _ => unreachable!("There should be a bug in lr."),
           }
         }
-        _ => unimplemented!("Why so many conflict???")
+        _ => {
+          reports.push(ConflictInfo { ty: ConflictType::Many(acts.clone()), state: state_id as u32, ch });
+          false // it doesn't matter whether this edge is retained, because no code can be generated
+        }
       }
     });
   }

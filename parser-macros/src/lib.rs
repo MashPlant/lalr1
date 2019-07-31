@@ -17,7 +17,7 @@ use grammar_config::{RawPriorityRow, RawProduction, RawProductionRhs, RawGrammar
 use serde::{Serialize, Deserialize};
 use indexmap::IndexMap;
 use parser_gen::RustCodegen;
-use lalr1_core::ConflictType;
+use lalr1_core::{ConflictType, ParserAct};
 use proc_macro::{Diagnostic, Level};
 
 enum ArgInfo {
@@ -174,6 +174,17 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
             let msg = format!("Shift-shift conflict at state {} when faced with token `{}`, it can either reduce {}('{}'), or reduce {}(`{}`).",
                               conflict.state, ch, r1, g.show_prod(r1), r2, g.show_prod(r2));
             Diagnostic::new(Level::Warning, msg).emit();
+          }
+          ConflictType::Many(ref acts) => {
+            let mut msg = format!("Too many conflicts at state {} when faced with token `{}`:\n", conflict.state, ch);
+            for a in acts {
+              match a {
+                ParserAct::Shift(s) => { msg.push_str(&format!("  - shift {}\n", s)); }
+                ParserAct::Reduce(r) => { msg.push_str(&format!("  - reduce {}('{}')\n", r, g.show_prod(*r))); }
+                _ => unreachable!("There should be a bug in lr."),
+              }
+            }
+            panic!("{}", msg)
           }
         }
       }

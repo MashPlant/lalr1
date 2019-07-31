@@ -130,7 +130,7 @@ dependencies = [
 [[package]]
 name = "print"
 version = "0.1.0"
-source = "git+https://github.com/MashPlant/re2dfa#c916aa3d694e741ecbbefbd955b18b6d5dd5dc71"
+source = "git+https://github.com/MashPlant/re2dfa#f40c2e56d34b0862e093f3f2db566c9b90135aef"
 
 [[package]]
 name = "proc-macro2"
@@ -151,7 +151,7 @@ dependencies = [
 [[package]]
 name = "re2dfa"
 version = "1.0.0"
-source = "git+https://github.com/MashPlant/re2dfa#c916aa3d694e741ecbbefbd955b18b6d5dd5dc71"
+source = "git+https://github.com/MashPlant/re2dfa#f40c2e56d34b0862e093f3f2db566c9b90135aef"
 dependencies = [
  "bitset 0.1.0 (git+https://github.com/MashPlant/bitset)",
  "nom 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
