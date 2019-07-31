@@ -1,24 +1,23 @@
 // "Compilers: Principles, Techniques and Tools" Algorithm 4.63
 
-use crate::bitset::BitSet;
-use crate::lr1::{LRCtx, LRState, LRResult};
-use crate::lr0::LRItem;
-use crate::lalr1_common::*;
+use crate::{lr1::LRCtx, Lr1Item, Lr0Item, Lr1Closure};
+use crate::conflict::*;
 use grammar_config::AbstractGrammarExt;
 use hashbrown::HashMap;
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
+use bitset::BitSet;
 
 // inner version, the return value doesn't contain `link`
-fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<LRState<'a>> {
+fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<Lr0Item<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<Lr1Closure<'a>> {
   let mut ctx = LRCtx::new(g);
-  let mut look_ahead = lr0.iter()
+  let mut lookahead = lr0.iter()
     .map(|(items, _)| vec![BitSet::new(ctx.token_num); items.len()]).collect::<Vec<_>>();
   let mut prop = Vec::new();
   let start_prod = (g.start().1).0.as_ref();
 
   for (i, item) in lr0[0].0.iter().enumerate() {
     if item.prod == start_prod {
-      look_ahead[0][i].set(g.eof() as usize);
+      lookahead[0][i].set(g.eof() as usize);
       break;
     }
   }
@@ -28,25 +27,25 @@ fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a im
     for (item_id, &item) in state.iter().enumerate() {
       // only consider lr0 core item
       if item.prod == start_prod || item.dot != 0 {
-        let clo = ctx.closure({
-                                let mut look_ahead = BitSet::new(ctx.token_num);
-                                look_ahead.set(special_term);
-                                let mut init = HashMap::new();
-                                init.insert(item, look_ahead);
-                                init
-                              }, g);
-        let from = look_ahead[i][item_id].as_ptr();
-        for (clo_item, clo_item_look_ahead) in &clo.items {
-          if clo_item.dot as usize >= clo_item.prod.len() {
+        let cl = ctx.closure({
+                               let mut lookahead = BitSet::new(ctx.token_num);
+                               lookahead.set(special_term);
+                               let mut init = HashMap::new();
+                               init.insert(item, lookahead);
+                               init
+                             }, g);
+        let from = lookahead[i][item_id].as_ptr();
+        for Lr1Item { item: cl_item, lookahead: cl_lookahead } in &cl {
+          if cl_item.dot as usize >= cl_item.prod.len() {
             continue;
           }
-          let goto_state = link[&clo_item.prod[clo_item.dot as usize]];
-          let goto_item_id = clo_item.unique_id() + 1; // dot + 1
+          let goto_state = link[&cl_item.prod[cl_item.dot as usize]];
+          let goto_item_id = cl_item.unique_id() + 1; // dot + 1
           let goto_item_idx = lr0[goto_state as usize].0.iter().enumerate().find(|item| item.1.unique_id() == goto_item_id).unwrap().0;
-          let goto_look_ahead = &mut look_ahead[goto_state as usize][goto_item_idx];
-          goto_look_ahead.or(&clo_item_look_ahead);
-          if clo_item_look_ahead.test(special_term) {
-            prop.push((from, goto_look_ahead.as_mut_ptr()));
+          let goto_lookahead = &mut lookahead[goto_state as usize][goto_item_idx];
+          goto_lookahead.or(&cl_lookahead);
+          if cl_lookahead.test(special_term) {
+            prop.push((from, goto_lookahead.as_mut_ptr()));
           }
         }
       }
@@ -54,7 +53,7 @@ fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a im
   }
 
   let mut changed = true;
-  let len = look_ahead[0][0].inner_len();
+  let len = lookahead[0][0].inner_len();
   while changed {
     changed = false;
     unsafe {
@@ -64,18 +63,14 @@ fn _lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a im
     }
   }
 
-  for look_ahead in &mut look_ahead {
-    for look_ahead in look_ahead {
-      look_ahead.clear(special_term);
-    }
-  }
+  lookahead.iter_mut().for_each(|l| l.iter_mut().for_each(|l| l.clear(special_term)));
 
-  lr0.clone().into_iter().zip(look_ahead.into_iter()).map(|((state, _), look_ahead_s)| {
-    ctx.closure(state.into_iter().zip(look_ahead_s.into_iter()).collect(), g)
+  lr0.clone().into_iter().zip(lookahead.into_iter()).map(|((state, _), lookahead_s)| {
+    ctx.closure(state.into_iter().zip(lookahead_s.into_iter()).collect(), g)
   }).collect::<Vec<_>>()
 }
 
-pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> LRTable<'a> {
+pub fn work<'a>(lr0: &'a Vec<(Vec<Lr0Item<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> LRTable<'a> {
   let result = _lalr1_only(lr0, g);
 
   let mut action = Vec::with_capacity(lr0.len());
@@ -91,13 +86,13 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl 
         act.insert(k, smallvec![ParserAct::Shift(v)]);
       }
     }
-    for (item, (_, look_ahead)) in state.iter().zip(result[i].items.iter()) {
+    for (item, Lr1Item { lookahead, .. }) in state.iter().zip(result[i].iter()) {
       if item.dot == item.prod.len() as u32 {
-        if look_ahead.test(g.eof() as usize) && item.prod_id == start_id {
+        if lookahead.test(g.eof() as usize) && item.prod_id == start_id {
           act.insert(eof, smallvec![ParserAct::Acc]);
         } else {
           for i in 0..token_num {
-            if look_ahead.test(i as usize) {
+            if lookahead.test(i as usize) {
               // maybe conflict here
               act.entry(i).or_insert_with(|| SmallVec::new()).push(ParserAct::Reduce(item.prod_id));
             }
@@ -112,8 +107,8 @@ pub fn work<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl 
   LRTable { action, conflict }
 }
 
-// the return type is the same with lr1::work
-pub fn lalr1_only<'a>(lr0: &'a Vec<(Vec<LRItem<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<LRResult<'a>> {
-  let result = _lalr1_only(lr0, g);
-  result.into_iter().zip(lr0.clone().into_iter()).map(|(state, (_, link))| (state, link)).collect()
-}
+//// the return type is the same with lr1::work
+//pub fn lalr1_only<'a>(lr0: &'a Vec<(Vec<Lr0Item<'a>>, HashMap<u32, u32>)>, g: &'a impl AbstractGrammarExt<'a>) -> LRFsm<'a> {
+//  let result = _lalr1_only(lr0, g);
+//  result.into_iter().zip(lr0.clone().into_iter()).map(|(state, (_, link))| (state, link)).collect()
+//}

@@ -60,8 +60,8 @@ pub struct RawProduction {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RawProductionRhs {
   pub rhs: String,
-  /// this is basically for the type checking for parser-macros
-  /// it would not be pleasing if you provide it from toml config file(but you can, any way)
+  // this is basically for the type checking for parser-macros
+  // it would not be pleasing if you provide it from toml config file(but you can, any way)
   pub rhs_arg: Option<Vec<(Option<String>, String)>>,
   pub act: String,
   pub prec: Option<String>,
@@ -80,7 +80,7 @@ pub trait AbstractGrammar<'a> {
 
   // eps & eof & err are 3 special terms in the grammar
   // eps: indicate lexer produces a term which should be neglected by parser; also used in computing first & follow
-  // eof: indicate lexer consumes all its input; also used in computing look_ahead
+  // eof: indicate lexer consumes all its input; also used in computing lookahead
   // err: indicate lexer meets a unrecognizable char; also used in lalr1_by_lr0 for the "special term"
   // lexer should not return eps; when lexer returns eof/err, parser should return Err(token)
   fn eps(&self) -> u32;

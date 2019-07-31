@@ -1,8 +1,8 @@
+use crate::{Lr0Item, Acts};
 use std::cmp::Ordering;
 use hashbrown::HashMap;
 use grammar_config::{Assoc, AbstractGrammarExt};
-use crate::lr0::LRItem;
-use smallvec::SmallVec;
+use smallvec::smallvec;
 
 #[derive(Debug, Copy, Clone)]
 pub enum ParserAct {
@@ -17,7 +17,7 @@ pub enum ParserAct {
 pub enum ConflictType {
   RR { r1: u32, r2: u32 },
   SR { s: u32, r: u32 },
-  Many(SmallVec<[ParserAct; 2]>),
+  Many(Acts),
 }
 
 pub struct ConflictInfo {
@@ -27,7 +27,7 @@ pub struct ConflictInfo {
 }
 
 pub struct LRTable<'a> {
-  pub action: Vec<(Vec<&'a LRItem<'a>>, HashMap<u32, SmallVec<[ParserAct; 2]>>)>,
+  pub action: Vec<(Vec<&'a Lr0Item<'a>>, HashMap<u32, Acts>)>,
   pub conflict: Vec<ConflictInfo>,
 }
 
@@ -46,7 +46,7 @@ pub struct LRTable<'a> {
 // If precedences are equal, then associativity is used.
 // Left associative implies reduce; right associative implies shift; nonassociating implies error.
 
-pub fn solve_sr<'a>(state: u32, ch: u32, s: u32, r: u32, acts: &mut SmallVec<[ParserAct; 2]>, reports: &mut Vec<ConflictInfo>, g: &'a impl AbstractGrammarExt<'a>) -> bool {
+pub fn solve_sr<'a>(state: u32, ch: u32, s: u32, r: u32, acts: &mut Acts, reports: &mut Vec<ConflictInfo>, g: &'a impl AbstractGrammarExt<'a>) -> bool {
   *acts = match (g.prod_pri(r), g.term_pri_assoc(ch)) {
     (Some(prod_pri), Some((ch_pri, ch_assoc))) => {
       match prod_pri.cmp(&ch_pri) {
@@ -67,7 +67,7 @@ pub fn solve_sr<'a>(state: u32, ch: u32, s: u32, r: u32, acts: &mut SmallVec<[Pa
   true
 }
 
-pub fn try_solve_conflict<'a>(t: &mut Vec<(Vec<&'a LRItem<'a>>, HashMap<u32, SmallVec<[ParserAct; 2]>>)>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<ConflictInfo> {
+pub fn try_solve_conflict<'a>(t: &mut Vec<(Vec<&'a Lr0Item<'a>>, HashMap<u32, Acts>)>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<ConflictInfo> {
   let mut reports = Vec::new();
   for (state_id, state) in t.iter_mut().enumerate() {
     state.1.retain(|&ch, acts| {

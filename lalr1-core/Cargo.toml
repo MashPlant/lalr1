@@ -5,7 +5,7 @@ authors = ["MashPlant <740678788@qq.com>"]
 edition = "2018"
 
 [dependencies]
-smallvec = "0.6.9"
+smallvec = { version = "0.6.9", features = ["union"] }
 grammar-config = { path = "../grammar-config" }
 bitset = { git = "https://github.com/MashPlant/bitset" }
 ll1-core = { path = "../ll1-core" }
