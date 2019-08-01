@@ -2,7 +2,7 @@ pub mod show_fsm;
 
 use re2dfa::dfa::Dfa;
 use hashbrown::HashMap;
-use lalr1_core::{TableItem, RawTable};
+use lalr1_core::{TableEntry, RawTable};
 use grammar_config::{Grammar, AbstractGrammar};
 use aho_corasick::AhoCorasick;
 use ll1_core::LLCtx;
@@ -172,24 +172,26 @@ impl RustCodegen {
     let common = self.gen_common(g, dfa, ec, &types, false);
     let template = include_str!("template/lalr1.rs.template");
     let pat = [
-      "{u_lr_size}",
+      "{u_lr_fsm_size}",
       "{parser_type}",
       "{res_type}",
       "{res_id}",
-      "{u_lr_size}",
+      "{u_lr_fsm_size}",
       "{u_prod_len}",
       "{prod_size}",
       "{prod}",
-      "{token_size}",
-      "{lr_size}",
-      "{lr_edge}",
+      "{term_num}",
+      "{nt_num}",
+      "{lr_fsm_size}",
+      "{action}",
+      "{goto}",
       "{parser_act}",
       "{log_token}",
     ];
     let parse_res = g.nt.last().unwrap().1;
     let res_id = types2id[parse_res];
     let rep = [
-      // "{u_lr_size}"
+      // "{u_lr_fsm_size}"
       min_u_of(table.len() as u32).to_owned(),
       { // "{parser_type}"
         match &g.raw.parser_def {
@@ -201,7 +203,7 @@ impl RustCodegen {
       parse_res.to_owned(),
       // "{res_id}"
       res_id.to_string(),
-      // "{u_lr_size}"
+      // "{u_lr_fsm_size}"
       min_u_of(table.len() as u32).to_owned(),
       // "{u_prod_len}"
       min_u_of(g.prod_extra.iter().map(|&(_, (lhs, rhs), _)| g.prod[lhs as usize][rhs as usize].0.len()).max().unwrap() as u32).to_owned(),
@@ -214,19 +216,32 @@ impl RustCodegen {
         }
         s
       },
-      // "{token_size}" ,
-      (g.terms.len() + g.nt.len()).to_string(),
-      // "{lr_size}"
+      // "{term_num}"
+      g.terms.len().to_string(),
+      // "{nt_num}"
+      g.nt.len().to_string(),
+      // "{lr_fsm_size}"
       table.len().to_string(),
-      { // "{lr_edge}"
+      { // "{action}"
         let mut s = String::new();
-        for TableItem { act, .. } in table {
+        for TableEntry { act, .. } in table {
           let _ = write!(s, "[");
-          for i in 0..g.terms.len() + g.nt.len() {
-            match act.get(&(i as u32)) {
+          for i in g.nt.len() as u32..(g.terms.len() + g.nt.len()) as u32 {
+            match act.get(&i) {
               Some(act) if !act.is_empty() => { let _ = write!(s, "Act::{:?}, ", act[0]); }
               _ => { let _ = write!(s, "Act::Err, "); }
             }
+          }
+          let _ = write!(s, "], ");
+        }
+        s
+      },
+      { // "{goto}"
+        let mut s = String::new();
+        for TableEntry { goto, .. } in table {
+          let _ = write!(s, "[");
+          for i in 0..g.nt.len() as u32 {
+            let _ = write!(s, "{:?}, ", goto.get(&i));
           }
           let _ = write!(s, "], ");
         }

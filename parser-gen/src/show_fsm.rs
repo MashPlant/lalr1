@@ -5,8 +5,13 @@ use std::fmt::Write;
 pub fn text(original_table: &RawTable, table: &RawTable, g: &Grammar) -> String {
   assert_eq!(original_table.len(), table.len());
   let mut text = String::new();
+  for i in 0..g.prod_extra.len() as u32 {
+    let _ = writeln!(text, "Production {}: {}", i, g.show_prod(i));
+  }
+  text.push_str("\n\n");
+
   for (idx, (o, n)) in original_table.iter().zip(table.iter()).enumerate() {
-    let _ = writeln!(text, "state {}:", idx);
+    let _ = writeln!(text, "State {}:", idx);
     for item in o.items { // o and n have the same items
       let _ = writeln!(text, "  {}", g.show_prod_dotted(item.prod_id, item.dot));
     }

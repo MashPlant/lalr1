@@ -1,4 +1,4 @@
-use crate::{ParserAct, ConflictKind, Conflict, RawTable};
+use crate::{Act, ConflictKind, Conflict, RawTable};
 use std::cmp::Ordering;
 use grammar_config::{Assoc, AbstractGrammarExt};
 use smallvec::smallvec;
@@ -23,7 +23,7 @@ use smallvec::smallvec;
 // for conflicts solved based on location or "shift better than reduced", other choices are NOT removed
 // in both cases, the selected choice is placed at [0]
 pub fn solve<'a>(t: &mut RawTable<'a>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<Conflict> {
-  use ParserAct::{Reduce, Shift};
+  use Act::{Reduce, Shift};
   let mut reports = Vec::new();
   for (idx, t) in t.iter_mut().enumerate() {
     for (&ch, acts) in &mut t.act {

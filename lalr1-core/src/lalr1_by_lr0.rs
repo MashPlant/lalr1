@@ -1,6 +1,6 @@
 // "Compilers: Principles, Techniques and Tools" Algorithm 4.63
 
-use crate::{lr1::LRCtx, Lr1Item, Lr1Closure, ParserAct, LrFsm, LrNode, TableItem, RawTable};
+use crate::{lr1::LRCtx, Lr1Item, Lr1Closure, Act, LrFsm, LrNode, TableEntry, RawTable};
 use grammar_config::AbstractGrammarExt;
 use hashbrown::HashMap;
 use smallvec::{SmallVec, smallvec};
@@ -75,30 +75,30 @@ pub fn work<'a>(lr0: &'a LrFsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> RawTa
   let eof = g.eof();
   let start_id = (g.start().1).1;
   let token_num = g.token_num();
-  for (i, LrNode { items: state, link }) in lr0.iter().enumerate() {
-    let mut act = HashMap::new();
+  for (i, LrNode { items, link }) in lr0.iter().enumerate() {
+    let (mut act, mut goto) = (HashMap::new(), HashMap::new());
     for (&k, &v) in link {
       if k < g.nt_num() {
-        act.insert(k, smallvec![ParserAct::Goto(v)]);
+        goto.insert(k, v);
       } else {
-        act.insert(k, smallvec![ParserAct::Shift(v)]);
+        act.insert(k, smallvec![Act::Shift(v)]);
       }
     }
-    for (item, Lr1Item { lookahead, .. }) in state.iter().zip(result[i].iter()) {
+    for (item, Lr1Item { lookahead, .. }) in items.iter().zip(result[i].iter()) {
       if item.dot == item.prod.len() as u32 {
         if lookahead.test(eof as usize) && item.prod_id == start_id {
-          act.insert(eof, smallvec![ParserAct::Acc]);
+          act.insert(eof, smallvec![Act::Acc]);
         } else {
           for i in 0..token_num {
             if lookahead.test(i as usize) {
               // maybe conflict here
-              act.entry(i).or_insert_with(|| SmallVec::new()).push(ParserAct::Reduce(item.prod_id));
+              act.entry(i).or_insert_with(|| SmallVec::new()).push(Act::Reduce(item.prod_id));
             }
           }
         }
       }
     }
-    table.push(TableItem { items: state, act });
+    table.push(TableEntry { items, act, goto });
   }
 
   table

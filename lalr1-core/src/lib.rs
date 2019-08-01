@@ -54,14 +54,22 @@ pub struct LrNode<'a> {
 pub type LrFsm<'a> = Vec<LrNode<'a>>;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum ParserAct {
+pub enum Act {
   Acc,
   Shift(u32),
   Reduce(u32),
-  Goto(u32),
 }
 
-pub type Acts = SmallVec<[ParserAct; 2]>;
+pub type Acts = SmallVec<[Act; 2]>;
+
+#[derive(Clone)]
+pub struct TableEntry<'a> {
+  pub items: &'a Lr0Closure<'a>,
+  pub act: HashMap<u32, Acts>,
+  pub goto: HashMap<u32, u32>,
+}
+
+pub type RawTable<'a> = Vec<TableEntry<'a>>;
 
 pub enum ConflictKind {
   RR { r1: u32, r2: u32 },
@@ -74,14 +82,6 @@ pub struct Conflict {
   pub state: u32,
   pub ch: u32,
 }
-
-#[derive(Clone)]
-pub struct TableItem<'a> {
-  pub items: &'a Lr0Closure<'a>,
-  pub act: HashMap<u32, Acts>,
-}
-
-pub type RawTable<'a> = Vec<TableItem<'a>>;
 
 pub struct ActTable<'a> {
   pub table: RawTable<'a>,

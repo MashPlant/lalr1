@@ -6,7 +6,7 @@ use grammar_config::{RawPriorityRow, RawProduction, RawProductionRhs, RawGrammar
 use serde::{Serialize, Deserialize};
 use indexmap::IndexMap;
 use parser_gen::RustCodegen;
-use lalr1_core::{ConflictKind, ParserAct};
+use lalr1_core::{ConflictKind, Act};
 use proc_macro::{Diagnostic, Level};
 use std::{fs::File, io::Write};
 
@@ -180,8 +180,8 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
             let mut msg = format!("Too many conflicts at state {} when faced with token `{}`:\n", conflict.state, ch);
             for a in acts {
               match a {
-                ParserAct::Shift(s) => { msg.push_str(&format!("  - shift {}\n", s)); }
-                ParserAct::Reduce(r) => { msg.push_str(&format!("  - reduce {}('{}')\n", r, g.show_prod(*r))); }
+                Act::Shift(s) => { msg.push_str(&format!("  - shift {}\n", s)); }
+                Act::Reduce(r) => { msg.push_str(&format!("  - reduce {}('{}')\n", r, g.show_prod(*r))); }
                 _ => unreachable!("There should be a bug in lr."),
               }
             }

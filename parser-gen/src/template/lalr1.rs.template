@@ -1,17 +1,18 @@
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Act { Shift({u_lr_size}), Reduce({u_lr_size}), Goto({u_lr_size}), Acc, Err }
+pub enum Act { Shift({u_lr_fsm_size}), Reduce({u_lr_fsm_size}), Acc, Err }
 
 impl<'p> {parser_type} {
   pub fn parse<'l: 'p>(&mut self, mut lexer: Lexer<'l>) -> Result<{res_type}, Token<'l>> {
-    static PROD: [({u_lr_size}, {u_prod_len}); {prod_size}] = [{prod}];
-    static LR_EDGE: [[Act; {token_size}]; {lr_size}] = [{lr_edge}];
+    static PROD: [({u_lr_fsm_size}, {u_prod_len}); {prod_size}] = [{prod}];
+    static ACTION: [[Act; {term_num}]; {lr_fsm_size}] = [{action}];
+    static GOTO: [[Option<{u_lr_fsm_size}>; {nt_num}]; {lr_fsm_size}] = [{goto}];
     let mut value_stk: Vec<StackItem<'p>> = vec![];
-    let mut state_stk: Vec<{u_lr_size}> = vec![0];
+    let mut state_stk: Vec<{u_lr_fsm_size}> = vec![0];
     let mut state = 0;
     let mut token = lexer.next();
     {log_token}
     loop {
-      let act = index!(index!(LR_EDGE, state), token.ty);
+      let act = index!(index!(ACTION, state), token.ty as u32 - {nt_num});
       match act {
         Act::Shift(s) => {
           value_stk.push(StackItem::_Token(token));
@@ -22,14 +23,14 @@ impl<'p> {parser_type} {
         }
         Act::Reduce(r) => {
           let prod = index!(PROD, r);
-          for _ in 0..prod.1 { match state_stk.pop() { None => impossible!(), Some(_) => {} }; }
+          for _ in 0..prod.1 { match state_stk.pop() { Some(_) => {}, None => impossible!()}; }
           let value = match r {
             {parser_act}
             _ => impossible!(),
           };
           value_stk.push(value);
           let cur = index!(state_stk, state_stk.len() - 1);
-          let nxt = match index!(index!(LR_EDGE, cur), prod.0) { Act::Goto(n) => n, _ => impossible!() };
+          let nxt = match index!(index!(GOTO, cur), prod.0) { Some(nxt) => nxt, None => impossible!()  };
           state_stk.push(nxt);
           state = nxt;
         }
@@ -39,7 +40,6 @@ impl<'p> {parser_type} {
           return Ok(res);
         }
         Act::Err => return Err(token),
-        _ => impossible!(),
       }
     }
   }

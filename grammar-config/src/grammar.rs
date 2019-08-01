@@ -35,12 +35,12 @@ impl Grammar<'_> {
   pub fn show_prod_dotted(&self, id: u32, dot: u32) -> String {
     let (_, (lhs, idx), _) = self.prod_extra[id as usize];
     let (prod, _) = &self.prod[lhs as usize][idx as usize];
-    let mut s = format!("{} -> ", self.nt[lhs as usize].0);
+    let mut s = format!("{} ->", self.nt[lhs as usize].0);
     for (idx, &rhs) in prod.iter().enumerate() {
-      s += self.show_token(rhs);
       s.push(if idx as u32 == dot { '.' } else { ' ' });
+      s += self.show_token(rhs);
     }
-    s.pop();
+    if prod.len() as u32 == dot { s.push('.'); }
     s
   }
 }
