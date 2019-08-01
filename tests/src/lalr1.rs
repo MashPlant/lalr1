@@ -1,10 +1,12 @@
 use parser_macros::lalr1;
 
+#[allow(dead_code)]
 struct Parser;
 
 #[lalr1(Expr)]
 #[log_reduce]
 #[log_token]
+#[verbose("a.txt")]
 #[lex(r#"
 priority = [
   { assoc = 'left', terms = ['Add', 'Sub'] },

@@ -7,7 +7,7 @@ use smallvec::{SmallVec, smallvec};
 use bitset::BitSet;
 
 // inner version, the return value doesn't contain `link`
-fn _lalr1_only<'a>(lr0: &'a LrFsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<Lr1Closure<'a>> {
+fn lalr1_by_lr0<'a>(lr0: &'a LrFsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<Lr1Closure<'a>> {
   let mut ctx = LRCtx::new(g);
   let mut lookahead = lr0.iter()
     .map(|LrNode { items, .. }| vec![BitSet::new(ctx.token_num); items.len()]).collect::<Vec<_>>();
@@ -70,7 +70,7 @@ fn _lalr1_only<'a>(lr0: &'a LrFsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> Ve
 }
 
 pub fn work<'a>(lr0: &'a LrFsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> RawTable<'a> {
-  let result = _lalr1_only(lr0, g);
+  let result = lalr1_by_lr0(lr0, g);
   let mut table = Vec::with_capacity(lr0.len());
   let eof = g.eof();
   let start_id = (g.start().1).1;
@@ -86,7 +86,7 @@ pub fn work<'a>(lr0: &'a LrFsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> RawTa
     }
     for (item, Lr1Item { lookahead, .. }) in state.iter().zip(result[i].iter()) {
       if item.dot == item.prod.len() as u32 {
-        if lookahead.test(g.eof() as usize) && item.prod_id == start_id {
+        if lookahead.test(eof as usize) && item.prod_id == start_id {
           act.insert(eof, smallvec![ParserAct::Acc]);
         } else {
           for i in 0..token_num {

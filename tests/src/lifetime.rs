@@ -1,5 +1,6 @@
 use parser_macros::lalr1;
 
+#[allow(dead_code)]
 struct Parser<'p> {
   tokens: Vec<Token<'p>>,
 }

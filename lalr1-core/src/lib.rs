@@ -53,7 +53,7 @@ pub struct LrNode<'a> {
 
 pub type LrFsm<'a> = Vec<LrNode<'a>>;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ParserAct {
   Acc,
   Shift(u32),

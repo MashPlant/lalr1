@@ -1,5 +1,6 @@
 use parser_macros::lalr1;
 
+#[allow(dead_code)]
 pub struct Parser;
 
 #[lalr1(StmtList)]

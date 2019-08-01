@@ -1,4 +1,4 @@
-use grammar_config::{RawGrammar, extend_grammar, AbstractGrammar};
+use grammar_config::{RawGrammar, extend_grammar};
 
 fn main() {
   let decaf = include_str!("../../examples/decaf.toml");

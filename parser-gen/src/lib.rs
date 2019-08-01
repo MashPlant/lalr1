@@ -224,8 +224,8 @@ impl RustCodegen {
           let _ = write!(s, "[");
           for i in 0..g.terms.len() + g.nt.len() {
             match act.get(&(i as u32)) {
-              Some(act) => { let _ = write!(s, "Act::{:?}, ", act[0]); }
-              None => { let _ = write!(s, "Act::Err, "); }
+              Some(act) if !act.is_empty() => { let _ = write!(s, "Act::{:?}, ", act[0]); }
+              _ => { let _ = write!(s, "Act::Err, "); }
             }
           }
           let _ = write!(s, "], ");

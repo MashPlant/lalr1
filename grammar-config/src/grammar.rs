@@ -29,12 +29,16 @@ impl Grammar<'_> {
   }
 
   pub fn show_prod(&self, id: u32) -> String {
+    self.show_prod_dotted(id, !0) // I know it is bad pattern in rust, but it is just convenient
+  }
+
+  pub fn show_prod_dotted(&self, id: u32, dot: u32) -> String {
     let (_, (lhs, idx), _) = self.prod_extra[id as usize];
     let (prod, _) = &self.prod[lhs as usize][idx as usize];
     let mut s = format!("{} -> ", self.nt[lhs as usize].0);
-    for &rhs in prod {
+    for (idx, &rhs) in prod.iter().enumerate() {
       s += self.show_token(rhs);
-      s.push(' ');
+      s.push(if idx as u32 == dot { '.' } else { ' ' });
     }
     s.pop();
     s

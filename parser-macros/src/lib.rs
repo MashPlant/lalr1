@@ -159,7 +159,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
       let mut table = original_table.clone();
       let conflict = lalr1_core::conflict::solve(&mut table, &g);
       if let Some(verbose) = verbose {
-        let mut f = File::open(&verbose).unwrap_or_else(|err| panic!("Fail to create verbose information output file `{}`, error: `{}`.", verbose, err));
+        let mut f = File::create(&verbose).unwrap_or_else(|err| panic!("Fail to create verbose information output file `{}`, error: `{}`.", verbose, err));
         let text =  parser_gen::show_fsm::text(&original_table, &table, &g);
         f.write(text.as_bytes()).unwrap_or_else(|err| panic!("Fail to write into  verbose information output file `{}`, error: `{}`.", verbose, err));
       }
