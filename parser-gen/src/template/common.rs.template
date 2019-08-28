@@ -17,13 +17,13 @@ pub struct Token<'l> {
 
 pub struct Lexer<'l> {
   pub string: &'l [u8],
-  pub cur_line: u32,
-  pub cur_col: u32,
+  pub line: u32,
+  pub col: u32,
 }
 
 impl<'l> Lexer<'l> {
   pub fn new(string: &[u8]) -> Lexer {
-    Lexer { string, cur_line: 1, cur_col: 1 }
+    Lexer { string, line: 1, col: 1 }
   }
 
   pub fn next(&mut self) -> Token<'l> {
@@ -32,9 +32,9 @@ impl<'l> Lexer<'l> {
     static DFA_EDGE: [[{u_dfa_size}; {ec_size}]; {dfa_size}] = [{dfa_edge}];
     loop {
       if self.string.is_empty() {
-        return Token { ty: TokenKind::_Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col };
+        return Token { ty: TokenKind::_Eof, piece: "".as_bytes(), line: self.line, col: self.col };
       }
-      let (mut line, mut col) = (self.cur_line, self.cur_col);
+      let (mut line, mut col) = (self.line, self.col);
       let mut last_acc = TokenKind::_Err; // this is arbitrary, just a value that cannot be returned by user defined function
       let mut state = 0;
       let mut i = 0;
@@ -51,18 +51,18 @@ impl<'l> Lexer<'l> {
           if last_acc != TokenKind::_Eps {
             return Token { ty: last_acc, piece, line, col };
           } else {
-            line = self.cur_line;
-            col = self.cur_col;
+            line = self.line;
+            col = self.col;
             last_acc = TokenKind::_Err;
             state = 0;
             i = 0;
           }
         } else { // continue, eat this char
           if ch == b'\n' {
-            self.cur_line += 1;
-            self.cur_col = 1;
+            self.line += 1;
+            self.col = 1;
           } else {
-            self.cur_col += 1;
+            self.col += 1;
           }
           i += 1;
         }
@@ -73,7 +73,7 @@ impl<'l> Lexer<'l> {
       if last_acc != TokenKind::_Eps {
         return Token { ty: last_acc, piece, line, col };
       } else {
-        return Token { ty: TokenKind::_Eof, piece: "".as_bytes(), line: self.cur_line, col: self.cur_col };
+        return Token { ty: TokenKind::_Eof, piece: "".as_bytes(), line: self.line, col: self.col };
       }
     }
   }

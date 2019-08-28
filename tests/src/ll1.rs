@@ -157,5 +157,5 @@ impl Parser {
 #[test]
 fn ll1() {
   let mut p = Parser;
-  assert_eq!(p.parse(Lexer::new(b"1 - 2 * (3 + 4 * 5 / 6) + -7 * -9 % 10")), Some(-8));
+  assert_eq!(p.parse(&mut Lexer::new(b"1 - 2 * (3 + 4 * 5 / 6) + -7 * -9 % 10")), Some(-8));
 }

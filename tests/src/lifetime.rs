@@ -27,6 +27,6 @@ impl<'p> Parser<'p> {
 fn lifetime() {
   let mut p = Parser { tokens: vec![] };
 
-  assert_eq!(p.parse(Lexer::new(b"abc abcd abcde")), Ok(()));
+  assert_eq!(p.parse(&mut Lexer::new(b"abc abcd abcde")), Ok(()));
   println!("{:?}", p.tokens);
 }

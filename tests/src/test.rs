@@ -34,7 +34,7 @@ impl Parser {
 
 #[test]
 fn test() {
-  match Parser.parse(Lexer::new(br###"a;a;a;a;a;"###)) {
+  match Parser.parse(&mut Lexer::new(br###"a;a;a;a;a;"###)) {
     Ok(_) => println!("Ok"),
     Err(token) => println!("Err at {:?}", token),
   }

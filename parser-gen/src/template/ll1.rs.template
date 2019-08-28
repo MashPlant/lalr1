@@ -34,8 +34,8 @@ impl<'p> {parser_type} {
 
   #[allow(unused)]
   #[allow(unused_mut)]
-  pub fn parse<'l: 'p>(&mut self, mut lexer: Lexer<'l>) -> Option<{res_type}> {
-    match self._parse({res_nt_id}, &mut lexer.next(), &mut lexer, &HashSet::new()) {
+  pub fn parse<'l: 'p>(&mut self, lexer: &mut Lexer<'l>) -> Option<{res_type}> {
+    match self._parse({res_nt_id}, &mut lexer.next(), lexer, &HashSet::new()) {
       StackItem::_{res_id}(parse_res) => Some(parse_res),
       _ => None
     }
