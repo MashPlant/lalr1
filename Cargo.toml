@@ -1,3 +1,5 @@
+cargo-features = ["profile-overrides"]
+
 [workspace]
 members = [
   "lalr1-core",
@@ -7,3 +9,6 @@ members = [
   "parser-macros",
   "tests",
 ]
+
+[profile.dev.overrides."*"]
+opt-level = 3

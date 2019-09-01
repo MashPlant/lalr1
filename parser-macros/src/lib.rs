@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 use parser_gen::RustCodegen;
 use lalr1_core::{ConflictKind, Act};
 use proc_macro::{Diagnostic, Level};
-use std::{fs::File, io::Write};
+use std::fs;
 
 enum ArgInfo {
   Self_,
@@ -47,8 +47,8 @@ fn attr2strlit(attr: &syn::Attribute) -> Option<String> {
 }
 
 enum Mode {
-  Lalr1,
-  Ll1,
+  LALR1,
+  LL1,
 }
 
 fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mode) -> proc_macro::TokenStream {
@@ -153,15 +153,14 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
   let g = grammar_config::extend_grammar(&mut raw)
     .unwrap_or_else(|err| panic!("Grammar is invalid, reason: {}.", err));
   let code = match mode {
-    Mode::Lalr1 => {
+    Mode::LALR1 => {
       let lr0 = lalr1_core::lr0::work(&g);
       let original_table = lalr1_core::lalr1_by_lr0::work(&lr0, &g);
       let mut table = original_table.clone();
       let conflict = lalr1_core::conflict::solve(&mut table, &g);
       if let Some(verbose) = verbose {
-        let mut f = File::create(&verbose).unwrap_or_else(|err| panic!("Fail to create verbose information output file `{}`, error: `{}`.", verbose, err));
-        let text =  parser_gen::show_fsm::text(&original_table, &table, &g);
-        f.write(text.as_bytes()).unwrap_or_else(|err| panic!("Fail to write into  verbose information output file `{}`, error: `{}`.", verbose, err));
+        fs::write(&verbose, parser_gen::show_fsm::text(&original_table, &table, &g))
+          .unwrap_or_else(|err| panic!("Fail to write verbose information into file `{}`, error: `{}`.", verbose, err));
       }
       for conflict in &conflict {
         let ch = g.show_token(conflict.ch);
@@ -191,8 +190,12 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
       }
       RustCodegen { log_token, log_reduce, use_unsafe }.gen_lalr1(&g, &table, &dfa, &ec)
     }
-    Mode::Ll1 => {
+    Mode::LL1 => {
       let ll = ll1_core::LLCtx::new(&g);
+      if let Some(verbose) = verbose {
+        fs::write(&verbose, parser_gen::show_tbl::text(&ll.table, &g))
+          .unwrap_or_else(|err| panic!("Fail to write verbose information into file `{}`, error: `{}`.", verbose, err));
+      }
       for table in &ll.table {
         for (&predict, prod_ids) in table {
           if prod_ids.len() > 1 {
@@ -213,10 +216,10 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
 
 #[proc_macro_attribute]
 pub fn lalr1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-  work(attr, input, Mode::Lalr1)
+  work(attr, input, Mode::LALR1)
 }
 
 #[proc_macro_attribute]
 pub fn ll1(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-  work(attr, input, Mode::Ll1)
+  work(attr, input, Mode::LL1)
 }

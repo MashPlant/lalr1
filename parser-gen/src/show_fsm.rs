@@ -1,3 +1,5 @@
+// show lalr1 fsm
+
 use lalr1_core::RawTable;
 use grammar_config::Grammar;
 use std::fmt::Write;

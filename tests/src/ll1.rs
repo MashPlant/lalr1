@@ -12,6 +12,7 @@ pub enum Op {
 }
 
 #[ll1(Expr)]
+#[verbose("a.txt")]
 #[lex(r#"
 priority = []
 
@@ -120,14 +121,11 @@ impl Parser {
   fn _parse<'a>(&mut self, target: u32, lookahead: &mut Token<'a>, lexer: &mut Lexer<'a>, f: &HashSet<u32>) -> StackItem<'a> {
     let target = target as usize;
     let follow: &[HashSet<u32>] = &*FOLLOW;
-    let begin: &[HashSet<u32>] = &*BEGIN;
     let table: &[HashMap<u32, (u32, Vec<u32>)>] = &*TABLE;
     let is_nt = |x: u32| x < NT_NUM;
 
     let mut end = f.clone();
     end.extend(follow[target].iter());
-    let mut begin_or_end = begin[target].clone();
-    begin_or_end.extend(end.iter());
     match table[target].get(&(lookahead.ty as u32)) {
       None => {
         unimplemented!()

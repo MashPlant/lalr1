@@ -128,11 +128,11 @@ pub fn parse_term<'a>(
     let pri_assoc = (pri as u32, pri_row.assoc);
     for term in pri_row.terms.iter().map(String::as_str) {
       if term == EPS || term == EOF || term == ERR {
-        return Err(format!("Cannot assign priority to builtin term `{}`.", term));
+        return Err(format!("cannot assign priority to builtin term `{}`", term));
       } else if !VALID_NAME.is_match(term) {
-        return Err(format!("Term is not a valid variable name: `{}`.", term));
+        return Err(format!("term is not a valid variable name: `{}`", term));
       } else if term2id.contains_key(term) {
-        return Err(format!("Duplicate term when assigning priority: `{}`.", term));
+        return Err(format!("duplicate term when assigning priority: `{}`", term));
       } else {
         term2id.insert(term, terms.len() as u32);
         terms.push((term, Some(pri_assoc)));
@@ -142,10 +142,8 @@ pub fn parse_term<'a>(
 
   for l in lexical {
     let (_, term) = (l.0.as_str(), l.1.as_str());
-    if term == EOF || term == ERR {
-      return Err(format!("User define lex rule cannot return token `{}`.", term));
-    } else if term != EPS && !VALID_NAME.is_match(term) {
-      return Err(format!("Term is not a valid variable name: `{}`.", term));
+    if term != EOF && term != ERR && term != EPS && !VALID_NAME.is_match(term) {
+      return Err(format!("term is not a valid variable name: `{}`", term));
     }
     term2id.entry(term).or_insert_with(|| {
       let id = terms.len() as u32;

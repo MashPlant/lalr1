@@ -122,13 +122,16 @@ impl Follow {
   }
 }
 
+pub type LLTable = Vec<HashMap<u32, SmallVec<[u32; 1]>>>;
+
+// first set and ps set are useless for parser generating, if you need them, `LLCtx::new` have these 2 local variables
 pub struct LLCtx {
-  pub first: First,
+//  pub first: First,
   pub follow: Follow,
   // u32: id of prod(it is easy to get prod by id, but not the reverse)
   // use IndexMap to solve conflict(who comes first has priority)
-  pub ps: Vec<IndexMap<u32, BitSet>>,
-  pub table: Vec<HashMap<u32, SmallVec<[u32; 1]>>>,
+//  pub ps: Vec<IndexMap<u32, BitSet>>,
+  pub table: LLTable,
 }
 
 impl LLCtx {
@@ -160,6 +163,6 @@ impl LLCtx {
       }
       table.push(tbi);
     }
-    LLCtx { first, follow, ps, table }
+    LLCtx { follow,  table }
   }
 }

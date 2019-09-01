@@ -1,4 +1,5 @@
 pub mod show_fsm;
+pub mod show_tbl;
 
 use re2dfa::dfa::Dfa;
 use hashbrown::HashMap;
@@ -262,7 +263,6 @@ impl RustCodegen {
     let pat = [
       "{nt_num}",
       "{follow}",
-      "{begin}",
       "{table}",
       "{parser_type}",
       "{parser_act}",
@@ -283,17 +283,6 @@ impl RustCodegen {
             if follow.test(i as usize) {
               let _ = write!(s, "{}, ", i);
             }
-          }
-          let _ = writeln!(s, "),");
-        }
-        s
-      },
-      { // "{begin}",
-        let mut s = String::new();
-        for table in &ll.table {
-          let _ = write!(s, "set!(");
-          for (&predict, _) in table {
-            let _ = write!(s, "{}, ", predict);
           }
           let _ = writeln!(s, "),");
         }

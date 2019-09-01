@@ -6,7 +6,6 @@ struct Parser;
 #[lalr1(Expr)]
 #[log_reduce]
 #[log_token]
-#[verbose("a.txt")]
 #[lex(r#"
 priority = [
   { assoc = 'left', terms = ['Add', 'Sub'] },

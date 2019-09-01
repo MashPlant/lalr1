@@ -18,7 +18,6 @@ const NT_NUM: u32 = {nt_num};
 
 lazy_static::lazy_static! {
   pub static ref FOLLOW: [HashSet<u32>; {nt_num}] = [{follow}];
-  pub static ref BEGIN: [HashSet<u32>; {nt_num}] = [{begin}];
   pub static ref TABLE: [HashMap<u32, (u32, Vec<u32>)>; {nt_num}] = [{table}];
 }
 
