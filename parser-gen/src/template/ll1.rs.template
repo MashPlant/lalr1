@@ -24,8 +24,8 @@ lazy_static::lazy_static! {
 impl<'p> {parser_type} {
   #[allow(unused)]
   #[allow(unused_mut)]
-  pub fn act(&mut self, lhs: u32, mut value_stk: Vec<StackItem<'p>>) -> StackItem<'p> {
-    match lhs {
+  pub fn act(&mut self, prod: u32, mut value_stk: Vec<StackItem<'p>>) -> StackItem<'p> {
+    match prod {
       {parser_act}
       _ => impossible!(),
     }

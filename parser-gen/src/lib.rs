@@ -135,8 +135,7 @@ macro_rules! impossible { () => { unreachable!() }; }"#.to_owned()
     AhoCorasick::new(&pat).replace_all(template, &rep)
   }
 
-  fn gen_act(&self, g: &Grammar, types2id: &HashMap<&str, u32>,
-             handle_unexpect_stack: &str) -> String {
+  fn gen_act(&self, g: &Grammar, types2id: &HashMap<&str, u32>, handle_unexpect_stack: &str) -> String {
     let mut s = String::new();
     for (i, &((act, args), (lhs, idx), _)) in g.prod_extra.iter().enumerate() {
       let _ = writeln!(s, "{} => {{", i);
@@ -164,7 +163,6 @@ macro_rules! impossible { () => { unreachable!() }; }"#.to_owned()
   }
 }
 
-// value_stk.push(
 // I once tried to make the generated code perfectly indented by IndentPrinter, and I almost succeeded
 // but such code is so unmaintainable, so I gave up, just use rustfmt or other tool to format the code...
 impl RustCodegen {
