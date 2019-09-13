@@ -3,9 +3,10 @@
 use grammar_config::Grammar;
 use std::fmt::Write;
 use ll1_core::LLTable;
+use crate::show_fsm::show_prod_token;
 
 pub fn text(table: &LLTable, g: &Grammar) -> String {
-  let mut s = String::new();
+  let mut s = show_prod_token(g);
   for (idx, t) in table.iter().enumerate() {
     let _ = writeln!(s, "{}:", g.show_token(idx as u32));
     // this is not necessary, but sorting it will provide better readability

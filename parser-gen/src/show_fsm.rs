@@ -1,16 +1,30 @@
 // show lalr1 fsm
 
 use lalr1_core::RawTable;
-use grammar_config::Grammar;
+use grammar_config::{Grammar, AbstractGrammar};
 use std::fmt::Write;
+
+pub fn show_prod_token(g: &Grammar) -> String {
+  let mut text = String::new();
+
+  let _ = writeln!(text, "Productions:");
+  for i in 0..g.prod_extra.len() as u32 {
+    let _ = writeln!(text, "  {}: {}", i, g.show_prod(i));
+  }
+  text.push('\n');
+
+  let _ = writeln!(text, "Tokens:");
+  for i in 0..g.token_num() {
+    let _ = writeln!(text, "  {}: {}", i, g.show_token(i));
+  }
+  text.push('\n');
+
+  text
+}
 
 pub fn text(original_table: &RawTable, table: &RawTable, g: &Grammar) -> String {
   assert_eq!(original_table.len(), table.len());
-  let mut text = String::new();
-  for i in 0..g.prod_extra.len() as u32 {
-    let _ = writeln!(text, "Production {}: {}", i, g.show_prod(i));
-  }
-  text.push_str("\n\n");
+  let mut text = show_prod_token(g);
 
   for (idx, (o, n)) in original_table.iter().zip(table.iter()).enumerate() {
     let _ = writeln!(text, "State {}:", idx);
@@ -30,7 +44,7 @@ pub fn text(original_table: &RawTable, table: &RawTable, g: &Grammar) -> String 
         let _ = writeln!(text, "  {} => {:?} ({})", g.show_token(*ch), o, keep);
       }
     }
-    text.push_str("\n\n");
+    text.push('\n');
   }
   text
 }
