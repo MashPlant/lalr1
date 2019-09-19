@@ -152,6 +152,9 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
     .unwrap_or_else(|(idx, reason)| panic!("Invalid regex {}, reason: {}.", raw.lexical.get_index(idx).unwrap().0, reason));
   let g = grammar_config::extend_grammar(&mut raw)
     .unwrap_or_else(|err| panic!("Grammar is invalid, reason: {}.", err));
+
+  const INVALID_DFA: &str = "The merged dfa is not suitable for a lexer, i.e., it doesn't accept anything, or it accept empty string.";
+
   let code = match mode {
     Mode::LALR1 => {
       let lr0 = lalr1_core::lr0::work(&g);
@@ -189,6 +192,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
         }
       }
       RustCodegen { log_token, log_reduce, use_unsafe }.gen_lalr1(&g, &table, &dfa, &ec)
+        .unwrap_or_else(|| panic!(INVALID_DFA))
     }
     Mode::LL1 => {
       let ll = ll1_core::LLCtx::new(&g);
@@ -208,6 +212,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
         }
       }
       RustCodegen { log_token, log_reduce, use_unsafe }.gen_ll1(&g, &ll, &dfa, &ec)
+        .unwrap_or_else(|| panic!(INVALID_DFA))
     }
   };
   if expand { println!("{}", code); }

@@ -37,8 +37,11 @@ impl RustCodegen {
     (types, types2id)
   }
 
-  fn gen_common(&self, g: &Grammar, dfa: &Dfa, ec: &[u8; 256], types: &[&str],
-                stack_need_fail: bool) -> String {
+  // return None if this dfa is not suitable for a lexer
+  // i.e., it doesn't accept anything, or it accept empty string
+  // these 2 characteristics make lexer behaviour hard to define and make lex generator hard to write
+  fn gen_common(&self, g: &Grammar, dfa: &Dfa, ec: &[u8; 256], types: &[&str], stack_need_fail: bool) -> Option<String> {
+    if dfa.nodes.is_empty() || dfa.nodes[0].0.is_some() { return None; }
     let template = include_str!("template/common.rs.template");
     let pat = [
       "{include}",
@@ -132,7 +135,7 @@ macro_rules! impossible { () => { unreachable!() }; }"#.to_owned()
         s
       },
     ];
-    AhoCorasick::new(&pat).replace_all(template, &rep)
+    Some(AhoCorasick::new(&pat).replace_all(template, &rep))
   }
 
   fn gen_act(&self, g: &Grammar, types2id: &HashMap<&str, u32>, handle_unexpect_stack: &str) -> String {
@@ -163,12 +166,11 @@ macro_rules! impossible { () => { unreachable!() }; }"#.to_owned()
   }
 }
 
-// I once tried to make the generated code perfectly indented by IndentPrinter, and I almost succeeded
-// but such code is so unmaintainable, so I gave up, just use rustfmt or other tool to format the code...
 impl RustCodegen {
-  pub fn gen_lalr1(&self, g: &Grammar, table: &RawTable, dfa: &Dfa, ec: &[u8; 256]) -> String {
+  // return None if `gen_common` returns None, you can check the doc of `gen_common`
+  pub fn gen_lalr1(&self, g: &Grammar, table: &RawTable, dfa: &Dfa, ec: &[u8; 256]) -> Option<String> {
     let (types, types2id) = self.gather_types(g);
-    let common = self.gen_common(g, dfa, ec, &types, false);
+    let common = self.gen_common(g, dfa, ec, &types, false)?;
     let template = include_str!("template/lalr1.rs.template");
     let pat = [
       "{u_lr_fsm_size}",
@@ -251,12 +253,12 @@ impl RustCodegen {
       // "{log_token}"
       if self.log_token { r#"println!("{:?}", token);"#.to_owned() } else { "".to_owned() },
     ];
-    common + &AhoCorasick::new(&pat).replace_all(template, &rep)
+    Some(common + &AhoCorasick::new(&pat).replace_all(template, &rep))
   }
 
-  pub fn gen_ll1(&self, g: &Grammar, ll: &LLCtx, dfa: &Dfa, ec: &[u8; 256]) -> String {
+  pub fn gen_ll1(&self, g: &Grammar, ll: &LLCtx, dfa: &Dfa, ec: &[u8; 256]) -> Option<String> {
     let (types, types2id) = self.gather_types(g);
-    let common = self.gen_common(g, dfa, ec, &types, true);
+    let common = self.gen_common(g, dfa, ec, &types, true)?;
     let template = include_str!("template/ll1.rs.template");
     let pat = [
       "{nt_num}",
@@ -315,6 +317,6 @@ impl RustCodegen {
       // "{res_id}"
       res_id.to_string(),
     ];
-    common + &AhoCorasick::new(&pat).replace_all(template, &rep)
+    Some(common + &AhoCorasick::new(&pat).replace_all(template, &rep))
   }
 }

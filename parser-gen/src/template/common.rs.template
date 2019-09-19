@@ -31,11 +31,9 @@ impl<'l> Lexer<'l> {
     static EC: [u8; 256] = [{ec}];
     static DFA_EDGE: [[{u_dfa_size}; {ec_size}]; {dfa_size}] = [{dfa_edge}];
     loop {
-      if self.string.is_empty() {
-        return Token { ty: TokenKind::_Eof, piece: "".as_bytes(), line: self.line, col: self.col };
-      }
+      // line & col is the beginning of this token, self.line & col is the latest char
       let (mut line, mut col) = (self.line, self.col);
-      let mut last_acc = TokenKind::_Err; // this is arbitrary, just a value that cannot be returned by user defined function
+      let mut last_acc = TokenKind::_Err;
       let mut state = 0;
       let mut i = 0;
       while i < self.string.len() {
@@ -43,7 +41,7 @@ impl<'l> Lexer<'l> {
         let ec = index!(EC, ch);
         let nxt = index!(index!(DFA_EDGE, state), ec);
         let acc = index!(ACC, nxt);
-        last_acc = if acc != TokenKind::_Err { acc } else { last_acc };
+        if acc != TokenKind::_Err { last_acc = acc };
         state = nxt;
         if nxt == 0 { // dead, should not eat this char
           let piece = &self.string[..i];
@@ -69,12 +67,12 @@ impl<'l> Lexer<'l> {
       }
       // end of file
       let piece = &self.string[..i];
-      self.string = &self.string[i..];
-      if last_acc != TokenKind::_Eps {
-        return Token { ty: last_acc, piece, line, col };
+      self.string = b"";
+      return if last_acc != TokenKind::_Eps && i != 0 {
+        Token { ty: last_acc, piece, line, col }
       } else {
-        return Token { ty: TokenKind::_Eof, piece: "".as_bytes(), line: self.line, col: self.col };
-      }
+        Token { ty: TokenKind::_Eof, piece: b"", line: self.line, col: self.col }
+      };
     }
   }
 }
