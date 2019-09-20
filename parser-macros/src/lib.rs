@@ -181,10 +181,9 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
         Diagnostic::new(Level::Warning, c).emit();
       }
       if conflict.iter().any(|c| if let ConflictKind::Many(_) = c.kind { true } else { false }) {
-        panic!(" >= 3 conflicts on one token detected, failed to solve conflicts.")
+        panic!(">= 3 conflicts on one token detected, failed to solve conflicts.")
       }
-      RustCodegen { log_token, log_reduce, use_unsafe }.gen_lalr1(&g, &table, &dfa, &ec)
-        .unwrap_or_else(|| panic!(INVALID_DFA))
+      RustCodegen { log_token, log_reduce, use_unsafe }.gen_lalr1(&g, &table, &dfa, &ec).unwrap_or_else(|| panic!(INVALID_DFA))
     }
     Mode::LL1 => {
       let ll = ll1_core::LLCtx::new(g);
@@ -195,8 +194,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
       for c in show_ll::conflict(&ll.table, g) {
         Diagnostic::new(Level::Warning, c).emit();
       }
-      RustCodegen { log_token, log_reduce, use_unsafe }.gen_ll1(&g, &ll, &dfa, &ec)
-        .unwrap_or_else(|| panic!(INVALID_DFA))
+      RustCodegen { log_token, log_reduce, use_unsafe }.gen_ll1(&g, &ll, &dfa, &ec).unwrap_or_else(|| panic!(INVALID_DFA))
     }
   };
   if expand { println!("{}", code); }

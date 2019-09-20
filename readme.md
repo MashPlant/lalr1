@@ -1,3 +1,5 @@
+## Introduction
+
 A lalr1(1) parser generator in & for rust.
 
 Support some yacc/bison features, e.g., precedence and associativity.
@@ -14,226 +16,55 @@ Future extension:
 
 ---
 
-## Codegen tool: toml to rust
+Currently this repository provided 4 tools that can be used directly, including 2 executable programs and 2 proc macros. They are listed as follow.
 
-Quite a traditional approach. Use a toml to describe the grammar, and generate it to source code of rust. The generated code has no extra dependency.
+## `simple_grammar`: show lr fsm
 
-## #[lalr1]
+Run `simple_grammar` for help:
+
+```bash
+$ cargo run --example simple_grammar -- --help
+```
+
+Or run a specific example:
+
+```bash
+$ cargo run --example simple_grammar -- parser-gen/examples/expr.cfg -g lalr1 -o expr.dot
+```
+
+Then use your favorite dot file viewer to view this file, you will get:
+
+![](parser-gen/examples/expr.png)
+
+## `parser_gen`: toml to rust
+
+Run `parser_gen` for help:
+
+```bash
+$ cargo run --example parser_gen -- --help
+```
+
+Or run a specific example:
+
+```bash
+# actually we only support `-l rs` now
+$ cargo run --example parser_gen -- parser-gen/examples/calc.toml -o calc.rs -l rs
+```
+
+Now `calc.rs` will contain a `struct Parser` and a `struct Lexer`. Their apis are easy to understand.
+
+## `#[lalr1]`
 
 Use rust's proc macro to describe the grammar.
 
-```rust
-#![feature(proc_macro_hygiene)]
-extern crate parser_macros;
+The specific api of proc macro is described in [another documentation](https://mashplant.gitbook.io/decaf-doc/pa1a/lalr1-shi-yong-zhi-dao) (in Chinese), which is part of the experiment guide of THU compiling principle course. It will take me too much time if I am to maintain an English version of this documentation at the same time.
 
-use parser_macros::lalr1;
+See `tests/src/lalr1.rs` to have a glance at the usage.
 
-struct Parser;
+## `#[ll1]`
 
-#[lalr1(Expr)]
-#[lex(r#"
-priority = [
-  { assoc = 'left', terms = ['Add', 'Sub'] },
-  { assoc = 'left', terms = ['Mul', 'Div', 'Mod'] },
-  { assoc = 'no_assoc', terms = ['UMinus'] },
-  { assoc = 'no_assoc', terms = ['RParen'] },
-]
+Like `#[lalr1]`, but use ll(1) grammar. The parser generator won't try to solve the problem of left recursion or left common factor, precedence and associativity will also be ignored. All have to be done manually. 
 
-[lexical]
-'\(' = 'LParen'
-'\)' = 'RParen'
-'\d+' = 'IntConst'
-'\+' = 'Add'
-'-' = 'Sub'
-'\*' = 'Mul'
-'/' = 'Div'
-'%' = 'Mod'
-'\d+' = 'IntConst'
-'\s+' = '_Eps'
-"#)]
-impl Parser {
-  #[rule(Expr -> Expr Add Expr)]
-  fn expr_add(l: i32, _op: Token<'_>, r: i32) -> i32 {
-    println!("Add {} {}", l, r);
-    l + r
-  }
+`#[ll1]` will generate a `parse(lexer)` function for `Parser`, and it will call `Parser::_parse`, which is supposed to be implemented by the user. When carefully implemented, this can provide some error recovering.
 
-  #[rule(Expr -> Expr Sub Expr)]
-  fn expr_sub(l: i32, _op: Token<'_>, r: i32) -> i32 {
-    println!("Sub {} {}", l, r);
-    l - r
-  }
-
-  #[rule(Expr -> Expr Mul Expr)]
-  fn expr_mul(l: i32, _op: Token<'_>, r: i32) -> i32 {
-    println!("Mul {} {}", l, r);
-    l * r
-  }
-
-  #[rule(Expr -> Expr Div Expr)]
-  fn expr_div(l: i32, _op: Token<'_>, r: i32) -> i32 {
-    println!("Div {} {}", l, r);
-    l / r
-  }
-
-  #[rule(Expr -> Expr Mod Expr)]
-  fn expr_mod(l: i32, _op: Token<'_>, r: i32) -> i32 {
-    println!("Mod {} {}", l, r);
-    l % r
-  }
-
-  #[rule(Expr -> Sub Expr)]
-  #[prec(UMinus)]
-  fn expr_neg(_op: Token<'_>, r: i32) -> i32 {
-    println!("Neg {}", r);
-    -r
-  }
-
-  #[rule(Expr -> LParen Expr RParen)]
-  fn expr_paren(_l: Token<'_>, i: i32, _r: Token<'_>) -> i32 {
-    println!("Paren {}", i);
-    i
-  }
-
-  #[rule(Expr -> IntConst)]
-  fn expr_int(i: Token<'_>) -> i32 {
-    let int = std::str::from_utf8(i.piece).unwrap().parse::<i32>().unwrap();
-    println!("Int {}", int);
-    int
-  }
-}
-
-let mut p = Parser;
-assert_eq!(p.parse(&mut Lexer::new(b"1 - 2 * (3 + 4 * 5 / 6) + -7 * -9 % 10")), Ok(-8));
-```
-
-A pity is that I don't know how to expand macro in proc macro. If so, we can simply write
-
-```rust
-bin!(expr_add, Add, +);
-bin!(expr_sub, Sub, -);
-...
-```
-
-which is terser.
-
-## #[ll1]
-An similar example, notice that the parser generator won't try to solve the problem of left recursion or left common factor, also priority will be ignored. All have to be done manually. 
-
-```rust
-#![feature(proc_macro_hygiene)]
-extern crate parser_macros;
-
-use parser_macros::ll1;
-
-struct Parser;
-
-pub enum Op {
-  Add,
-  Sub,
-  Mul,
-  Div,
-  Mod,
-}
-
-#[ll1(Expr)]
-#[lex(r#"
-priority = []
-
-[lexical]
-'\(' = 'LParen'
-'\)' = 'RParen'
-'\d+' = 'IntConst'
-'\+' = 'Add'
-'-' = 'Sub'
-'\*' = 'Mul'
-'/' = 'Div'
-'%' = 'Mod'
-'\d+' = 'IntConst'
-'\s+' = '_Eps'
-"#)]
-impl Parser {
-  #[rule(Expr -> Term1 Expr1)]
-  fn r0(mut t: i32, remain: Vec<(Op, i32)>) -> i32 {
-    for (op, i) in remain.into_iter().rev() {
-      match op {
-        Op::Add => t += i,
-        Op::Sub => t -= i,
-        _ => unreachable!(),
-      }
-    }
-    t
-  }
-
-  #[rule(Expr1 -> Add Term1 Expr1)]
-  fn r1(_op: Token<'_>, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
-    remain.push((Op::Add, t));
-    remain
-  }
-
-  #[rule(Expr1 -> Sub Term1 Expr1)]
-  fn r2(_op: Token<'_>, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
-    remain.push((Op::Sub, t));
-    remain
-  }
-
-  #[rule(Expr1 ->)]
-  fn r3() -> Vec<(Op, i32)> {
-    vec![]
-  }
-
-  #[rule(Term1 -> Term2 Expr2)]
-  fn r4(mut t: i32, remain: Vec<(Op, i32)>) -> i32 {
-    for (op, i) in remain.into_iter().rev() {
-      match op {
-        Op::Mul => t *= i,
-        Op::Div => t /= i,
-        Op::Mod => t %= i,
-        _ => unreachable!(),
-      }
-    }
-    t
-  }
-
-  #[rule(Expr2 -> Mul Term2 Expr2)]
-  fn r5(_op: Token<'_>, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
-    remain.push((Op::Mul, t));
-    remain
-  }
-
-  #[rule(Expr2 -> Div Term2 Expr2)]
-  fn r6(_op: Token<'_>, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
-    remain.push((Op::Div, t));
-    remain
-  }
-
-  #[rule(Expr2 -> Mod Term2 Expr2)]
-  fn r7(_op: Token<'_>, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
-    remain.push((Op::Mod, t));
-    remain
-  }
-
-  #[rule(Expr2 ->)]
-  fn r8() -> Vec<(Op, i32)> {
-    vec![]
-  }
-
-  #[rule(Term2 -> IntConst)]
-  fn r9(i: Token<'_>) -> i32 {
-    let int = std::str::from_utf8(i.piece).unwrap().parse::<i32>().unwrap();
-    int
-  }
-
-  #[rule(Term2 -> Sub Term2)]
-  fn r10(i: Token<'_>, r: i32) -> i32 {
-    -r
-  }
-
-  #[rule(Term2 -> LParen Expr RParen)]
-  fn r11(_l: Token<'_>, x: i32, _r: Token<'_>) -> i32 {
-    x
-  }
-}
-```
-
-This will generate a `parse(lexer)` function for `Parser`, and it will call `Parser::_parse`, which is supposed to be implemented by the user. When carefully implemented, this can provide some error recovering. An incomplete example can be found at test/src/ll1.rs.
+See `tests/src/ll.rs` to have a glance at the usage, note that error recovering is not implemented in this file.

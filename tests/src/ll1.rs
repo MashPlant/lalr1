@@ -3,13 +3,7 @@ use hashbrown::{HashSet, HashMap};
 
 struct Parser;
 
-pub enum Op {
-  Add,
-  Sub,
-  Mul,
-  Div,
-  Mod,
-}
+pub enum Op { Add, Sub, Mul, Div, Mod, }
 
 #[ll1(Expr)]
 #[lex(r#"
@@ -127,7 +121,7 @@ impl Parser {
     end.extend(follow[target].iter());
     match table[target].get(&(lookahead.ty as u32)) {
       None => {
-        unimplemented!()
+        unimplemented!() // error recovery code here
       }
       Some((act, rhs)) => {
         let value_stk = rhs.iter().map(|&x| {
@@ -153,6 +147,5 @@ impl Parser {
 
 #[test]
 fn ll1() {
-  let mut p = Parser;
-  assert_eq!(p.parse(&mut Lexer::new(b"1 - 2 * (3 + 4 * 5 / 6) + -7 * -9 % 10")), Some(-8));
+  assert_eq!(Parser.parse(&mut Lexer::new(b"1 - 2 * (3 + 4 * 5 / 6) + -7 * -9 % 10")), Some(-8));
 }

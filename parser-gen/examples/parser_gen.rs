@@ -42,7 +42,7 @@ fn main() -> io::Result<()> {
     eprintln!("{}", c);
   }
   if conflict.iter().any(|c| if let ConflictKind::Many(_) = c.kind { true } else { false }) {
-    eprintln!(" >= 3 conflicts on one token detected, failed to solve conflicts.");
+    eprintln!(">= 3 conflicts on one token detected, failed to solve conflicts.");
     process::exit(1);
   }
   let code = match m.value_of("lang") {
