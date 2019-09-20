@@ -20,15 +20,15 @@ pub enum Assoc {
 pub struct RawGrammar {
   pub include: String,
   pub priority: Vec<RawPriorityRow>,
-  /// map re to term
+  // map re to term
   pub lexical: IndexMap<String, String>,
-  /// this string should contain name & type
-  /// e.g.: "a: u32" for rust, "int a" for c++
+  // this string should contain name & type
+  // e.g.: "a: u32" for rust, "int a" for c++
   pub parser_field: Option<Vec<String>>,
   pub start: Option<String>,
   pub production: Vec<RawProduction>,
-  /// None -> will define a struct Parser<'a> { _p: std::marker::PhantomData<&'a ()>,  parser_field_ext }
-  /// Some -> will not define a struct
+  // None -> will define a struct Parser<'a> { _p: std::marker::PhantomData<&'a ()>,  parser_field_ext }
+  // Some -> will not define a struct
   #[serde(skip_serializing)]
   pub parser_def: Option<String>,
 }
@@ -61,6 +61,8 @@ pub struct RawProductionRhs {
   pub prec: Option<String>,
 }
 
+// I HATE USIZE
+
 // about the distribution of non-terminal & terminal & eof & eps on u32:
 // non-term: 0..nt_num(), term & eof & eps & err: nt_num()..token_num()
 pub trait AbstractGrammar<'a> {
@@ -87,6 +89,8 @@ pub trait AbstractGrammar<'a> {
 
   fn nt_num(&self) -> u32;
 
+  fn prod_num(&self) -> u32;
+
   fn get_prod(&'a self, lhs: u32) -> Self::ProdIter;
 }
 
@@ -95,6 +99,10 @@ pub trait AbstractGrammarExt<'a>: AbstractGrammar<'a> {
   fn prod_pri(&self, id: u32) -> Option<u32>;
 
   fn term_pri_assoc(&self, ch: u32) -> Option<(u32, Assoc)>;
+
+  fn show_token(&self, id: u32) -> &str;
+
+  fn show_prod(&self, id: u32, dot: Option<u32>) -> String;
 }
 
 pub struct ValidName;
@@ -112,8 +120,8 @@ impl ValidName {
 // use this instead of a function for compatibility, I used to use a regex here
 pub const VALID_NAME: ValidName = ValidName;
 
-/// input: the two field in RawGrammar(or constructed in other ways)
-/// return: (Vec<(term, pri_assoc)>, term2id)
+// input: the two field in RawGrammar(or constructed in other ways)
+// return: (Vec<(term, pri_assoc)>, term2id)
 pub fn parse_term<'a>(
   priority: &'a [RawPriorityRow],
   lexical: &'a IndexMap<String, String>,

@@ -2,18 +2,15 @@
 extern crate proc_macro;
 
 use quote::ToTokens;
-use grammar_config::{RawPriorityRow, RawProduction, RawProductionRhs, RawGrammar};
 use serde::{Serialize, Deserialize};
 use indexmap::IndexMap;
-use parser_gen::RustCodegen;
-use lalr1_core::{ConflictKind, Act};
 use proc_macro::{Diagnostic, Level};
 use std::fs;
+use lalr1_core::*;
+use parser_gen::*;
+use grammar_config::*;
 
-enum ArgInfo {
-  Self_,
-  Arg { name: Option<String>, ty: String },
-}
+enum ArgInfo { Self_, Arg { name: Option<String>, ty: String } }
 
 fn parse_arg(arg: &syn::FnArg) -> ArgInfo {
   match arg {
@@ -72,7 +69,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
 
   const FAIL_TO_PARSE_LEXER: &str = "Fail to parse lexer, expect `#[lex(TomlOfLexer)].";
 
-  let (mut raw_lexer, mut verbose) = (None, None);
+  let (mut raw_lexer, mut verbose, mut show_dfa, mut show_fsm) = (None, None, None, None);
   let (mut log_token, mut log_reduce, mut use_unsafe, mut expand) = (false, false, false, false);
   for attr in &parser_impl.attrs {
     let ident = attr.path.clone().into_token_stream().to_string();
@@ -84,15 +81,23 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
         } else { panic!(FAIL_TO_PARSE_LEXER) }
       },
       "verbose" => match verbose {
-        Some(_) => panic!("Find more than one verbose information output file."),
+        Some(_) => panic!("Find more than one `verbose` output file."),
         // unwrap it and Some it, make sure won't treat an invalid input as not an input
         None => verbose = Some(attr2strlit(attr).unwrap_or_else(|| panic!("Fail to find verbose information output file from #[verbose(...)]"))),
+      }
+      "show_dfa" => match show_dfa {
+        Some(_) => panic!("Find more than one `show_dfa` output file."),
+        None => show_dfa = Some(attr2strlit(attr).unwrap_or_else(|| panic!("Fail to find verbose information output file from #[show_dfa(...)]"))),
+      }
+      "show_fsm" => match verbose {
+        Some(_) => panic!("Find more than one `show_fsm` output file."),
+        None => show_fsm = Some(attr2strlit(attr).unwrap_or_else(|| panic!("Fail to find verbose information output file from #[show_fsm(...)]"))),
       }
       "log_token" => log_token = true,
       "log_reduce" => log_reduce = true,
       "use_unsafe" => use_unsafe = true,
       "expand" => expand = true,
-      _ => panic!("Expect one of `lex`, `verbose`, `log_token`, `log_reduce`, `use_unsafe`, `expand` here, found `{}`", ident),
+      _ => panic!("Expect one of `lex`, `verbose`, `show_dfa`, `show_fsm`, `log_token`, `log_reduce`, `use_unsafe`, `expand` here, found `{}`", ident),
     }
   }
   let raw_lexer = raw_lexer.unwrap_or_else(|| panic!("{}", FAIL_TO_PARSE_LEXER));
@@ -150,66 +155,45 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
   };
   let (dfa, ec) = re2dfa::re2dfa(raw.lexical.iter().map(|(k, _)| k))
     .unwrap_or_else(|(idx, reason)| panic!("Invalid regex {}, reason: {}.", raw.lexical.get_index(idx).unwrap().0, reason));
-  let g = grammar_config::extend_grammar(&mut raw)
-    .unwrap_or_else(|err| panic!("Grammar is invalid, reason: {}.", err));
+  let ref g = extend_grammar(&mut raw).unwrap_or_else(|err| panic!("Grammar is invalid, reason: {}.", err));
 
-  const INVALID_DFA: &str = "The merged dfa is not suitable for a lexer, i.e., it doesn't accept anything, or it accept empty string.";
+  if let Some(show_dfa) = show_dfa {
+    fs::write(&show_dfa, dfa.print_dot())
+      .unwrap_or_else(|err| panic!("Fail to write `show_dfa` into file `{}`, error: `{}`.", show_dfa, err));
+  }
 
   let code = match mode {
     Mode::LALR1 => {
-      let lr0 = lalr1_core::lr0::work(&g);
-      let original_table = lalr1_core::lalr1_by_lr0::work(&lr0, &g);
+      let lr0 = lr0::work(g);
+      let lr1 = lalr1_by_lr0::work(&lr0, g);
+      let original_table = mk_table::mk_table(&lr1, g);
       let mut table = original_table.clone();
-      let conflict = lalr1_core::conflict::solve(&mut table, &g);
+      let conflict = lalr1_core::mk_table::solve(&mut table, g);
       if let Some(verbose) = verbose {
-        fs::write(&verbose, parser_gen::show_fsm::text(&original_table, &table, &g))
-          .unwrap_or_else(|err| panic!("Fail to write verbose information into file `{}`, error: `{}`.", verbose, err));
+        fs::write(&verbose, show_lr::table(&original_table, &table, g))
+          .unwrap_or_else(|err| panic!("Fail to write `verbose` into file `{}`, error: `{}`.", verbose, err));
       }
-      for conflict in &conflict {
-        let ch = g.show_token(conflict.ch);
-        match conflict.kind {
-          ConflictKind::SR { s, r } => {
-            let msg = format!("Shift-reduce conflict at state {} when faced with token `{}`, it can either shift {}, or reduce {}(`{}`).",
-                              conflict.state, ch, s, r, g.show_prod(r));
-            Diagnostic::new(Level::Warning, msg).emit();
-          }
-          ConflictKind::RR { r1, r2 } => {
-            let msg = format!("Shift-shift conflict at state {} when faced with token `{}`, it can either reduce {}('{}'), or reduce {}(`{}`).",
-                              conflict.state, ch, r1, g.show_prod(r1), r2, g.show_prod(r2));
-            Diagnostic::new(Level::Warning, msg).emit();
-          }
-          ConflictKind::Many(ref acts) => {
-            let mut msg = format!("Too many conflicts at state {} when faced with token `{}`:\n", conflict.state, ch);
-            for a in acts {
-              match a {
-                Act::Shift(s) => { msg.push_str(&format!("  - shift {}\n", s)); }
-                Act::Reduce(r) => { msg.push_str(&format!("  - reduce {}('{}')\n", r, g.show_prod(*r))); }
-                _ => unreachable!("There should be a bug in lr."),
-              }
-            }
-            panic!("{}", msg)
-          }
-        }
+      if let Some(show_fsm) = show_fsm {
+        fs::write(&show_fsm, show_lr::lr1_dot(g, &lr1))
+          .unwrap_or_else(|err| panic!("Fail to write `show_fsm` into file `{}`, error: `{}`.", show_fsm, err));
+      }
+      for c in show_lr::conflict(g, &conflict) {
+        Diagnostic::new(Level::Warning, c).emit();
+      }
+      if conflict.iter().any(|c| if let ConflictKind::Many(_) = c.kind { true } else { false }) {
+        panic!(" >= 3 conflicts on one token detected, failed to solve conflicts.")
       }
       RustCodegen { log_token, log_reduce, use_unsafe }.gen_lalr1(&g, &table, &dfa, &ec)
         .unwrap_or_else(|| panic!(INVALID_DFA))
     }
     Mode::LL1 => {
-      let ll = ll1_core::LLCtx::new(&g);
+      let ll = ll1_core::LLCtx::new(g);
       if let Some(verbose) = verbose {
-        fs::write(&verbose, parser_gen::show_tbl::text(&ll.table, &g))
+        fs::write(&verbose, show_ll::table(&ll.table, g))
           .unwrap_or_else(|err| panic!("Fail to write verbose information into file `{}`, error: `{}`.", verbose, err));
       }
-      for table in &ll.table {
-        for (&predict, prod_ids) in table {
-          if prod_ids.len() > 1 {
-            let first_prod = g.show_prod(prod_ids[0]);
-            for &other in prod_ids.iter().skip(1) {
-              Diagnostic::new(Level::Warning, format!("Conflict at prod `{}` and `{}`, both's PS contains term `{}`.",
-                                                      first_prod, g.show_prod(other), g.terms[predict as usize - g.nt.len()].0)).emit();
-            }
-          }
-        }
+      for c in show_ll::conflict(&ll.table, g) {
+        Diagnostic::new(Level::Warning, c).emit();
       }
       RustCodegen { log_token, log_reduce, use_unsafe }.gen_ll1(&g, &ll, &dfa, &ec)
         .unwrap_or_else(|| panic!(INVALID_DFA))

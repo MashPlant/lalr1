@@ -1,20 +1,18 @@
 // "Compilers: Principles, Techniques and Tools" Algorithm 4.63
 
-use crate::{lr1::LRCtx, Lr1Item, Lr1Closure, Act, LrFsm, LrNode, TableEntry, RawTable};
-use grammar_config::AbstractGrammarExt;
+use crate::{lr1::Lr1Ctx, Lr1Item, Lr0Fsm, Lr0Node, Lr1Node, Lr1Fsm, Link};
+use grammar_config::AbstractGrammar;
 use hashbrown::HashMap;
-use smallvec::{SmallVec, smallvec};
 use bitset::BitSet;
 
-// inner version, the return value doesn't contain `link`
-fn lalr1_by_lr0<'a>(lr0: &'a LrFsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<Lr1Closure<'a>> {
-  let mut ctx = LRCtx::new(g);
+pub fn work<'a, 'b>(lr0: &'b Lr0Fsm<'a>, g: &'a impl AbstractGrammar<'a>) -> Lr1Fsm<'a, &'b Link> {
+  let mut ctx = Lr1Ctx::new(g);
   let mut lookahead = lr0.iter()
-    .map(|LrNode { items, .. }| vec![BitSet::new(ctx.token_num); items.len()]).collect::<Vec<_>>();
+    .map(|Lr0Node { closure, .. }| vec![BitSet::new(ctx.0.token_num); closure.len()]).collect::<Vec<_>>();
   let mut prop = Vec::new();
   let start_prod = (g.start().1).0.as_ref();
 
-  for (i, item) in lr0[0].items.iter().enumerate() {
+  for (i, item) in lr0[0].closure.iter().enumerate() {
     if item.prod == start_prod {
       lookahead[0][i].set(g.eof() as usize);
       break;
@@ -22,25 +20,25 @@ fn lalr1_by_lr0<'a>(lr0: &'a LrFsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> V
   }
 
   let special_term = g.err() as usize;
-  for (i, LrNode { items: state, link }) in lr0.iter().enumerate() {
+  for (i, Lr0Node { closure: state, link }) in lr0.iter().enumerate() {
     for (item_id, &item) in state.iter().enumerate() {
       // only consider lr0 core item
       if item.prod == start_prod || item.dot != 0 {
         let cl = ctx.closure({
-                               let mut lookahead = BitSet::new(ctx.token_num);
+                               let mut lookahead = BitSet::new(ctx.0.token_num);
                                lookahead.set(special_term);
                                let mut init = HashMap::new();
                                init.insert(item, lookahead);
                                init
                              }, g);
         let from = lookahead[i][item_id].as_ptr();
-        for Lr1Item { item: cl_item, lookahead: cl_lookahead } in &cl {
+        for Lr1Item { lr0: cl_item, lookahead: cl_lookahead } in &cl {
           if cl_item.dot as usize >= cl_item.prod.len() {
             continue;
           }
           let goto_state = link[&cl_item.prod[cl_item.dot as usize]];
           let goto_item_id = cl_item.unique_id() + 1; // dot + 1
-          let goto_item_idx = lr0[goto_state as usize].items.iter().enumerate().find(|item| item.1.unique_id() == goto_item_id).unwrap().0;
+          let goto_item_idx = lr0[goto_state as usize].closure.iter().enumerate().find(|item| item.1.unique_id() == goto_item_id).unwrap().0;
           let goto_lookahead = &mut lookahead[goto_state as usize][goto_item_idx];
           goto_lookahead.or(&cl_lookahead);
           if cl_lookahead.test(special_term) {
@@ -64,42 +62,13 @@ fn lalr1_by_lr0<'a>(lr0: &'a LrFsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> V
 
   lookahead.iter_mut().for_each(|l| l.iter_mut().for_each(|l| l.clear(special_term)));
 
-  lr0.iter().zip(lookahead.into_iter()).map(|(node, lookahead_s)| {
-    ctx.closure(node.items.clone().into_iter().zip(lookahead_s.into_iter()).collect(), g)
-  }).collect::<Vec<_>>()
+  lr0.iter().zip(lookahead.into_iter()).map(|(node, lookahead)| Lr1Node {
+    closure: ctx.closure(node.closure.clone().into_iter().zip(lookahead.into_iter()).collect(), g),
+    link: &node.link,
+  }).collect()
 }
 
-pub fn work<'a>(lr0: &'a LrFsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> RawTable<'a> {
-  let result = lalr1_by_lr0(lr0, g);
-  let mut table = Vec::with_capacity(lr0.len());
-  let eof = g.eof();
-  let start_id = (g.start().1).1;
-  let token_num = g.token_num();
-  for (i, LrNode { items, link }) in lr0.iter().enumerate() {
-    let (mut act, mut goto) = (HashMap::new(), HashMap::new());
-    for (&k, &v) in link {
-      if k < g.nt_num() {
-        goto.insert(k, v);
-      } else {
-        act.insert(k, smallvec![Act::Shift(v)]);
-      }
-    }
-    for (item, Lr1Item { lookahead, .. }) in items.iter().zip(result[i].iter()) {
-      if item.dot == item.prod.len() as u32 {
-        if lookahead.test(eof as usize) && item.prod_id == start_id {
-          act.insert(eof, smallvec![Act::Acc]);
-        } else {
-          for i in 0..token_num {
-            if lookahead.test(i as usize) {
-              // maybe conflict here
-              act.entry(i).or_insert_with(|| SmallVec::new()).push(Act::Reduce(item.prod_id));
-            }
-          }
-        }
-      }
-    }
-    table.push(TableEntry { items, act, goto });
-  }
+//pub fn work<'a>(lr0: &'a Lr0Fsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> Table<'a> {
+//  let result = lalr1_by_lr0(lr0, g);
 
-  table
-}
+//}

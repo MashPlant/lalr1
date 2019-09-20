@@ -4,18 +4,11 @@ use grammar_config::AbstractGrammar;
 use std::collections::vec_deque::VecDeque;
 use ll1_core::First;
 use bitset::BitSet;
-use std::ops::Deref;
 
-pub struct LRCtx(First);
+pub struct Lr1Ctx(pub First);
 
-impl Deref for LRCtx {
-  type Target = First;
-
-  fn deref(&self) -> &Self::Target { &self.0 }
-}
-
-impl LRCtx {
-  pub fn new<'a>(g: &'a impl AbstractGrammar<'a>) -> LRCtx { LRCtx(First::new(g)) }
+impl Lr1Ctx {
+  pub fn new<'a>(g: &'a impl AbstractGrammar<'a>) -> Lr1Ctx { Lr1Ctx(First::new(g)) }
 
   // one beta, and many a
   pub fn first(&self, beta: &[u32], a: &BitSet) -> BitSet {
@@ -30,12 +23,12 @@ impl LRCtx {
   // `go` was used by lr1 before, now not used
   pub fn go<'a>(&mut self, state: &Lr1Closure<'a>, mov: u32, g: &'a impl AbstractGrammar<'a>) -> Lr1Closure<'a> {
     let mut new_items = HashMap::new();
-    for Lr1Item { item, lookahead } in state {
-      if item.dot as usize >= item.prod.len() { // dot is after the last ch
+    for Lr1Item { lr0, lookahead } in state {
+      if lr0.dot as usize >= lr0.prod.len() { // dot is after the last ch
         continue;
       }
-      if item.prod[item.dot as usize] == mov {
-        let new_item = Lr0Item { prod: item.prod, prod_id: item.prod_id, dot: item.dot + 1 };
+      if lr0.prod[lr0.dot as usize] == mov {
+        let new_item = Lr0Item { prod: lr0.prod, prod_id: lr0.prod_id, dot: lr0.dot + 1 };
         match new_items.get_mut(&new_item) {
           None => { new_items.insert(new_item, lookahead.clone()); }
           Some(old_lookahead) => { old_lookahead.or(lookahead); }
@@ -72,9 +65,48 @@ impl LRCtx {
         }
       }
     }
-    let mut closure = items.into_iter().map(|(item, lookahead)| Lr1Item { item, lookahead }).collect::<Vec<_>>();
+    let mut closure = items.into_iter().map(|(item, lookahead)| Lr1Item { lr0: item, lookahead }).collect::<Vec<_>>();
     // sort it, so that vec's equal implies state's equal
-    closure.sort_unstable_by(|l, r| l.item.cmp(&r.item));
+    closure.sort_unstable_by(|l, r| l.lr0.cmp(&r.lr0));
     closure
   }
+}
+
+// I think it is only for `simple_grammar.rs`'s use now...
+pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> crate::Lr1Fsm<'a, crate::Link> {
+  let mut ctx = Lr1Ctx(First::new(g));
+  let mut ss = HashMap::new();
+  let init = ctx.closure({
+                           let start = g.start().1;
+                           let item = Lr0Item { prod: start.0.as_ref(), prod_id: start.1, dot: 0 };
+                           let mut lookahead = BitSet::new(g.token_num() as usize);
+                           lookahead.set(g.eof() as usize);
+                           let mut init = HashMap::new();
+                           init.insert(item, lookahead);
+                           init
+                         }, g);
+  let mut q = VecDeque::new();
+  let mut result = Vec::new();
+  ss.insert(init.clone(), 0);
+  q.push_back(init);
+  while let Some(cur) = q.pop_front() {
+    let mut link = HashMap::new();
+    for mov in 0..ctx.0.token_num as u32 {
+      let ns = ctx.go(&cur, mov, g);
+      if !ns.is_empty() {
+        let id = match ss.get(&ns) {
+          None => {
+            let id = ss.len() as u32;
+            ss.insert(ns.clone(), id);
+            q.push_back(ns);
+            id
+          }
+          Some(id) => *id,
+        };
+        link.insert(mov, id);
+      }
+    }
+    result.push(crate::Lr1Node { closure: cur, link });
+  }
+  result
 }

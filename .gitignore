@@ -1,5 +1,5 @@
 *target*
 **/*.rs.bk
 *idea*
-*tmp*
+tmp
 Cargo.lock

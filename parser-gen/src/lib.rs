@@ -1,10 +1,10 @@
-pub mod show_fsm;
-pub mod show_tbl;
+pub mod show_lr;
+pub mod show_ll;
 
 use re2dfa::dfa::Dfa;
 use hashbrown::HashMap;
-use lalr1_core::{TableEntry, RawTable};
-use grammar_config::{Grammar, AbstractGrammar};
+use lalr1_core::{TableEntry, Table};
+use grammar_config::{Grammar, AbstractGrammar, AbstractGrammarExt};
 use aho_corasick::AhoCorasick;
 use ll1_core::LLCtx;
 use std::fmt::Write;
@@ -15,13 +15,11 @@ pub struct RustCodegen {
   pub use_unsafe: bool,
 }
 
-pub fn min_u_of(x: u32) -> &'static str {
-  match x {
-    0..=255 => "u8",
-    256..=65535 => "u16",
-    _ => "u32",
-  }
+pub fn min_u(x: u32) -> &'static str {
+  match x { 0..=255 => "u8", 256..=65535 => "u16", _ => "u32", }
 }
+
+pub const INVALID_DFA: &str = "The merged dfa is not suitable for a lexer, i.e., it doesn't accept anything, or it accept empty string.";
 
 impl RustCodegen {
   fn gather_types<'a>(&self, g: &Grammar<'a>) -> (Vec<&'a str>, HashMap<&'a str, u32>) {
@@ -106,7 +104,7 @@ macro_rules! impossible { () => { unreachable!() }; }"#.to_owned()
         s
       },
       // "{u_dfa_size}"
-      min_u_of(dfa.nodes.len() as u32).to_owned(),
+      min_u(dfa.nodes.len() as u32).to_owned(),
       // "{ec_size}"
       (*ec.iter().max().unwrap() + 1).to_string(),
       { // "{dfa_edge}"
@@ -143,13 +141,13 @@ macro_rules! impossible { () => { unreachable!() }; }"#.to_owned()
     for (i, &((act, args), (lhs, idx), _)) in g.prod_extra.iter().enumerate() {
       let _ = writeln!(s, "{} => {{", i);
       if self.log_reduce {
-        let _ = writeln!(s, r#"println!("{}");"#, g.show_prod(i as u32));
+        let _ = writeln!(s, r#"println!("{}");"#, g.show_prod(i as u32, None));
       }
       let rhs = &g.prod[lhs as usize][idx as usize];
       for (j, &x) in rhs.0.iter().enumerate().rev() {
         let name = match args {
-          Some(args) => args[j].0.as_ref().map(|s| s.as_str()).unwrap_or("_"),
-          None => "_",
+          Some(args) => args[j].0.as_ref().map(|s| s.as_str()).unwrap_or("_").to_owned(),
+          None => format!("_{}", j + 1),
         };
         if x < g.nt.len() as u32 {
           let id = types2id[g.nt[x as usize].1];
@@ -168,7 +166,7 @@ macro_rules! impossible { () => { unreachable!() }; }"#.to_owned()
 
 impl RustCodegen {
   // return None if `gen_common` returns None, you can check the doc of `gen_common`
-  pub fn gen_lalr1(&self, g: &Grammar, table: &RawTable, dfa: &Dfa, ec: &[u8; 256]) -> Option<String> {
+  pub fn gen_lalr1(&self, g: &Grammar, table: &Table, dfa: &Dfa, ec: &[u8; 256]) -> Option<String> {
     let (types, types2id) = self.gather_types(g);
     let common = self.gen_common(g, dfa, ec, &types, false)?;
     let template = include_str!("template/lalr1.rs.template");
@@ -193,7 +191,7 @@ impl RustCodegen {
     let res_id = types2id[parse_res];
     let rep = [
       // "{u_lr_fsm_size}"
-      min_u_of(table.len() as u32).to_owned(),
+      min_u(table.len() as u32).to_owned(),
       { // "{parser_type}"
         match &g.raw.parser_def {
           Some(def) => def.clone(),
@@ -205,9 +203,9 @@ impl RustCodegen {
       // "{res_id}"
       res_id.to_string(),
       // "{u_lr_fsm_size}"
-      min_u_of(table.len() as u32).to_owned(),
+      min_u(table.len() as u32).to_owned(),
       // "{u_prod_len}"
-      min_u_of(g.prod_extra.iter().map(|&(_, (lhs, rhs), _)| g.prod[lhs as usize][rhs as usize].0.len()).max().unwrap() as u32).to_owned(),
+      min_u(g.prod_extra.iter().map(|&(_, (lhs, rhs), _)| g.prod[lhs as usize][rhs as usize].0.len()).max().unwrap() as u32).to_owned(),
       // "{prod_size}"
       g.prod_extra.len().to_string(),
       { // "{prod}"

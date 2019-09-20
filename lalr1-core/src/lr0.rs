@@ -1,4 +1,4 @@
-use crate::{Lr0Item, LrFsm, LrNode};
+use crate::{Lr0Item, Lr0Fsm, Lr0Node};
 use grammar_config::AbstractGrammar;
 use hashbrown::{HashMap, HashSet};
 use std::collections::vec_deque::VecDeque;
@@ -45,7 +45,7 @@ impl Ctx {
   }
 }
 
-pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> LrFsm<'a> {
+pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Lr0Fsm<'a> {
   let ctx = Ctx { token_num: g.token_num(), nt_num: g.nt_num() };
   let mut ss = HashMap::new();
   let init = ctx.closure({
@@ -75,7 +75,7 @@ pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> LrFsm<'a> {
         link.insert(mov, id);
       }
     }
-    result.push(LrNode { items: cur, link });
+    result.push(Lr0Node { closure: cur, link });
   }
   result
 }

@@ -1,7 +1,56 @@
-use crate::{Act, ConflictKind, Conflict, RawTable};
-use std::cmp::Ordering;
-use grammar_config::{Assoc, AbstractGrammarExt};
-use smallvec::smallvec;
+use crate::{Act, ConflictKind, Conflict, TableEntry, Table, Lr1Fsm, Lr1Node, Lr1Item, Link};
+use std::{cmp::Ordering, borrow::Borrow};
+use grammar_config::{Assoc, AbstractGrammar, AbstractGrammarExt};
+use smallvec::{smallvec, SmallVec};
+use hashbrown::HashMap;
+
+pub fn mk_table<'a, L: Borrow<Link>>(lr1: &'a Lr1Fsm<'a, L>, g: &'a impl AbstractGrammar<'a>) -> Table<'a> {
+  let mut table = Vec::with_capacity(lr1.len());
+  let eof = g.eof();
+  let start_id = (g.start().1).1;
+  let token_num = g.token_num();
+  for Lr1Node { closure, link } in lr1 {
+    let link = link.borrow();
+    let (mut act, mut goto) = (HashMap::new(), HashMap::new());
+    for (&k, &v) in link {
+      if k < g.nt_num() {
+        goto.insert(k, v);
+      } else {
+        act.insert(k, smallvec![Act::Shift(v)]);
+      }
+    }
+    for Lr1Item {lr0, lookahead  } in closure {
+      if lr0.dot == lr0.prod.len() as u32 {
+        if lookahead.test(eof as usize) && lr0.prod_id == start_id {
+          act.insert(eof, smallvec![Act::Acc]);
+        } else {
+          for i in 0..token_num {
+            if lookahead.test(i as usize) {
+              // maybe conflict here
+              act.entry(i).or_insert_with(SmallVec::new).push(Act::Reduce(lr0.prod_id));
+            }
+          }
+        }
+      }
+    }
+//    for (item, Lr1Item { lookahead, .. }) in closure.iter().zip(result[i].iter()) {
+//      if item.dot == item.prod.len() as u32 {
+//        if lookahead.test(eof as usize) && item.prod_id == start_id {
+//          act.insert(eof, smallvec![Act::Acc]);
+//        } else {
+//          for i in 0..token_num {
+//            if lookahead.test(i as usize) {
+//              // maybe conflict here
+//              act.entry(i).or_insert_with(SmallVec::new).push(Act::Reduce(item.prod_id));
+//            }
+//          }
+//        }
+//      }
+//    }
+    table.push(TableEntry { closure, act, goto });
+  }
+  table
+}
 
 // Reference: https://docs.oracle.com/cd/E19504-01/802-5880/6i9k05dh3/index.html
 // A precedence and associativity is associated with each grammar rule.
@@ -22,14 +71,14 @@ use smallvec::smallvec;
 // for conflicts solved based on precedence and/or associativity, other choices are removed
 // for conflicts solved based on location or "shift better than reduced", other choices are NOT removed
 // in both cases, the selected choice is placed at [0]
-pub fn solve<'a>(t: &mut RawTable<'a>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<Conflict> {
+pub fn solve<'a>(t: &mut Table<'a>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<Conflict> {
   use Act::{Reduce, Shift};
   let mut reports = Vec::new();
   for (idx, t) in t.iter_mut().enumerate() {
     for (&ch, acts) in &mut t.act {
-      match acts.len() {
-        1 => {}
-        2 => match (acts[0], acts[1]) {
+      match acts.as_slice() {
+        [] | [_] => {}
+        &[a0, a1] => match (a0, a1) {
           (Reduce(r1), Reduce(r2)) =>
             *acts = match (g.prod_pri(r1), g.prod_pri(r2)) {
               (Some(p1), Some(p2)) if p1 != p2 => smallvec![Reduce(if p1 < p2 { r2 } else { r1 })],

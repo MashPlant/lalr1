@@ -10,12 +10,18 @@ aho-corasick = "0.7"
 lalr1-core = { path = "../lalr1-core" }
 ll1-core = { path = "../ll1-core" }
 grammar-config = { path = "../grammar-config" }
-toml = "0.5"
 hashbrown = "0.5"
+
+[dev-dependencies]
+clap = "2.33.0"
+indexmap = "1.0.2"
+toml = "0.5"
 
 [lib]
 path = "src/lib.rs"
 
-[[bin]]
-name = "parsergen"
-path = "src/bin.rs"
+[[example]]
+name = "simple_grammar"
+
+[[example]]
+name = "parser_gen"

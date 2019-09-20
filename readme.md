@@ -1,14 +1,16 @@
-A LALR(1) parser generator in & for rust.
+A lalr1(1) parser generator in & for rust.
 
-Support some yacc/bison features, e.g., precedence and associativity(though the syntax is a little different).
+Support some yacc/bison features, e.g., precedence and associativity.
 
-Implement LALR(1) by naive `lalr1_by_lr1` and `lalr1_by_lr0`. To generate the parser of [decaf](https://github.com/MashPlant/decaf), it takes about 2s and 0.2s respectively.
+There was a naive `lalr1_by_lr1` implementation, which is removed now. Its efficiency is not too bad, but still significantly slower than yacc/bison.
+
+Now a more efficient method `lalr1_by_lr0` is applied. It has about the same speed as yacc/bison. You can refer to the dragon book for the theory about this method.
 
 Future extension: 
 
 - [ ] multiple language codegen, e.g., cpp
-- [x] using other parsing technique, e.g., LL(1)
-- [x] use DFA to implement lexical analysis, instead of using many regular expressions now
+- [x] using other parsing technique, e.g., ll(1)
+- [x] use dfa to implement lexical analysis, instead of using many regular expressions now
 
 ---
 
@@ -27,9 +29,6 @@ extern crate parser_macros;
 use parser_macros::lalr1;
 
 struct Parser;
-
-// why am I using toml here for lexer?
-// because rust attributes have no advantage in describing the lexer over toml
 
 #[lalr1(Expr)]
 #[lex(r#"
@@ -105,7 +104,7 @@ impl Parser {
 }
 
 let mut p = Parser;
-assert_eq!(p.parse(Lexer::new(b"1 - 2 * (3 + 4 * 5 / 6) + -7 * -9 % 10")), Ok(-8));
+assert_eq!(p.parse(&mut Lexer::new(b"1 - 2 * (3 + 4 * 5 / 6) + -7 * -9 % 10")), Ok(-8));
 ```
 
 A pity is that I don't know how to expand macro in proc macro. If so, we can simply write
@@ -238,34 +237,3 @@ impl Parser {
 ```
 
 This will generate a `parse(lexer)` function for `Parser`, and it will call `Parser::_parse`, which is supposed to be implemented by the user. When carefully implemented, this can provide some error recovering. An incomplete example can be found at test/src/ll1.rs.
-
-## What does lr fsm looks like
-
-example:
-
-grammar:
-
-```
-E -> E + F
-E -> E - F
-E -> F
-F -> F * num
-F -> F / num
-F -> F % num
-F -> num
-F -> ( E )
-```
-
-picture:
-
-lr0:
-
-![lr0](./pic/lr0.png)
-
-lr1:
-
-![lr1](./pic/lr1.png)
-
-lalr1:
-
-![lalr1](./pic/lalr1.png)

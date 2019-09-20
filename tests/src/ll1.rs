@@ -12,7 +12,6 @@ pub enum Op {
 }
 
 #[ll1(Expr)]
-#[verbose("a.txt")]
 #[lex(r#"
 priority = []
 

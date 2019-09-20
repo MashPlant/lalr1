@@ -8,5 +8,5 @@ edition = "2018"
 grammar-config = { path = "../grammar-config" }
 bitset = { git = "https://github.com/MashPlant/bitset" }
 smallvec = { version = "0.6.9", features = ["union"] }
-indexmap = { version = "1.0.2", features = ["serde-1"] }
+indexmap = "1.0.2"
 hashbrown = "0.5"

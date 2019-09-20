@@ -13,36 +13,11 @@ pub struct Grammar<'a> {
   //                 name
   pub terms: Vec<(&'a str, Option<(u32, Assoc)>)>,
   //          (name   , type_  )>
+  // nt.len() == prod.len()
   pub nt: Vec<(&'a str, &'a str)>,
   pub prod: Vec<Vec<(ProdVec, u32)>>,
   //                   (act, arg)                     (lhs, index of this prod in raw.prod[lhs]) pri
   pub prod_extra: Vec<((&'a str, Option<&'a Vec<(Option<String>, String)>>), (u32, u32), Option<u32>)>,
-}
-
-impl Grammar<'_> {
-  pub fn show_token(&self, id: u32) -> &str {
-    if id < self.nt_num() {
-      self.nt[id as usize].0
-    } else {
-      self.terms[id as usize - self.nt.len()].0
-    }
-  }
-
-  pub fn show_prod(&self, id: u32) -> String {
-    self.show_prod_dotted(id, !0) // I know it is bad pattern in rust, but it is just convenient
-  }
-
-  pub fn show_prod_dotted(&self, id: u32, dot: u32) -> String {
-    let (_, (lhs, idx), _) = self.prod_extra[id as usize];
-    let (prod, _) = &self.prod[lhs as usize][idx as usize];
-    let mut s = format!("{} ->", self.nt[lhs as usize].0);
-    for (idx, &rhs) in prod.iter().enumerate() {
-      s.push(if idx as u32 == dot { '.' } else { ' ' });
-      s += self.show_token(rhs);
-    }
-    if prod.len() as u32 == dot { s.push('.'); }
-    s
-  }
 }
 
 // will add a production _Start -> Start, so need mut
@@ -175,31 +150,17 @@ impl<'a> AbstractGrammar<'a> for Grammar<'a> {
   }
 
   // assume first term
-  fn eps(&self) -> u32 {
-    self.prod.len() as u32
-  }
-
+  fn eps(&self) -> u32 { self.nt.len() as u32 }
   // assume second term
-  fn eof(&self) -> u32 {
-    self.prod.len() as u32 + 1
-  }
-
+  fn eof(&self) -> u32 { self.nt.len() as u32 + 1 }
   // assume third term
-  fn err(&self) -> u32 {
-    self.prod.len() as u32 + 2
-  }
+  fn err(&self) -> u32 { self.nt.len() as u32 + 2 }
 
-  fn token_num(&self) -> u32 {
-    self.terms.len() as u32 + self.prod.len() as u32
-  }
+  fn token_num(&self) -> u32 { self.terms.len() as u32 + self.nt.len() as u32 }
+  fn nt_num(&self) -> u32 { self.nt.len() as u32 }
+  fn prod_num(&self) -> u32 { self.prod_extra.len() as u32 }
 
-  fn nt_num(&self) -> u32 {
-    self.prod.len() as u32
-  }
-
-  fn get_prod(&'a self, lhs: u32) -> Self::ProdIter {
-    &self.prod[lhs as usize]
-  }
+  fn get_prod(&'a self, lhs: u32) -> Self::ProdIter { &self.prod[lhs as usize] }
 }
 
 impl<'a> AbstractGrammarExt<'a> for Grammar<'a> {
@@ -209,5 +170,22 @@ impl<'a> AbstractGrammarExt<'a> for Grammar<'a> {
 
   fn term_pri_assoc(&self, ch: u32) -> Option<(u32, Assoc)> {
     self.terms[ch as usize - self.nt.len()].1
+  }
+
+  fn show_token(&self, id: u32) -> &str {
+    let id = id as usize;
+    self.nt.get(id).map(|x| x.0).unwrap_or_else(|| self.terms[id - self.nt.len()].0)
+  }
+
+  fn show_prod(&self, id: u32, dot: Option<u32>) -> String {
+    let (_, (lhs, idx), _) = self.prod_extra[id as usize];
+    let (prod, _) = &self.prod[lhs as usize][idx as usize];
+    let mut s = format!("{} ->", self.nt[lhs as usize].0);
+    for (idx, &rhs) in prod.iter().enumerate() {
+      s.push(if Some(idx as u32) == dot { '.' } else { ' ' });
+      s += self.show_token(rhs);
+    }
+    if Some(prod.len() as u32) == dot { s.push('.'); }
+    s
   }
 }
