@@ -89,7 +89,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
         Some(_) => panic!("Find more than one `show_dfa` output file."),
         None => show_dfa = Some(attr2strlit(attr).unwrap_or_else(|| panic!("Fail to find verbose information output file from #[show_dfa(...)]"))),
       }
-      "show_fsm" => match verbose {
+      "show_fsm" => match show_fsm {
         Some(_) => panic!("Find more than one `show_fsm` output file."),
         None => show_fsm = Some(attr2strlit(attr).unwrap_or_else(|| panic!("Fail to find verbose information output file from #[show_fsm(...)]"))),
       }

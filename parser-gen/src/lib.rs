@@ -1,5 +1,3 @@
-use grammar_config::RawGrammar;
-
 pub mod rs;
 pub mod show_lr;
 pub mod show_ll;

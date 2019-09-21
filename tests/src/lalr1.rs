@@ -4,47 +4,49 @@ use parser_macros::lalr1;
 struct Parser;
 
 #[lalr1(Expr)]
-#[log_reduce]
+#[verbose("verbose.txt")]
 #[log_token]
-#[show_fsm("a.dot")]
+#[log_reduce]
+#[expand]
+#[show_fsm("fsm.dot")]
+#[show_dfa("dfa.dot")]
 #[lex(r#"
 priority = [
   { assoc = 'left', terms = ['Add', 'Sub'] },
   { assoc = 'left', terms = ['Mul', 'Div', 'Mod'] },
   { assoc = 'no_assoc', terms = ['UMinus'] },
-  { assoc = 'no_assoc', terms = ['RParen'] },
+  { assoc = 'no_assoc', terms = ['RPar'] },
 ]
 
 [lexical]
-'\(' = 'LParen'
-'\)' = 'RParen'
-'\d+' = 'IntConst'
+'\(' = 'LPar'
+'\)' = 'RPar'
 '\+' = 'Add'
 '-' = 'Sub'
 '\*' = 'Mul'
 '/' = 'Div'
 '%' = 'Mod'
-'\d+' = 'IntConst'
+'\d+' = 'IntLit'
 '\s+' = '_Eps'
 "#)]
 impl Parser {
   #[rule(Expr -> Expr Add Expr)]
-  fn expr_add(l: i32, _op: Token<'_>, r: i32) -> i32 { l + r }
+  fn expr_add(l: i32, _op: Token, r: i32) -> i32 { l + r }
   #[rule(Expr -> Expr Sub Expr)]
-  fn expr_sub(l: i32, _op: Token<'_>, r: i32) -> i32 { l - r }
+  fn expr_sub(l: i32, _op: Token, r: i32) -> i32 { l - r }
   #[rule(Expr -> Expr Mul Expr)]
-  fn expr_mul(l: i32, _op: Token<'_>, r: i32) -> i32 { l * r }
+  fn expr_mul(l: i32, _op: Token, r: i32) -> i32 { l * r }
   #[rule(Expr -> Expr Div Expr)]
-  fn expr_div(l: i32, _op: Token<'_>, r: i32) -> i32 { l / r }
+  fn expr_div(l: i32, _op: Token, r: i32) -> i32 { l / r }
   #[rule(Expr -> Expr Mod Expr)]
-  fn expr_mod(l: i32, _op: Token<'_>, r: i32) -> i32 { l % r }
+  fn expr_mod(l: i32, _op: Token, r: i32) -> i32 { l % r }
   #[rule(Expr -> Sub Expr)]
   #[prec(UMinus)]
-  fn expr_neg(_op: Token<'_>, r: i32) -> i32 { -r }
-  #[rule(Expr -> LParen Expr RParen)]
-  fn expr_paren(_l: Token<'_>, i: i32, _r: Token<'_>) -> i32 { i }
-  #[rule(Expr -> IntConst)]
-  fn expr_int(i: Token<'_>) -> i32 { std::str::from_utf8(i.piece).unwrap().parse().unwrap() }
+  fn expr_neg(_op: Token, r: i32) -> i32 { -r }
+  #[rule(Expr -> LPar Expr RPar)]
+  fn expr_paren(_l: Token, i: i32, _r: Token) -> i32 { i }
+  #[rule(Expr -> IntLit)]
+  fn expr_int(i: Token) -> i32 { std::str::from_utf8(i.piece).unwrap().parse().unwrap() }
 }
 
 #[test]

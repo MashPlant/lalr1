@@ -3,22 +3,21 @@ use hashbrown::{HashSet, HashMap};
 
 struct Parser;
 
-pub enum Op { Add, Sub, Mul, Div, Mod, }
+pub enum Op { Add, Sub, Mul, Div, Mod }
 
 #[ll1(Expr)]
 #[lex(r#"
 priority = []
 
 [lexical]
-'\(' = 'LParen'
-'\)' = 'RParen'
-'\d+' = 'IntConst'
+'\(' = 'LPar'
+'\)' = 'RPar'
 '\+' = 'Add'
 '-' = 'Sub'
 '\*' = 'Mul'
 '/' = 'Div'
 '%' = 'Mod'
-'\d+' = 'IntConst'
+'\d+' = 'IntLit'
 '\s+' = '_Eps'
 "#)]
 impl Parser {
@@ -35,13 +34,13 @@ impl Parser {
   }
 
   #[rule(Expr1 -> Add Term1 Expr1)]
-  fn r1(_op: Token<'_>, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
+  fn r1(_op: Token, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
     remain.push((Op::Add, t));
     remain
   }
 
   #[rule(Expr1 -> Sub Term1 Expr1)]
-  fn r2(_op: Token<'_>, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
+  fn r2(_op: Token, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
     remain.push((Op::Sub, t));
     remain
   }
@@ -65,19 +64,19 @@ impl Parser {
   }
 
   #[rule(Expr2 -> Mul Term2 Expr2)]
-  fn r5(_op: Token<'_>, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
+  fn r5(_op: Token, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
     remain.push((Op::Mul, t));
     remain
   }
 
   #[rule(Expr2 -> Div Term2 Expr2)]
-  fn r6(_op: Token<'_>, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
+  fn r6(_op: Token, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
     remain.push((Op::Div, t));
     remain
   }
 
   #[rule(Expr2 -> Mod Term2 Expr2)]
-  fn r7(_op: Token<'_>, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
+  fn r7(_op: Token, t: i32, mut remain: Vec<(Op, i32)>) -> Vec<(Op, i32)> {
     remain.push((Op::Mod, t));
     remain
   }
@@ -87,19 +86,16 @@ impl Parser {
     vec![]
   }
 
-  #[rule(Term2 -> IntConst)]
-  fn r9(i: Token<'_>) -> i32 {
-    let int = std::str::from_utf8(i.piece).unwrap().parse::<i32>().unwrap();
-    int
-  }
+  #[rule(Term2 -> IntLit)]
+  fn r9(i: Token) -> i32 { std::str::from_utf8(i.piece).unwrap().parse().unwrap() }
 
   #[rule(Term2 -> Sub Term2)]
-  fn r10(i: Token<'_>, r: i32) -> i32 {
+  fn r10(i: Token, r: i32) -> i32 {
     -r
   }
 
-  #[rule(Term2 -> LParen Expr RParen)]
-  fn r11(_l: Token<'_>, x: i32, _r: Token<'_>) -> i32 {
+  #[rule(Term2 -> LPar Expr RPar)]
+  fn r11(_l: Token, x: i32, _r: Token) -> i32 {
     x
   }
 }
@@ -141,7 +137,6 @@ impl Parser {
         self.act(*act, value_stk)
       }
     }
-
   }
 }
 

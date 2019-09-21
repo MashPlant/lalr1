@@ -38,7 +38,7 @@ pub fn conflict<'a>(g: &impl AbstractGrammarExt<'a>, c: &[Conflict]) -> Vec<Stri
         ret.push(format!("Shift-reduce conflict at state {} when faced with token `{}`, it can either shift {}, or reduce {}(`{}`).",
                          c.state, ch, s, r, g.show_prod(r, None))),
       ConflictKind::RR { r1, r2 } =>
-        ret.push(format!("Shift-shift conflict at state {} when faced with token `{}`, it can either reduce {}('{}'), or reduce {}(`{}`).",
+        ret.push(format!("Reduce-reduce conflict at state {} when faced with token `{}`, it can either reduce {}('{}'), or reduce {}(`{}`).",
                          c.state, ch, r1, g.show_prod(r1, None), r2, g.show_prod(r2, None))),
       ConflictKind::Many(ref acts) => {
         let mut msg = format!("Too many conflicts at state {} when faced with token `{}`:\n", c.state, ch);
