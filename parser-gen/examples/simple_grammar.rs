@@ -9,6 +9,7 @@ pub struct SimpleGrammar<'a> {
   t: IndexSet<&'a str>,
   prod: Vec<Vec<(Vec<u32>, u32)>>,
   prod_num: u32,
+  augment_lhs: String,
 }
 
 impl<'a> SimpleGrammar<'a> {
@@ -16,7 +17,7 @@ impl<'a> SimpleGrammar<'a> {
     let (mut nt, mut t) = (IndexSet::default(), IndexSet::default());
     t.insert("ε"); // eps
     t.insert("#"); // eof
-    t.insert(""); // err, not shown
+    t.insert("ERROR"); // err
 
     for line in text.lines() {
       let mut sp = line.split("->");
@@ -28,7 +29,10 @@ impl<'a> SimpleGrammar<'a> {
       }
       nt.insert(lhs);
     }
-    nt.insert(""); // S'
+    let augment_lhs = if let Some(lhs) = nt.get_index(0) { format!("{}'", lhs) } else {
+      return Err("grammar must have at least one production rule".to_owned());
+    };
+    nt.insert(""); // S', won't be shown, just a placeholder
 
     let (mut prod, mut prod_num) = (Vec::new(), 0);
     for (idx, line) in text.lines().enumerate() {
@@ -52,7 +56,7 @@ impl<'a> SimpleGrammar<'a> {
       prod_num += 1;
     }
     prod.push(vec![(vec![0], prod_num)]); // all == lines().count()
-    Ok(SimpleGrammar { nt, t, prod, prod_num: prod_num + 1 })
+    Ok(SimpleGrammar { nt, t, prod, prod_num: prod_num + 1, augment_lhs })
   }
 }
 
@@ -82,10 +86,10 @@ impl<'a> AbstractGrammarExt<'a> for SimpleGrammar<'a> {
 
   fn show_token(&self, id: u32) -> &str {
     let id = id as usize;
-    if id < self.nt.len() {
-      self.nt.get_index(id).unwrap()
-    } else {
-      self.t.get_index(id - self.nt.len()).unwrap()
+    match self.nt.get_index(id) {
+      Some(&"") => &self.augment_lhs,
+      Some(s) => s,
+      None => self.t.get_index(id - self.nt.len()).unwrap()
     }
   }
 
@@ -94,11 +98,7 @@ impl<'a> AbstractGrammarExt<'a> for SimpleGrammar<'a> {
     let (lhs, (prod, _)) = self.prod.iter().enumerate()
       .filter_map(|(idx, prods)| Some((idx, prods.iter().find(|prod| prod.1 == id)?)))
       .nth(0).unwrap();
-    if lhs == self.nt.len() - 1 { // added S'
-      let _ = write!(text, "{}'→", self.nt.get_index(0).unwrap());
-    } else {
-      let _ = write!(text, "{}→", self.nt.get_index(lhs).unwrap());
-    }
+    let _ = write!(text, "{}→", self.show_token(lhs as u32));
     for i in 0..prod.len() as u32 {
       if Some(i) == dot { text.push('.'); }
       text += self.show_token(prod[i as usize]);
@@ -110,25 +110,23 @@ impl<'a> AbstractGrammarExt<'a> for SimpleGrammar<'a> {
 
 fn main() -> io::Result<()> {
   use lalr1_core::*;
-  use parser_gen::show_lr::*;
+  use parser_gen::{show_lr, show_ll};
 
   let m = App::new("simple_grammar")
     .arg(Arg::with_name("input").required(true))
     .arg(Arg::with_name("output").long("output").short("o").takes_value(true))
-    .arg(Arg::with_name("grammar").long("grammar").short("g").takes_value(true).possible_values(&["lr0", "lr1", "lalr1"]).required(true))
+    .arg(Arg::with_name("grammar").long("grammar").short("g").takes_value(true).possible_values(&["lr0", "lr1", "lalr1", "ll1"]).required(true))
     .get_matches();
   let input = fs::read_to_string(m.value_of("input").unwrap())?;
-  let ref g = match SimpleGrammar::from_text(&input) {
-    Ok(g) => g,
-    Err(e) => {
-      eprintln!("Grammar is invalid, reason: {}.", e);
-      process::exit(1);
-    }
-  };
+  let ref g = SimpleGrammar::from_text(&input).unwrap_or_else(|e| {
+    eprintln!("Grammar is invalid, reason: {}.", e);
+    process::exit(1);
+  });
   let result = match m.value_of("grammar") {
-    Some("lr0") => lr0_dot(g, &lr0::work(g)),
-    Some("lr1") => lr1_dot(g, &lr1::work(g)),
-    Some("lalr1") => lr1_dot(g, &lalr1_by_lr0::work(&lr0::work(g), g)),
+    Some("lr0") => show_lr::lr0_dot(g, &lr0::work(g)),
+    Some("lr1") => show_lr::lr1_dot(g, &lr1::work(g)),
+    Some("lalr1") => show_lr::lr1_dot(g, &lalr1_by_lr0::work(&lr0::work(g), g)),
+    Some("ll1") => show_ll::table(&ll1_core::LLCtx::new(g).table, g),
     _ => unreachable!(),
   };
   if let Some(output) = m.value_of("output") {
