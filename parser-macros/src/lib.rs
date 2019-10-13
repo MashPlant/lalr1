@@ -83,15 +83,15 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
       "verbose" => match verbose {
         Some(_) => panic!("Find more than one `verbose` output file."),
         // unwrap it and Some it, make sure won't treat an invalid input as not an input
-        None => verbose = Some(attr2strlit(attr).unwrap_or_else(|| panic!("Fail to find verbose information output file from #[verbose(...)]"))),
+        None => verbose = Some(attr2strlit(attr).unwrap_or_else(|| panic!("Fail to output file from #[verbose(...)]"))),
       }
       "show_dfa" => match show_dfa {
         Some(_) => panic!("Find more than one `show_dfa` output file."),
-        None => show_dfa = Some(attr2strlit(attr).unwrap_or_else(|| panic!("Fail to find verbose information output file from #[show_dfa(...)]"))),
+        None => show_dfa = Some(attr2strlit(attr).unwrap_or_else(|| panic!("Fail to find output file from #[show_dfa(...)]"))),
       }
       "show_fsm" => match show_fsm {
         Some(_) => panic!("Find more than one `show_fsm` output file."),
-        None => show_fsm = Some(attr2strlit(attr).unwrap_or_else(|| panic!("Fail to find verbose information output file from #[show_fsm(...)]"))),
+        None => show_fsm = Some(attr2strlit(attr).unwrap_or_else(|| panic!("Fail to find output file from #[show_fsm(...)]"))),
       }
       "log_token" => log_token = true,
       "log_reduce" => log_reduce = true,
@@ -188,7 +188,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
     Mode::LL1 => {
       let ll = ll1_core::LLCtx::new(g);
       if let Some(verbose) = verbose {
-        fs::write(&verbose, show_ll::table(&ll.table, g))
+        fs::write(&verbose, show_ll::table(&ll, g))
           .unwrap_or_else(|err| panic!("Fail to write verbose information into file `{}`, error: `{}`.", verbose, err));
       }
       for c in show_ll::conflict(&ll.table, g) {

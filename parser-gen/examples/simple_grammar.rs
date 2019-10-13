@@ -126,7 +126,7 @@ fn main() -> io::Result<()> {
     Some("lr0") => show_lr::lr0_dot(g, &lr0::work(g)),
     Some("lr1") => show_lr::lr1_dot(g, &lr1::work(g)),
     Some("lalr1") => show_lr::lr1_dot(g, &lalr1_by_lr0::work(&lr0::work(g), g)),
-    Some("ll1") => show_ll::table(&ll1_core::LLCtx::new(g).table, g),
+    Some("ll1") => show_ll::table(&ll1_core::LLCtx::new(g), g),
     _ => unreachable!(),
   };
   if let Some(output) = m.value_of("output") {

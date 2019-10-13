@@ -36,7 +36,7 @@ Then use your favorite dot file viewer to view this file, you will get:
 
 ![](parser-gen/examples/expr.png)
 
-Note that you can also use ll(1) grammar in `simple_grammar`, but since I don't know any proper way to show ll(1) table in graphics, it will just show some text information.
+Note that you can also use ll(1) grammar in `simple_grammar`, but since I don't know any proper way to show ll(1) table in graphics, it will just show some text information, including first/follow/predict set.
 
 ## `parser_gen`: toml to rust
 

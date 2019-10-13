@@ -267,7 +267,7 @@ impl RustCodegen {
       g.nt_num().to_string(),
       { // "{follow}",
         let mut s = String::new();
-        for follow in &ll.follow.nt_follow {
+        for follow in &ll.follow.follow {
           let _ = write!(s, "set!(");
           for i in 0..g.token_num() {
             if follow.test(i as usize) {

@@ -2,7 +2,8 @@
 
 use grammar_config::AbstractGrammarExt;
 use std::fmt::Write;
-use ll1_core::LLTable;
+use ll1_core::{LLTable, LLCtx};
+use bitset::BitSet;
 
 pub fn show_prod_token<'a>(g: &impl AbstractGrammarExt<'a>) -> String {
   let mut text = String::new();
@@ -20,10 +21,21 @@ pub fn show_prod_token<'a>(g: &impl AbstractGrammarExt<'a>) -> String {
   text
 }
 
-pub fn table<'a>(table: &LLTable, g: &impl AbstractGrammarExt<'a>) -> String {
+pub fn table<'a>(ll: &LLCtx, g: &impl AbstractGrammarExt<'a>) -> String {
   let mut s = show_prod_token(g);
-  for (idx, t) in table.iter().enumerate() {
+  for (idx, t) in ll.table.iter().enumerate() {
     let _ = writeln!(s, "{}:", g.show_token(idx as u32));
+    let mut show_set = |name: &str, set: &BitSet| {
+      let _ = write!(s, "{}:", name);
+      for i in 0..set.inner_len() * 64 { // this is quite ugly, may be I will encapsulate it later on
+        if set.test(i) {
+          let _ = write!(s, " {}", g.show_token(i as u32));
+        }
+      }
+      let _ = writeln!(s);
+    };
+    show_set("first", &ll.first.first[idx]);
+    show_set("follow", &ll.follow.follow[idx]);
     // this is not necessary, but sorting it will provide better readability
     let mut t = t.iter().map(|(ch, prod)| (*ch, prod)).collect::<Vec<_>>();
     t.sort_unstable_by_key(|x| x.0);
