@@ -46,7 +46,7 @@ fn main() -> io::Result<()> {
     process::exit(1);
   }
   let code = match m.value_of("lang") {
-    Some("rs") => RustCodegen { log_token: m.is_present("log_token"), log_reduce: m.is_present("log_reduce"), use_unsafe: m.is_present("use_unsafe") }
+    Some("rs") => RustCodegen { log_token: m.is_present("log_token"), log_reduce: m.is_present("log_reduce"), use_unsafe: m.is_present("use_unsafe"), show_token_prod: m.is_present("verbose") }
       .gen_lalr1(&g, &table, &dfa, &ec).unwrap_or_else(|| {
       eprintln!("{}", INVALID_DFA);
       process::exit(1)

@@ -77,4 +77,6 @@ impl<'l> Lexer<'l> {
   }
 }
 
+{show_token_prod}
+
 {parser_struct}

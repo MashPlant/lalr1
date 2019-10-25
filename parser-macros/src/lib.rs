@@ -169,7 +169,7 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
       let original_table = mk_table::mk_table(&lr1, g);
       let mut table = original_table.clone();
       let conflict = lalr1_core::mk_table::solve(&mut table, g);
-      if let Some(verbose) = verbose {
+      if let Some(verbose) = verbose.as_ref() {
         fs::write(&verbose, show_lr::table(&original_table, &table, g))
           .unwrap_or_else(|err| panic!("Fail to write `verbose` into file `{}`, error: `{}`.", verbose, err));
       }
@@ -183,18 +183,18 @@ fn work(attr: proc_macro::TokenStream, input: proc_macro::TokenStream, mode: Mod
       if conflict.iter().any(|c| if let ConflictKind::Many(_) = c.kind { true } else { false }) {
         panic!(">= 3 conflicts on one token detected, failed to solve conflicts.")
       }
-      RustCodegen { log_token, log_reduce, use_unsafe }.gen_lalr1(&g, &table, &dfa, &ec).unwrap_or_else(|| panic!(INVALID_DFA))
+      RustCodegen { log_token, log_reduce, use_unsafe, show_token_prod: verbose.is_some() }.gen_lalr1(&g, &table, &dfa, &ec).unwrap_or_else(|| panic!(INVALID_DFA))
     }
     Mode::LL1 => {
       let ll = ll1_core::LLCtx::new(g);
-      if let Some(verbose) = verbose {
+      if let Some(verbose) = verbose.as_ref() {
         fs::write(&verbose, show_ll::table(&ll, g))
           .unwrap_or_else(|err| panic!("Fail to write verbose information into file `{}`, error: `{}`.", verbose, err));
       }
       for c in show_ll::conflict(&ll.table, g) {
         Diagnostic::new(Level::Warning, c).emit();
       }
-      RustCodegen { log_token, log_reduce, use_unsafe }.gen_ll1(&g, &ll, &dfa, &ec).unwrap_or_else(|| panic!(INVALID_DFA))
+      RustCodegen { log_token, log_reduce, use_unsafe, show_token_prod: verbose.is_some() }.gen_ll1(&g, &ll, &dfa, &ec).unwrap_or_else(|| panic!(INVALID_DFA))
     }
   };
   if expand { println!("{}", code); }

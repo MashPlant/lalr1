@@ -11,6 +11,7 @@ pub struct RustCodegen {
   pub log_token: bool,
   pub log_reduce: bool,
   pub use_unsafe: bool,
+  pub show_token_prod: bool,
 }
 
 impl RustCodegen {
@@ -44,6 +45,7 @@ impl RustCodegen {
       "{u_dfa_size}",
       "{ec_size}",
       "{dfa_edge}",
+      "{show_token_prod}",
       "{parser_struct}",
     ];
     let rep = [
@@ -110,6 +112,12 @@ macro_rules! impossible { () => { unreachable!() }; }"#.to_owned()
           let _ = write!(s, "{:?}, ", outs);
         }
         s
+      },
+      { // "{show_token_prod}"
+        if self.show_token_prod {
+          format!("fn show_token(id: u32) -> &'static str {{ {:?}[id as usize] }}", (0..g.token_num()).map(|i| g.show_token(i)).collect::<Vec<_>>())
+            + &format!("fn show_prod(id: u32) -> &'static str {{ {:?}[id as usize] }}", (0..g.prod_num()).map(|i| g.show_prod(i, None)).collect::<Vec<_>>())
+        } else { "".to_owned() }
       },
       { // "{parser_struct}"
         let mut s = String::new();
