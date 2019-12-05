@@ -1,6 +1,5 @@
 use parser_macros::lalr1;
 
-#[allow(dead_code)]
 struct Parser;
 
 #[lalr1(Expr)]

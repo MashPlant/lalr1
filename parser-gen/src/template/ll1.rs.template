@@ -22,17 +22,13 @@ lazy_static::lazy_static! {
 }
 
 impl<'p> {parser_type} {
-  #[allow(unused)]
-  #[allow(unused_mut)]
-  pub fn act(&mut self, prod: u32, mut value_stk: Vec<StackItem<'p>>) -> StackItem<'p> {
+  fn act(&mut self, prod: u32, mut value_stk: Vec<StackItem<'p>>) -> StackItem<'p> {
     match prod {
       {parser_act}
       _ => impossible!(),
     }
   }
 
-  #[allow(unused)]
-  #[allow(unused_mut)]
   pub fn parse<'l: 'p>(&mut self, lexer: &mut Lexer<'l>) -> Option<{res_type}> {
     match self._parse({res_nt_id}, &mut lexer.next(), lexer, &HashSet::new()) {
       StackItem::_{res_id}(parse_res) => Some(parse_res),
