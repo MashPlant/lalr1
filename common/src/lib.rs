@@ -8,4 +8,4 @@ pub type IndexSet<K> = indexmap::IndexSet<K, DefaultHashBuilder>;
 
 pub use hashbrown::{HashMap, HashSet};
 pub use smallvec::{smallvec, SmallVec};
-pub use bitset::BitSet;
+pub use bitset::{BitSet, traits::ToUsize};

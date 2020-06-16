@@ -23,11 +23,9 @@ pub struct Lr1Item<'a> {
 pub type Lr0Closure<'a> = Vec<Lr0Item<'a>>;
 pub type Lr1Closure<'a> = Vec<Lr1Item<'a>>;
 
-pub type Link = HashMap<u32, u32>;
-
 pub struct Lr0Node<'a> {
   pub closure: Lr0Closure<'a>,
-  pub link: Link,
+  pub link: HashMap<u32, u32>,
 }
 
 // originally the `link` field type is a generic parameter L: Borrow<Link>
@@ -36,18 +34,14 @@ pub struct Lr0Node<'a> {
 // although it can indeed eliminate the unnecessary clone
 pub struct Lr1Node<'a> {
   pub closure: Lr1Closure<'a>,
-  pub link: Link,
+  pub link: HashMap<u32, u32>,
 }
 
 pub type Lr0Fsm<'a> = Vec<Lr0Node<'a>>;
 pub type Lr1Fsm<'a> = Vec<Lr1Node<'a>>;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Act {
-  Acc,
-  Shift(u32),
-  Reduce(u32),
-}
+pub enum Act { Acc, Shift(u32), Reduce(u32) }
 
 pub type Acts = SmallVec<[Act; 2]>;
 
@@ -75,9 +69,7 @@ pub struct Conflict {
 }
 
 impl Conflict {
-  pub fn is_many(&self) -> bool {
-    match self.kind { ConflictKind::Many(_) => true, _ => false }
-  }
+  pub fn is_many(&self) -> bool { match self.kind { ConflictKind::Many(_) => true, _ => false } }
 }
 
 impl Lr0Item<'_> {

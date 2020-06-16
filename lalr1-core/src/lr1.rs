@@ -1,5 +1,5 @@
 use crate::{Lr0Item, Lr1Closure, Lr1Item};
-use common::{grammar::Grammar, HashMap, BitSet};
+use common::{grammar::{Grammar, EPS_IDX, EOF_IDX}, HashMap, BitSet};
 use std::collections::vec_deque::VecDeque;
 use ll1_core::First;
 
@@ -9,10 +9,10 @@ impl Lr1Ctx {
   pub fn new(g: &Grammar) -> Lr1Ctx { Lr1Ctx(First::new(g)) }
 
   // one beta, and many a
-  pub fn first(&self, beta: &[u32], a: &BitSet) -> BitSet {
-    let mut beta_first = self.0.first(beta);
-    if beta_first.test(self.0.eps as usize) {
-      beta_first.clear(self.0.eps as usize);
+  pub fn first(&self, beta: &[u32], a: &BitSet, g: &Grammar) -> BitSet {
+    let mut beta_first = self.0.first(beta, g);
+    if beta_first.test(EPS_IDX) {
+      beta_first.clear(EPS_IDX);
       beta_first.or(a);
     }
     beta_first
@@ -42,12 +42,12 @@ impl Lr1Ctx {
       if item.dot as usize >= item.prod.len() { // dot is after the last ch
         continue;
       }
-      let b = item.prod[item.dot as usize];
+      let ch = item.prod[item.dot as usize];
       let beta = &item.prod[item.dot as usize + 1..];
-      if b < (self.0.nt_num() as u32) {
-        let first = self.first(beta, &lookahead);
-        for new_prod in g.get_prod(b) {
-          let new_item = Lr0Item { prod: new_prod.0.as_ref(), prod_id: new_prod.1, dot: 0 };
+      if let Some(ch) = g.as_nt(ch) {
+        let first = self.first(beta, &lookahead, g);
+        for new_prod in g.get_prod(ch) {
+          let new_item = Lr0Item { prod: &new_prod.rhs, prod_id: new_prod.id, dot: 0 };
           match items.get_mut(&new_item) {
             None => {
               items.insert(new_item, first.clone());
@@ -76,9 +76,9 @@ pub fn work<'a>(g: &'a Grammar) -> crate::Lr1Fsm<'a> {
   let mut ss = HashMap::new();
   let init = ctx.closure({
                            let start = g.start().1;
-                           let item = Lr0Item { prod: start.0.as_ref(), prod_id: start.1, dot: 0 };
+                           let item = Lr0Item { prod: &start.rhs, prod_id: start.id, dot: 0 };
                            let mut lookahead = BitSet::new(g.token_num() as usize);
-                           lookahead.set(g.eof() as usize);
+                           lookahead.set(EOF_IDX);
                            let mut init = HashMap::new();
                            init.insert(item, lookahead);
                            init
@@ -89,18 +89,11 @@ pub fn work<'a>(g: &'a Grammar) -> crate::Lr1Fsm<'a> {
   q.push_back(init);
   while let Some(cur) = q.pop_front() {
     let mut link = HashMap::new();
-    for mov in 0..ctx.0.token_num as u32 {
+    for mov in 0..g.token_num() as u32 {
       let ns = ctx.go(&cur, mov, g);
       if !ns.is_empty() {
-        let id = match ss.get(&ns) {
-          None => {
-            let id = ss.len() as u32;
-            ss.insert(ns.clone(), id);
-            q.push_back(ns);
-            id
-          }
-          Some(id) => *id,
-        };
+        let new_id = ss.len() as u32;
+        let id = *ss.entry(ns.clone()).or_insert_with(|| (q.push_back(ns), new_id).1);
         link.insert(mov, id);
       }
     }

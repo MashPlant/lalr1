@@ -14,7 +14,7 @@ macro_rules! map {{
   }}}};
 }}
 
-const NT_NUM: u32 = {nt_num};
+const TERM_NUM: usize = {term_num};
 
 lazy_static::lazy_static! {{
   pub static ref FOLLOW: [HashSet<u32>; {nt_num}] = [{follow}];

@@ -110,14 +110,12 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
   for item in &parser.items {
     if let ImplItem::Method(method) = item {
       let Rule { rule, prec } = Rule::from_list(&parse_attrs(&method.attrs)).unwrap_or_else(|e| panic!("failed to parse rule: {}", e));
-      let mut sp = rule.split_whitespace();
-      let lhs = match sp.next() { Some(lhs) => lhs.to_owned(), None => panic!("rule \"{}\" of method `{}` has no lhs", rule, method.sig.ident), };
+      let (lhs, rhs) = parse_arrow_prod(&rule).unwrap_or_else(||
+        panic!("rule \"{}\" of method `{}` is not in the form of \"lhs -> rhs1 rhs2 ...\"", rule, method.sig.ident));
       let lhs_ty = match &method.sig.output {
         ReturnType::Default => "()".to_owned(),
         ReturnType::Type(_, ty) => ty.to_token_stream().to_string(),
       };
-      match sp.next() { Some("->") => {} _ => panic!("rule \"{}\" of method `{}` has no \"->\"", rule, method.sig.ident), };
-      let rhs = sp.map(|s| s.to_owned()).collect();
       let rhs_arg = method.sig.inputs.iter().map(parse_arg).collect::<Vec<_>>();
       let skip_self = match rhs_arg.get(0) { Some(None) => 1, _ => 0, };
       let rhs_arg = Some(rhs_arg.into_iter().skip(skip_self).map(|arg| match arg {

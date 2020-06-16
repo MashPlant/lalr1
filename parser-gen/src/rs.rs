@@ -3,7 +3,6 @@ use lalr1_core::{TableEntry, Table};
 use common::{grammar::{Grammar, ERR}, HashMap};
 use ll1_core::LLCtx;
 use std::fmt::Write;
-use crate::min_u;
 
 pub struct RustCodegen {
   pub log_token: bool,
@@ -16,10 +15,10 @@ impl RustCodegen {
   fn gather_types<'a>(&self, g: &Grammar<'a>) -> (Vec<&'a str>, HashMap<&'a str, u32>) {
     let mut types = Vec::new();
     let mut types2id = HashMap::new();
-    for &(_, ty) in &g.nt {
-      types2id.entry(ty).or_insert_with(|| {
+    for nt in &g.nt {
+      types2id.entry(nt.ty).or_insert_with(|| {
         let id = types.len() as u32;
-        types.push(ty);
+        types.push(nt.ty);
         id
       });
     }
@@ -41,8 +40,7 @@ impl RustCodegen {
       },
       token_kind = {
         let mut s = String::new();
-        let _ = write!(s, "{} = {}, ", g.terms[0].0, g.nt.len());
-        for &(t, _) in g.terms.iter().skip(1) { let _ = write!(s, "{}, ", t); }
+        for t in &g.terms { let _ = write!(s, "{}, ", t.name); }
         s
       },
       stack_item = {
@@ -67,7 +65,7 @@ impl RustCodegen {
         for ch in 0..256 { let _ = write!(s, "{}, ", ec[ch]); }
         s
       },
-      u_dfa_size = min_u(dfa.nodes.len() as u32),
+      u_dfa_size = crate::min_u(dfa.nodes.len()),
       ec_size = *ec.iter().max().unwrap() + 1,
       dfa_edge = {
         let mut s = String::new();
@@ -81,8 +79,9 @@ impl RustCodegen {
       },
       show_token_prod = {
         if self.show_token_prod {
-          format!("fn show_token(id: u32) -> &'static str {{ {:?}[id as usize] }}", (0..g.token_num()).map(|i| g.show_token(i)).collect::<Vec<_>>())
-            + &format!("fn show_prod(id: u32) -> &'static str {{ {:?}[id as usize] }}", (0..g.prod_num()).map(|i| g.show_prod(i, None)).collect::<Vec<_>>())
+          format!("fn show_token(id: u32) -> &'static str {{ {:?}[id as usize] }} fn show_prod(id: u32) -> &'static str {{ {:?}[id as usize] }}",
+                  (0..g.token_num()).map(|i| g.show_token(i)).collect::<Vec<_>>(),
+                  (0..g.prod.len()).map(|i| g.show_prod(i, None)).collect::<Vec<_>>())
         } else { String::new() }
       },
       parser_struct = {
@@ -101,26 +100,25 @@ impl RustCodegen {
 
   fn gen_act(&self, g: &Grammar, types2id: &HashMap<&str, u32>, handle_unexpect_stack: &str) -> String {
     let mut s = String::new();
-    for (i, &((act, args), (lhs, idx), _)) in g.prod_extra.iter().enumerate() {
+    for (i, prod) in g.prod.iter().enumerate() {
       let _ = writeln!(s, "{} => {{", i);
       if self.log_reduce {
-        let _ = writeln!(s, r#"println!("{}");"#, g.show_prod(i as u32, None));
+        let _ = writeln!(s, r#"println!("{}");"#, g.show_prod(i, None));
       }
-      let rhs = &g.prod[lhs as usize][idx as usize];
-      for (j, &x) in rhs.0.iter().enumerate().rev() {
-        let name = match args {
+      for (j, &x) in prod.rhs.iter().enumerate().rev() {
+        let name = match prod.args {
           Some(args) => args[j].0.as_ref().map(|s| s.as_str()).unwrap_or("_").to_owned(),
           None => format!("_{}", j + 1),
         };
-        if x < g.nt.len() as u32 {
-          let id = types2id[g.nt[x as usize].1];
+        if let Some(x) = g.as_nt(x) {
+          let id = types2id[g.nt[x].ty];
           let _ = writeln!(s, "let {} = match value_stk.pop() {{ Some(StackItem::_{}(x)) => x, _ => {} }};", name, id, handle_unexpect_stack);
         } else {
           let _ = writeln!(s, "let {} = match value_stk.pop() {{ Some(StackItem::_Token(x)) => x, _ => {} }};", name, handle_unexpect_stack);
         }
       }
-      let id = types2id[g.nt[lhs as usize].1];
-      let _ = writeln!(s, "StackItem::_{}({{ {} }})", id, act);
+      let id = types2id[g.nt[prod.lhs as usize].ty];
+      let _ = writeln!(s, "StackItem::_{}({{ {} }})", id, prod.act);
       let _ = writeln!(s, "}}");
     }
     s
@@ -131,21 +129,19 @@ impl RustCodegen {
   // return None if `gen_common` returns None, you can check the doc of `gen_common`
   pub fn gen_lalr1(&self, g: &Grammar, table: &Table, dfa: &Dfa, ec: &[u8; 256]) -> Option<String> {
     let (types, types2id) = self.gather_types(g);
-    let parse_res = g.nt.last().unwrap().1;
+    let parse_res = g.nt.last().unwrap().ty;
     let common = self.gen_common(g, dfa, ec, &types, false)?;
     let lalr1 = format!(
       include_str!("template/lalr1.rs.template"),
-      u_lr_fsm_size = min_u(table.len() as u32),
+      u_lr_fsm_size = crate::min_u(table.len()),
       parser_type = g.raw.parser_def.as_deref().unwrap_or("Parser"),
       res_type = parse_res,
       res_id = types2id[parse_res],
-      u_prod_len = min_u(g.prod_extra.iter().map(|&(_, (lhs, rhs), _)| g.prod[lhs as usize][rhs as usize].0.len()).max().unwrap() as u32),
-      prod_size = g.prod_extra.len(),
+      u_prod_len = crate::min_u(g.prod.iter().map(|x| x.rhs.len()).max().unwrap()),
+      prod_size = g.prod.len(),
       prod = {
         let mut s = String::new();
-        for &(_, (lhs, rhs), _) in &g.prod_extra {
-          let _ = write!(s, "({}, {}), ", lhs, g.prod[lhs as usize][rhs as usize].0.len());
-        }
+        for p in &g.prod { let _ = write!(s, "({}, {}), ", p.lhs, p.rhs.len()); }
         s
       },
       term_num = g.terms.len(),
@@ -155,7 +151,7 @@ impl RustCodegen {
         let mut s = String::new();
         for TableEntry { act, .. } in table {
           let _ = write!(s, "[");
-          for i in g.nt.len() as u32..(g.terms.len() + g.nt.len()) as u32 {
+          for i in 0..g.terms.len() as u32 {
             match act.get(&i) {
               Some(act) if !act.is_empty() => { let _ = write!(s, "Act::{:?}, ", act[0]); }
               _ => { let _ = write!(s, "Act::Err, "); }
@@ -169,7 +165,7 @@ impl RustCodegen {
         let mut s = String::new();
         for TableEntry { goto, .. } in table {
           let _ = write!(s, "[");
-          for i in 0..g.nt.len() as u32 { let _ = write!(s, "{:?}, ", goto.get(&i)); }
+          for i in g.nt_range() { let _ = write!(s, "{}, ", goto.get(&(i as u32)).unwrap_or(&0)); }
           let _ = write!(s, "], ");
         }
         s
@@ -182,14 +178,15 @@ impl RustCodegen {
 
   pub fn gen_ll1(&self, g: &Grammar, ll: &LLCtx, dfa: &Dfa, ec: &[u8; 256]) -> Option<String> {
     let (types, types2id) = self.gather_types(g);
-    let parse_res = g.nt.last().unwrap().1;
+    let parse_res = g.nt.last().unwrap().ty;
     let common = self.gen_common(g, dfa, ec, &types, true)?;
     let ll1 = format!(
       include_str!("template/ll1.rs.template"),
-      nt_num = g.nt_num(),
+      term_num = g.terms.len(),
+      nt_num = g.nt.len(),
       follow = {
         let mut s = String::new();
-        for follow in &ll.follow.follow {
+        for follow in &ll.follow.0 {
           let _ = write!(s, "set!(");
           for i in 0..g.token_num() {
             if follow.test(i as usize) { let _ = write!(s, "{}, ", i); }
@@ -204,9 +201,7 @@ impl RustCodegen {
           let _ = write!(s, "map!(");
           for (&predict, prod_ids) in table {
             let prod_id = prod_ids[0] as usize;
-            let (_, (lhs, idx), _) = g.prod_extra[prod_id];
-            let (prod, _) = &g.prod[lhs as usize][idx as usize];
-            let _ = write!(s, "{} => ({}, vec!{:?}), ", predict, prod_id, prod);
+            let _ = write!(s, "{} => ({}, vec!{:?}), ", predict, prod_id, g.prod[prod_ids[0] as usize].rhs);
           }
           let _ = writeln!(s, "),");
         }
@@ -215,7 +210,7 @@ impl RustCodegen {
       parser_type = g.raw.parser_def.as_deref().unwrap_or("Parser"),
       parser_act = self.gen_act(g, &types2id, "return StackItem::_Fail"),
       res_type = parse_res,
-      res_nt_id = g.nt.len() - 1,
+      res_nt_id = g.token_num() - 1,
       res_id = types2id[parse_res]
     );
     Some(common + &ll1)

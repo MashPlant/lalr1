@@ -7,6 +7,3 @@ members = [
   "parser-macros",
   "tests",
 ]
-
-[profile.dev]
-opt-level = 3

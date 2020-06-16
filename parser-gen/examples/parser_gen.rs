@@ -1,4 +1,4 @@
-use grammar_config::*;
+use common::grammar::*;
 use lalr1_core::*;
 use parser_gen::*;
 use clap::{App, Arg};
@@ -23,7 +23,7 @@ fn main() -> io::Result<()> {
     eprintln!("Invalid regex {}, reason: {}.", raw.lexical.get_index(idx).unwrap().0, reason);
     process::exit(1);
   });
-  let ref g = extend_grammar(&mut raw).unwrap_or_else(|reason| {
+  let ref g = raw.extend().unwrap_or_else(|reason| {
     eprintln!("Invalid grammar, reason: {}.", reason);
     process::exit(1);
   });

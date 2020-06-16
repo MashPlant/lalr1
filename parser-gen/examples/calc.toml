@@ -7,6 +7,8 @@ priority = [
   { assoc = 'no_assoc', terms = ['RParen'] },
 ]
 
+start = 'Expr'
+
 [lexical]
 '\(' = 'LParen'
 '\)' = 'RParen'
@@ -23,13 +25,13 @@ priority = [
 lhs = 'Expr'
 type = 'i32'
 rhs = [
-  { rhs = 'Expr Add Expr', act = '_1 + _3' },
-  { rhs = 'Expr Sub Expr', act = '_1 - _3' },
-  { rhs = 'Expr Mul Expr', act = '_1 * _3' },
-  { rhs = 'Expr Div Expr', act = '_1 / _3' },
-  { rhs = 'Expr Mod Expr', act = '_1 % _3' },
-  { rhs = 'Sub Expr', act = '-_2', prec = 'UMinus' },
-  { rhs = 'LParen Expr RParen', act = '_2' },
-  { rhs = 'IntConst', act = 'std::str::from_utf8(_1.piece).unwrap().parse().unwrap()' },
+  { rhs = ['Expr', 'Add', 'Expr'], act = '_1 + _3' },
+  { rhs = ['Expr', 'Sub', 'Expr'], act = '_1 - _3' },
+  { rhs = ['Expr', 'Mul', 'Expr'], act = '_1 * _3' },
+  { rhs = ['Expr', 'Div', 'Expr'], act = '_1 / _3' },
+  { rhs = ['Expr', 'Mod', 'Expr'], act = '_1 % _3' },
+  { rhs = ['Sub', 'Expr'], act = '-_2', prec = 'UMinus' },
+  { rhs = ['LParen', 'Expr', 'RParen'], act = '_2' },
+  { rhs = ['IntConst'], act = 'std::str::from_utf8(_1.piece).unwrap().parse().unwrap()' },
 ]
 

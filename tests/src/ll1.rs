@@ -98,10 +98,10 @@ impl Parser {
   // parse impl with some error recovering(not fully unimplemented yet)
   // will be called be the generated parse function
   fn _parse<'a>(&mut self, target: u32, lookahead: &mut Token<'a>, lexer: &mut Lexer<'a>, f: &HashSet<u32>) -> StackItem<'a> {
-    let target = target as usize;
+    let target = target as usize - TERM_NUM;
     let follow: &[HashSet<u32>] = &*FOLLOW;
     let table: &[HashMap<u32, (u32, Vec<u32>)>] = &*TABLE;
-    let is_nt = |x: u32| x < NT_NUM;
+    let is_nt = |x: u32| x >= TERM_NUM as u32;
 
     let mut end = f.clone();
     end.extend(follow[target].iter());

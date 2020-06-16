@@ -1,29 +1,29 @@
 // "Compilers: Principles, Techniques and Tools" Algorithm 4.63
 use crate::{lr1::Lr1Ctx, Lr1Item, Lr0Fsm, Lr0Node, Lr1Node, Lr1Fsm};
-use common::{grammar::Grammar, HashMap, BitSet};
+use common::{grammar::{Grammar, EOF_IDX, ERR_IDX}, HashMap, BitSet};
 
 pub fn work<'a>(lr0: Lr0Fsm<'a>, g: &'a Grammar<'a>) -> Lr1Fsm<'a> {
   let mut ctx = Lr1Ctx::new(g);
   let mut lookahead = lr0.iter()
-    .map(|Lr0Node { closure, .. }| vec![BitSet::new(ctx.0.token_num); closure.len()]).collect::<Vec<_>>();
+    .map(|Lr0Node { closure, .. }| vec![BitSet::new(g.token_num()); closure.len()]).collect::<Vec<_>>();
   let mut prop = Vec::new();
-  let start_prod = (g.start().1).0.as_ref();
+  let start_prod = g.start().1.rhs.as_ref();
 
   for (i, item) in lr0[0].closure.iter().enumerate() {
     if item.prod == start_prod {
-      lookahead[0][i].set(g.eof() as usize);
+      lookahead[0][i].set(EOF_IDX);
       break;
     }
   }
 
-  let special_term = g.err() as usize;
+  // use ERR_IDX as the special token
   for (i, Lr0Node { closure: state, link }) in lr0.iter().enumerate() {
     for (item_id, &item) in state.iter().enumerate() {
       // only consider lr0 core item
       if item.prod == start_prod || item.dot != 0 {
         let cl = ctx.closure({
-                               let mut lookahead = BitSet::new(ctx.0.token_num);
-                               lookahead.set(special_term);
+                               let mut lookahead = BitSet::new(g.token_num());
+                               lookahead.set(ERR_IDX);
                                let mut init = HashMap::new();
                                init.insert(item, lookahead);
                                init
@@ -38,7 +38,7 @@ pub fn work<'a>(lr0: Lr0Fsm<'a>, g: &'a Grammar<'a>) -> Lr1Fsm<'a> {
           let goto_item_idx = lr0[goto_state as usize].closure.iter().enumerate().find(|item| item.1.unique_id() == goto_item_id).unwrap().0;
           let goto_lookahead = &mut lookahead[goto_state as usize][goto_item_idx];
           goto_lookahead.or(&cl_lookahead);
-          if cl_lookahead.test(special_term) {
+          if cl_lookahead.test(ERR_IDX) {
             prop.push((from, goto_lookahead.as_mut_ptr()));
           }
         }
@@ -57,7 +57,7 @@ pub fn work<'a>(lr0: Lr0Fsm<'a>, g: &'a Grammar<'a>) -> Lr1Fsm<'a> {
     }
   }
 
-  lookahead.iter_mut().for_each(|l| l.iter_mut().for_each(|l| l.clear(special_term)));
+  for l in &mut lookahead { for l in l { l.clear(ERR_IDX); } }
 
   lr0.into_iter().zip(lookahead.into_iter()).map(|(node, lookahead)| Lr1Node {
     closure: ctx.closure(node.closure.into_iter().zip(lookahead.into_iter()).collect(), g),

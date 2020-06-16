@@ -1,31 +1,25 @@
 use crate::{Act, ConflictKind, Conflict, TableEntry, Table, Lr1Fsm, Lr1Node, Lr1Item};
-use std::{cmp::Ordering, borrow::Borrow};
-use common::{grammar::{Assoc, Grammar}, smallvec, SmallVec, HashMap};
+use std::cmp::Ordering::*;
+use common::{grammar::{Assoc, Grammar, EOF_IDX}, smallvec, SmallVec, HashMap};
 
 pub fn mk_table<'a>(lr1: &'a Lr1Fsm<'a>, g: &'a Grammar<'a>) -> Table<'a> {
   let mut table = Vec::with_capacity(lr1.len());
-  let eof = g.eof();
-  let start_id = (g.start().1).1;
+  let start_id = g.start().1.id;
   let token_num = g.token_num();
   for Lr1Node { closure, link } in lr1 {
-    let link = link.borrow();
     let (mut act, mut goto) = (HashMap::new(), HashMap::new());
     for (&k, &v) in link {
-      if k < g.nt_num() {
-        goto.insert(k, v);
-      } else {
-        act.insert(k, smallvec![Act::Shift(v)]);
-      }
+      if g.as_nt(k).is_some() { goto.insert(k, v); } else { act.insert(k, smallvec![Act::Shift(v)]); }
     }
     for Lr1Item { lr0, lookahead } in closure {
       if lr0.dot == lr0.prod.len() as u32 {
-        if lookahead.test(eof as usize) && lr0.prod_id == start_id {
-          act.insert(eof, smallvec![Act::Acc]);
+        if lookahead.test(EOF_IDX) && lr0.prod_id == start_id {
+          act.insert(EOF_IDX as u32, smallvec![Act::Acc]);
         } else {
           for i in 0..token_num {
-            if lookahead.test(i as usize) {
+            if lookahead.test(i) {
               // maybe conflict here
-              act.entry(i).or_insert_with(SmallVec::new).push(Act::Reduce(lr0.prod_id));
+              act.entry(i as u32).or_insert_with(SmallVec::new).push(Act::Reduce(lr0.prod_id));
             }
           }
         }
@@ -64,7 +58,7 @@ pub fn solve<'a>(t: &mut Table<'a>, g: &'a Grammar<'a>) -> Vec<Conflict> {
         [] | [_] => {}
         &[a0, a1] => match (a0, a1) {
           (Reduce(r1), Reduce(r2)) =>
-            *acts = match (g.prod_pri(r1), g.prod_pri(r2)) {
+            *acts = match (g.prod[r1 as usize].pri, g.prod[r2 as usize].pri) {
               (Some(p1), Some(p2)) if p1 != p2 => smallvec![Reduce(if p1 < p2 { r2 } else { r1 })],
               _ => {
                 reports.push(Conflict { kind: ConflictKind::RR { r1, r2 }, state: idx as u32, ch });
@@ -72,11 +66,10 @@ pub fn solve<'a>(t: &mut Table<'a>, g: &'a Grammar<'a>) -> Vec<Conflict> {
               }
             },
           (Reduce(r), Shift(s)) | (Shift(s), Reduce(r)) =>
-            *acts = match (g.prod_pri(r), g.term_pri_assoc(ch)) {
+            *acts = match (g.prod[r as usize].pri, g.terms[ch as usize].pri_assoc) {
               (Some(pp), Some((cp, ca))) => match pp.cmp(&cp) {
-                Ordering::Less => smallvec![Shift(s)],
-                Ordering::Greater => smallvec![Reduce(r)],
-                Ordering::Equal => match ca {
+                Less => smallvec![Shift(s)], Greater => smallvec![Reduce(r)],
+                Equal => match ca {
                   Assoc::Left => smallvec![Reduce(r)],
                   Assoc::Right => smallvec![Shift(s)],
                   Assoc::NoAssoc => smallvec![],
@@ -87,7 +80,7 @@ pub fn solve<'a>(t: &mut Table<'a>, g: &'a Grammar<'a>) -> Vec<Conflict> {
                 smallvec![Shift(s), Reduce(r)]
               }
             },
-          _ => unreachable!("There should be a bug in lr."),
+          _ => unreachable!("there should be a bug in lr"),
         }
         _ => reports.push(Conflict { kind: ConflictKind::Many(acts.clone()), state: idx as u32, ch }),
       }
