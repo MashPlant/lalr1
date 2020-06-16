@@ -1,27 +1,25 @@
 use crate::{Lr0Item, Lr1Closure, Lr1Item};
-use hashbrown::HashMap;
-use grammar_config::AbstractGrammar;
+use common::{grammar::Grammar, HashMap, BitSet};
 use std::collections::vec_deque::VecDeque;
 use ll1_core::First;
-use bitset::BitSet;
 
 pub struct Lr1Ctx(pub First);
 
 impl Lr1Ctx {
-  pub fn new<'a>(g: &'a impl AbstractGrammar<'a>) -> Lr1Ctx { Lr1Ctx(First::new(g)) }
+  pub fn new(g: &Grammar) -> Lr1Ctx { Lr1Ctx(First::new(g)) }
 
   // one beta, and many a
   pub fn first(&self, beta: &[u32], a: &BitSet) -> BitSet {
     let mut beta_first = self.0.first(beta);
-    if beta_first.test(self.0.eps) {
-      beta_first.clear(self.0.eps);
+    if beta_first.test(self.0.eps as usize) {
+      beta_first.clear(self.0.eps as usize);
       beta_first.or(a);
     }
     beta_first
   }
 
   // `go` was used by lr1 before, now not used
-  pub fn go<'a>(&mut self, state: &Lr1Closure<'a>, mov: u32, g: &'a impl AbstractGrammar<'a>) -> Lr1Closure<'a> {
+  pub fn go<'a>(&mut self, state: &Lr1Closure<'a>, mov: u32, g: &'a Grammar<'a>) -> Lr1Closure<'a> {
     let mut new_items = HashMap::new();
     for Lr1Item { lr0, lookahead } in state {
       if lr0.dot as usize >= lr0.prod.len() { // dot is after the last ch
@@ -38,7 +36,7 @@ impl Lr1Ctx {
     self.closure(new_items, g)
   }
 
-  pub fn closure<'a>(&mut self, mut items: HashMap<Lr0Item<'a>, BitSet>, g: &'a impl AbstractGrammar<'a>) -> Lr1Closure<'a> {
+  pub fn closure<'a>(&mut self, mut items: HashMap<Lr0Item<'a>, BitSet>, g: &'a Grammar<'a>) -> Lr1Closure<'a> {
     let mut q = items.clone().into_iter().collect::<VecDeque<_>>();
     while let Some((item, lookahead)) = q.pop_front() {
       if item.dot as usize >= item.prod.len() { // dot is after the last ch
@@ -73,7 +71,7 @@ impl Lr1Ctx {
 }
 
 // I think it is only for `simple_grammar.rs`'s use now...
-pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> crate::Lr1Fsm<'a, crate::Link> {
+pub fn work<'a>(g: &'a Grammar) -> crate::Lr1Fsm<'a> {
   let mut ctx = Lr1Ctx(First::new(g));
   let mut ss = HashMap::new();
   let init = ctx.closure({

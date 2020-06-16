@@ -1,0 +1,13 @@
+[package]
+name = "common"
+version = "0.1.0"
+authors = ["MashPlant <740678788@qq.com>"]
+edition = "2018"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_derive = "1.0"
+indexmap = { version = "1.4", features = ["serde-1"] }
+hashbrown = "0.7"
+smallvec = { version = "1.4", features = ["union"] }
+bitset = { git = "https://github.com/MashPlant/bitset" }

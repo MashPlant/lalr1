@@ -1,7 +1,5 @@
-use smallvec::SmallVec;
-use std::{hash::{Hash, Hasher}, cmp::Ordering, borrow::Borrow, ops::Deref};
-use bitset::BitSet;
-use hashbrown::HashMap;
+use std::{hash::{Hash, Hasher}, cmp::Ordering, ops::Deref};
+use common::{SmallVec, BitSet, HashMap};
 
 pub mod lr1;
 pub mod lr0;
@@ -32,14 +30,17 @@ pub struct Lr0Node<'a> {
   pub link: Link,
 }
 
-// L can be Link (`lr1.rs`) or &'a Link (in `lalr1_by_lr0.rs`)
-pub struct Lr1Node<'a, L: Borrow<Link>> {
+// originally the `link` field type is a generic parameter L: Borrow<Link>
+// because the Lr1Node generated from `lalr1_by_lr0` is a borrowed ref of the `link` in Lr0Node
+// but later I decided to give up this design, for the **simplicity** of my code,
+// although it can indeed eliminate the unnecessary clone
+pub struct Lr1Node<'a> {
   pub closure: Lr1Closure<'a>,
-  pub link: L,
+  pub link: Link,
 }
 
 pub type Lr0Fsm<'a> = Vec<Lr0Node<'a>>;
-pub type Lr1Fsm<'a, L> = Vec<Lr1Node<'a, L>>;
+pub type Lr1Fsm<'a> = Vec<Lr1Node<'a>>;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Act {
@@ -71,6 +72,12 @@ pub struct Conflict {
   pub kind: ConflictKind,
   pub state: u32,
   pub ch: u32,
+}
+
+impl Conflict {
+  pub fn is_many(&self) -> bool {
+    match self.kind { ConflictKind::Many(_) => true, _ => false }
+  }
 }
 
 impl Lr0Item<'_> {

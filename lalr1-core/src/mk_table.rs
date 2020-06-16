@@ -1,10 +1,8 @@
-use crate::{Act, ConflictKind, Conflict, TableEntry, Table, Lr1Fsm, Lr1Node, Lr1Item, Link};
+use crate::{Act, ConflictKind, Conflict, TableEntry, Table, Lr1Fsm, Lr1Node, Lr1Item};
 use std::{cmp::Ordering, borrow::Borrow};
-use grammar_config::{Assoc, AbstractGrammar, AbstractGrammarExt};
-use smallvec::{smallvec, SmallVec};
-use hashbrown::HashMap;
+use common::{grammar::{Assoc, Grammar}, smallvec, SmallVec, HashMap};
 
-pub fn mk_table<'a, L: Borrow<Link>>(lr1: &'a Lr1Fsm<'a, L>, g: &'a impl AbstractGrammar<'a>) -> Table<'a> {
+pub fn mk_table<'a>(lr1: &'a Lr1Fsm<'a>, g: &'a Grammar<'a>) -> Table<'a> {
   let mut table = Vec::with_capacity(lr1.len());
   let eof = g.eof();
   let start_id = (g.start().1).1;
@@ -19,7 +17,7 @@ pub fn mk_table<'a, L: Borrow<Link>>(lr1: &'a Lr1Fsm<'a, L>, g: &'a impl Abstrac
         act.insert(k, smallvec![Act::Shift(v)]);
       }
     }
-    for Lr1Item {lr0, lookahead  } in closure {
+    for Lr1Item { lr0, lookahead } in closure {
       if lr0.dot == lr0.prod.len() as u32 {
         if lookahead.test(eof as usize) && lr0.prod_id == start_id {
           act.insert(eof, smallvec![Act::Acc]);
@@ -33,20 +31,6 @@ pub fn mk_table<'a, L: Borrow<Link>>(lr1: &'a Lr1Fsm<'a, L>, g: &'a impl Abstrac
         }
       }
     }
-//    for (item, Lr1Item { lookahead, .. }) in closure.iter().zip(result[i].iter()) {
-//      if item.dot == item.prod.len() as u32 {
-//        if lookahead.test(eof as usize) && item.prod_id == start_id {
-//          act.insert(eof, smallvec![Act::Acc]);
-//        } else {
-//          for i in 0..token_num {
-//            if lookahead.test(i as usize) {
-//              // maybe conflict here
-//              act.entry(i).or_insert_with(SmallVec::new).push(Act::Reduce(item.prod_id));
-//            }
-//          }
-//        }
-//      }
-//    }
     table.push(TableEntry { closure, act, goto });
   }
   table
@@ -71,7 +55,7 @@ pub fn mk_table<'a, L: Borrow<Link>>(lr1: &'a Lr1Fsm<'a, L>, g: &'a impl Abstrac
 // for conflicts solved based on precedence and/or associativity, other choices are removed
 // for conflicts solved based on location or "shift better than reduced", other choices are NOT removed
 // in both cases, the selected choice is placed at [0]
-pub fn solve<'a>(t: &mut Table<'a>, g: &'a impl AbstractGrammarExt<'a>) -> Vec<Conflict> {
+pub fn solve<'a>(t: &mut Table<'a>, g: &'a Grammar<'a>) -> Vec<Conflict> {
   use Act::{Reduce, Shift};
   let mut reports = Vec::new();
   for (idx, t) in t.iter_mut().enumerate() {

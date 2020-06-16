@@ -1,12 +1,12 @@
 use lalr1_core::*;
-use grammar_config::AbstractGrammarExt;
+use common::grammar::Grammar;
 use std::{fmt::Write, borrow::Borrow};
 use crate::show_ll::show_prod_token;
 
-pub fn table<'a>(original_table: &Table, table: &Table, g: &impl AbstractGrammarExt<'a>) -> String {
-  assert_eq!(original_table.len(), table.len());
+pub fn table(orig_table: &Table, table: &Table, g: &Grammar) -> String {
+  assert_eq!(orig_table.len(), table.len());
   let mut text = show_prod_token(g);
-  for (idx, (o, n)) in original_table.iter().zip(table.iter()).enumerate() {
+  for (idx, (o, n)) in orig_table.iter().zip(table.iter()).enumerate() {
     let _ = writeln!(text, "State {}:", idx);
     for item in o.closure { // o and n have the same items
       let _ = writeln!(text, "  {}", g.show_prod(item.prod_id, Some(item.dot)));
@@ -29,24 +29,24 @@ pub fn table<'a>(original_table: &Table, table: &Table, g: &impl AbstractGrammar
   text
 }
 
-pub fn conflict<'a>(g: &impl AbstractGrammarExt<'a>, c: &[Conflict]) -> Vec<String> {
+pub fn conflict(g: &Grammar, c: &[Conflict]) -> Vec<String> {
   let mut ret = Vec::new();
   for c in c {
     let ch = g.show_token(c.ch);
     match c.kind {
       ConflictKind::SR { s, r } =>
-        ret.push(format!("Shift-reduce conflict at state {} when faced with token `{}`, it can either shift {}, or reduce {}(`{}`).",
+        ret.push(format!("shift-reduce conflict at state {} when faced with token \"{}\", it can either shift {}, or reduce {}(\"{}\")",
                          c.state, ch, s, r, g.show_prod(r, None))),
       ConflictKind::RR { r1, r2 } =>
-        ret.push(format!("Reduce-reduce conflict at state {} when faced with token `{}`, it can either reduce {}('{}'), or reduce {}(`{}`).",
+        ret.push(format!("reduce-reduce conflict at state {} when faced with token \"{}\", it can either reduce {}(\"{}\"), or reduce {}(\"{}\")",
                          c.state, ch, r1, g.show_prod(r1, None), r2, g.show_prod(r2, None))),
       ConflictKind::Many(ref acts) => {
-        let mut msg = format!("Too many conflicts at state {} when faced with token `{}`:\n", c.state, ch);
+        let mut msg = format!("Too many conflicts at state {} when faced with token \"{}\":\n", c.state, ch);
         for a in acts {
           match a {
             Act::Shift(s) => { msg.push_str(&format!("  - shift {}\n", s)); }
             Act::Reduce(r) => { msg.push_str(&format!("  - reduce {}('{}')\n", r, g.show_prod(*r, None))); }
-            _ => unreachable!("There should be a bug in lr."),
+            _ => unreachable!("there should be a bug in lr"),
           }
         }
         ret.push(msg);
@@ -56,7 +56,7 @@ pub fn conflict<'a>(g: &impl AbstractGrammarExt<'a>, c: &[Conflict]) -> Vec<Stri
   ret
 }
 
-fn show_link<'a>(g: &impl AbstractGrammarExt<'a>, link: &Link, idx: usize, s: &mut String) {
+fn show_link(g: &Grammar, link: &Link, idx: usize, s: &mut String) {
   let mut link = link.iter().map(|(&k, &v)| (k, v)).collect::<Vec<_>>();
   link.sort_unstable_by_key(|kv| kv.1);
   for (k, v) in link {
@@ -64,7 +64,7 @@ fn show_link<'a>(g: &impl AbstractGrammarExt<'a>, link: &Link, idx: usize, s: &m
   }
 }
 
-pub fn lr0_dot<'a>(g: &impl AbstractGrammarExt<'a>, lr0: &Lr0Fsm) -> String {
+pub fn lr0_dot(g: &Grammar, lr0: &Lr0Fsm) -> String {
   let mut s = "digraph {\n".to_owned();
   for (idx, Lr0Node { closure, link }) in lr0.iter().enumerate() {
     show_link(g, link, idx, &mut s);
@@ -83,7 +83,7 @@ pub fn lr0_dot<'a>(g: &impl AbstractGrammarExt<'a>, lr0: &Lr0Fsm) -> String {
   s
 }
 
-pub fn lr1_dot<'a, L: Borrow<Link>>(g: &impl AbstractGrammarExt<'a>, lr1: &Lr1Fsm<L>) -> String {
+pub fn lr1_dot(g: &Grammar, lr1: &Lr1Fsm) -> String {
   let mut s = "digraph {\n".to_owned();
   for (idx, Lr1Node { closure, link }) in lr1.iter().enumerate() {
     show_link(g, link.borrow(), idx, &mut s);

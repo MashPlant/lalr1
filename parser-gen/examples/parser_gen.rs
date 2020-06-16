@@ -28,12 +28,12 @@ fn main() -> io::Result<()> {
     process::exit(1);
   });
   let lr0 = lr0::work(g);
-  let lr1 = lalr1_by_lr0::work(&lr0, g);
-  let original_table = mk_table::mk_table(&lr1, g);
-  let mut table = original_table.clone();
+  let lr1 = lalr1_by_lr0::work(lr0, g);
+  let orig_table = mk_table::mk_table(&lr1, g);
+  let mut table = orig_table.clone();
   let conflict = lalr1_core::mk_table::solve(&mut table, g);
   if let Some(verbose) = m.value_of("verbose") {
-    fs::write(&verbose, show_lr::table(&original_table, &table, g))?;
+    fs::write(&verbose, show_lr::table(&orig_table, &table, g))?;
   }
   if let Some(show_fsm) = m.value_of("show_fsm") {
     fs::write(&show_fsm, show_lr::lr1_dot(g, &lr1))?;

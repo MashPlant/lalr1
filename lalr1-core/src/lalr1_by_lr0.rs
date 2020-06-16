@@ -1,11 +1,8 @@
 // "Compilers: Principles, Techniques and Tools" Algorithm 4.63
+use crate::{lr1::Lr1Ctx, Lr1Item, Lr0Fsm, Lr0Node, Lr1Node, Lr1Fsm};
+use common::{grammar::Grammar, HashMap, BitSet};
 
-use crate::{lr1::Lr1Ctx, Lr1Item, Lr0Fsm, Lr0Node, Lr1Node, Lr1Fsm, Link};
-use grammar_config::AbstractGrammar;
-use hashbrown::HashMap;
-use bitset::BitSet;
-
-pub fn work<'a, 'b>(lr0: &'b Lr0Fsm<'a>, g: &'a impl AbstractGrammar<'a>) -> Lr1Fsm<'a, &'b Link> {
+pub fn work<'a>(lr0: Lr0Fsm<'a>, g: &'a Grammar<'a>) -> Lr1Fsm<'a> {
   let mut ctx = Lr1Ctx::new(g);
   let mut lookahead = lr0.iter()
     .map(|Lr0Node { closure, .. }| vec![BitSet::new(ctx.0.token_num); closure.len()]).collect::<Vec<_>>();
@@ -62,13 +59,8 @@ pub fn work<'a, 'b>(lr0: &'b Lr0Fsm<'a>, g: &'a impl AbstractGrammar<'a>) -> Lr1
 
   lookahead.iter_mut().for_each(|l| l.iter_mut().for_each(|l| l.clear(special_term)));
 
-  lr0.iter().zip(lookahead.into_iter()).map(|(node, lookahead)| Lr1Node {
-    closure: ctx.closure(node.closure.clone().into_iter().zip(lookahead.into_iter()).collect(), g),
-    link: &node.link,
+  lr0.into_iter().zip(lookahead.into_iter()).map(|(node, lookahead)| Lr1Node {
+    closure: ctx.closure(node.closure.into_iter().zip(lookahead.into_iter()).collect(), g),
+    link: node.link,
   }).collect()
 }
-
-//pub fn work<'a>(lr0: &'a Lr0Fsm<'a>, g: &'a impl AbstractGrammarExt<'a>) -> Table<'a> {
-//  let result = lalr1_by_lr0(lr0, g);
-
-//}

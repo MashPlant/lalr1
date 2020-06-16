@@ -9,13 +9,10 @@ re2dfa = { git = "https://github.com/MashPlant/re2dfa" }
 aho-corasick = "0.7"
 lalr1-core = { path = "../lalr1-core" }
 ll1-core = { path = "../ll1-core" }
-grammar-config = { path = "../grammar-config" }
-hashbrown = "0.5"
-bitset = { git = "https://github.com/MashPlant/bitset" }
+common = { path = "../common" }
 
 [dev-dependencies]
 clap = "2.33.0"
-indexmap = "1.0.2"
 toml = "0.5"
 
 [lib]

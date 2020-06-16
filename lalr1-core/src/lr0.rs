@@ -1,6 +1,5 @@
 use crate::{Lr0Item, Lr0Fsm, Lr0Node};
-use grammar_config::AbstractGrammar;
-use hashbrown::{HashMap, HashSet};
+use common::{grammar::Grammar, HashMap, HashSet};
 use std::collections::vec_deque::VecDeque;
 
 struct Ctx {
@@ -9,7 +8,7 @@ struct Ctx {
 }
 
 impl Ctx {
-  fn go<'a>(&self, items: &Vec<Lr0Item<'a>>, mov: u32, g: &'a impl AbstractGrammar<'a>) -> Vec<Lr0Item<'a>> {
+  fn go<'a>(&self, items: &Vec<Lr0Item<'a>>, mov: u32, g: &'a Grammar<'a>) -> Vec<Lr0Item<'a>> {
     let mut new_items = HashSet::new();
     for item in items {
       if item.dot as usize >= item.prod.len() { // dot is after the last ch
@@ -22,7 +21,7 @@ impl Ctx {
     self.closure(new_items, g)
   }
 
-  fn closure<'a>(&self, mut items: HashSet<Lr0Item<'a>>, g: &'a impl AbstractGrammar<'a>) -> Vec<Lr0Item<'a>> {
+  fn closure<'a>(&self, mut items: HashSet<Lr0Item<'a>>, g: &'a Grammar<'a>) -> Vec<Lr0Item<'a>> {
     let mut q = items.clone().into_iter().collect::<VecDeque<_>>();
     while let Some(item) = q.pop_front() {
       if item.dot as usize >= item.prod.len() { // dot is after the last ch
@@ -45,7 +44,7 @@ impl Ctx {
   }
 }
 
-pub fn work<'a>(g: &'a impl AbstractGrammar<'a>) -> Lr0Fsm<'a> {
+pub fn work<'a>(g: &'a Grammar) -> Lr0Fsm<'a> {
   let ctx = Ctx { token_num: g.token_num(), nt_num: g.nt_num() };
   let mut ss = HashMap::new();
   let init = ctx.closure({

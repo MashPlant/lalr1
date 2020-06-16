@@ -1,7 +1,6 @@
 use re2dfa::dfa::Dfa;
-use hashbrown::HashMap;
 use lalr1_core::{TableEntry, Table};
-use grammar_config::{Grammar, AbstractGrammar, AbstractGrammarExt};
+use common::{grammar::{Grammar, ERR}, HashMap};
 use aho_corasick::AhoCorasick;
 use ll1_core::LLCtx;
 use std::fmt::Write;
@@ -85,7 +84,7 @@ macro_rules! impossible { () => { unreachable!() }; }"#.to_owned()
         for &(acc, _) in &dfa.nodes {
           match acc {
             Some(acc) => { let _ = write!(s, "TokenKind::{}, ", g.raw.lexical.get_index(acc as usize).unwrap().1); }
-            None => { let _ = write!(s, "TokenKind::{}, ", grammar_config::ERR); }
+            None => { let _ = write!(s, "TokenKind::{}, ", ERR); }
           }
         }
         s

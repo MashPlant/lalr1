@@ -1,8 +1,4 @@
-use grammar_config::AbstractGrammar;
-use bitset::BitSet;
-use hashbrown::HashMap;
-use smallvec::SmallVec;
-use indexmap::IndexMap;
+use common::{grammar::Grammar, *};
 
 pub struct First {
   pub token_num: usize,
@@ -12,9 +8,9 @@ pub struct First {
 }
 
 impl First {
-  pub fn new<'a>(g: &'a impl AbstractGrammar<'a>) -> First {
+  pub fn new(g: &Grammar) -> First {
     let (token_num, nt_num, eps) = (g.token_num() as usize, g.nt_num() as usize, g.eps() as usize);
-    assert!(nt_num <= eps && eps < token_num);
+    // assume nt_num <= eps && eps < token_num
     let mut first = vec![BitSet::new(token_num); nt_num];
     let mut tmp = BitSet::new(token_num);
     let inner_len = BitSet::calc_inner_len(token_num);
@@ -86,7 +82,7 @@ pub struct Follow {
 }
 
 impl Follow {
-  pub fn new<'a>(g: &'a impl AbstractGrammar<'a>, first: &First) -> Follow {
+  pub fn new(g: &Grammar, first: &First) -> Follow {
     let eof = g.eof() as usize;
     assert!(first.nt_num() <= eof && eof < first.token_num);
     let mut follow = vec![BitSet::new(first.token_num); first.nt_num()];
@@ -117,9 +113,7 @@ impl Follow {
         }
       }
     }
-    for follow in &mut follow {
-      follow.clear(first.eps);
-    }
+    for f in &mut follow { f.clear(first.eps); }
     Follow { follow }
   }
 }
@@ -138,12 +132,12 @@ pub struct LLCtx {
 }
 
 impl LLCtx {
-  pub fn new<'a>(g: &'a impl AbstractGrammar<'a>) -> LLCtx {
+  pub fn new(g: &Grammar) -> LLCtx {
     let first = First::new(g);
     let follow = Follow::new(g, &first);
     let mut ps = Vec::new();
     for i in 0..first.nt_num() {
-      let mut psi = IndexMap::new();
+      let mut psi = IndexMap::default();
       for prod in g.get_prod(i as u32) {
         let mut predict = first.first(prod.0.as_ref());
         if predict.test(first.eps) {

@@ -22,10 +22,10 @@ impl<'a> SimpleGrammar<'a> {
     for line in text.lines() {
       let mut sp = line.split("->");
       let lhs = sp.next().ok_or_else(||
-        format!("production lhs not found in line `{}`, please use format lhs -> rhs1 rhs2 ... in each line", line))?.trim();
+        format!("production lhs not found in line {}, please use format lhs -> rhs1 rhs2 ... in each line", line))?.trim();
       // lhs comes from `split`, it is possible to have zero length, so need `unwrap_or`
       if !lhs.chars().nth(0).unwrap_or('a').is_uppercase() {
-        return Err(format!("production lhs `{}` should start with a uppercase character", lhs));
+        return Err(format!("production lhs \"{}\" should start with a uppercase character", lhs));
       }
       nt.insert(lhs);
     }
@@ -43,7 +43,7 @@ impl<'a> SimpleGrammar<'a> {
       for rhs in rhs.split_whitespace() {
         // rhs comes from split_whitespace, it contains at least 1 char, so call `unwrap` is ok
         let id = if rhs.chars().nth(0).unwrap().is_uppercase() { // nt
-          nt.get_full(rhs).ok_or_else(|| format!("no such non-terminal token `{}`", rhs))?.0
+          nt.get_full(rhs).ok_or_else(|| format!("no such non-term token: \"{}\"", rhs))?.0
         } else { // t
           t.insert_full(rhs).0 + nt.len()
         } as u32;
@@ -125,7 +125,7 @@ fn main() -> io::Result<()> {
   let result = match m.value_of("grammar") {
     Some("lr0") => show_lr::lr0_dot(g, &lr0::work(g)),
     Some("lr1") => show_lr::lr1_dot(g, &lr1::work(g)),
-    Some("lalr1") => show_lr::lr1_dot(g, &lalr1_by_lr0::work(&lr0::work(g), g)),
+    Some("lalr1") => show_lr::lr1_dot(g, &lalr1_by_lr0::work(lr0::work(g), g)),
     Some("ll1") => show_ll::table(&ll1_core::LLCtx::new(g), g),
     _ => unreachable!(),
   };
