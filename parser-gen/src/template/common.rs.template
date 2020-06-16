@@ -3,79 +3,79 @@
 {macros}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TokenKind { {token_kind} }
+pub enum TokenKind {{ {token_kind} }}
 
-enum StackItem<'p> { {stack_item} }
+enum StackItem<'p> {{ {stack_item} }}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Token<'l> {
+pub struct Token<'l> {{
   pub ty: TokenKind,
   pub piece: &'l [u8],
   pub line: u32,
   pub col: u32,
-}
+}}
 
-pub struct Lexer<'l> {
+pub struct Lexer<'l> {{
   pub string: &'l [u8],
   pub line: u32,
   pub col: u32,
-}
+}}
 
-impl<'l> Lexer<'l> {
-  pub fn new(string: &[u8]) -> Lexer {
-    Lexer { string, line: 1, col: 1 }
-  }
+impl<'l> Lexer<'l> {{
+  pub fn new(string: &[u8]) -> Lexer {{
+    Lexer {{ string, line: 1, col: 1 }}
+  }}
 
-  pub fn next(&mut self) -> Token<'l> {
+  pub fn next(&mut self) -> Token<'l> {{
     static ACC: [TokenKind; {dfa_size}] = [{acc}];
     static EC: [u8; 256] = [{ec}];
     static DFA_EDGE: [[{u_dfa_size}; {ec_size}]; {dfa_size}] = [{dfa_edge}];
-    loop {
+    loop {{
       // line & col is the beginning of this token, self.line & col is the latest char
       let (mut line, mut col) = (self.line, self.col);
       let mut last_acc = TokenKind::_Err;
       let mut state = 0;
       let mut i = 0;
-      while i < self.string.len() {
+      while i < self.string.len() {{
         let ch = index!(self.string, i);
         let ec = index!(EC, ch);
         let nxt = index!(index!(DFA_EDGE, state), ec);
         let acc = index!(ACC, nxt);
-        if acc != TokenKind::_Err { last_acc = acc };
+        if acc != TokenKind::_Err {{ last_acc = acc }};
         state = nxt;
-        if nxt == 0 { // dead, should not eat this char
+        if nxt == 0 {{ // dead, should not eat this char
           let piece = &self.string[..i];
           self.string = &self.string[i..];
-          if last_acc != TokenKind::_Eps {
-            return Token { ty: last_acc, piece, line, col };
-          } else {
+          if last_acc != TokenKind::_Eps {{
+            return Token {{ ty: last_acc, piece, line, col }};
+          }} else {{
             line = self.line;
             col = self.col;
             last_acc = TokenKind::_Err;
             state = 0;
             i = 0;
-          }
-        } else { // continue, eat this char
-          if ch == b'\n' {
+          }}
+        }} else {{ // continue, eat this char
+          if ch == b'\n' {{
             self.line += 1;
             self.col = 1;
-          } else {
+          }} else {{
             self.col += 1;
-          }
+          }}
           i += 1;
-        }
-      }
+        }}
+      }}
       // end of file
       let piece = &self.string[..i];
       self.string = b"";
-      return if last_acc != TokenKind::_Eps && i != 0 {
-        Token { ty: last_acc, piece, line, col }
-      } else {
-        Token { ty: TokenKind::_Eof, piece: b"", line: self.line, col: self.col }
-      };
-    }
-  }
-}
+      return if last_acc != TokenKind::_Eps && i != 0 {{
+        Token {{ ty: last_acc, piece, line, col }}
+      }} else {{
+        Token {{ ty: TokenKind::_Eof, piece: b"", line: self.line, col: self.col }}
+      }};
+    }}
+  }}
+}}
 
 {show_token_prod}
 

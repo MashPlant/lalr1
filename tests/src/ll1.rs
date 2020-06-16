@@ -1,5 +1,5 @@
 use parser_macros::ll1;
-use hashbrown::{HashSet, HashMap};
+use common::{HashSet, HashMap};
 
 struct Parser;
 
