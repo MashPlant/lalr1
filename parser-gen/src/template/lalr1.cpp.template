@@ -35,7 +35,7 @@ struct Lexer {{
       TokenKind last_acc = TokenKind::_Err;
       u32 state = 0, i = 0;
       while (i < string.size()) {{
-        char ch = string[i];
+        u8 ch = string[i];
         u8 ec = EC[ch];
         {u_dfa_size} nxt = DFA_EDGE[state][ec];
         TokenKind acc = ACC[nxt];
@@ -46,7 +46,7 @@ struct Lexer {{
           std::string_view piece(string.data(), i);
           string = std::string_view(string.data() + i, string.size() - i);
           if (last_acc != TokenKind::_Eps) {{
-            return Token{{.ty = last_acc, .piece = piece, .line = l, .col = c}};
+            return Token{{last_acc, piece, l, c}};
           }} else {{
             l = line, c = col, last_acc = TokenKind::_Err, state = 0, i = 0;
           }}
@@ -58,11 +58,7 @@ struct Lexer {{
       // end of file
       std::string_view piece(string.data(), i);
       string = "";
-      if (last_acc != TokenKind::_Eps && i != 0) {{
-        return Token{{.ty = last_acc, .piece = piece, .line = l, .col = c}};
-      }} else {{
-        return Token{{.ty = TokenKind::_Eof, .piece = "", .line = l, .col = c}};
-      }}
+      return last_acc != TokenKind::_Eps && i != 0 ? Token{{last_acc, piece, l, c}} : Token{{TokenKind::_Eof, "", l, c}};
     }}
   }}
 }};
@@ -76,7 +72,7 @@ struct Act {{
 
 // it may brings you inconvenience that `parse` is a top level function, not a member function
 // but we can't make it one, because we allow you to define your own Parser class, and we can't add method to a existing class
-std::variant<{res_type}, Token> parse({parser_type} &parser, Lexer &lexer) {{
+std::variant<{res_type}, Token> parse([[maybe_unused]] {parser_type} &parser, Lexer &lexer) {{
   const static {u_prod} PROD[][2] = {{{prod}}};
   const static Act ACTION[][{term_num}] = {{{action}}};
   const static {u_lr_fsm_size} GOTO[][{nt_num}] = {{{goto}}};
@@ -89,7 +85,7 @@ std::variant<{res_type}, Token> parse({parser_type} &parser, Lexer &lexer) {{
     Act act = ACTION[state][token.ty];
     switch (act.kind) {{
       case Act::Shift: {{
-        value_stk.push_back(StackItem{{._token = token}});
+        value_stk.emplace_back(token);
         state_stk.push_back(act.val);
         state = act.val;
         token = lexer.next();
@@ -98,7 +94,7 @@ std::variant<{res_type}, Token> parse({parser_type} &parser, Lexer &lexer) {{
       case Act::Reduce: {{
         {u_prod} lhs = PROD[act.val][0], rhs_len = PROD[act.val][1];
         state_stk.erase(state_stk.end() - rhs_len, state_stk.end());
-        StackItem value;
+        StackItem __;
         // we are confident that the value must be what we expect, so directly dereference the return value of `std::get_if`
         // we are not using `std::get`, because it performs runtime check, and throws exceptions when fails
         switch (act.val) {{
@@ -106,7 +102,7 @@ std::variant<{res_type}, Token> parse({parser_type} &parser, Lexer &lexer) {{
           default:
             __builtin_unreachable();
         }}
-        value_stk.push_back(value);
+        value_stk.emplace_back(std::move(__));
         {u_lr_fsm_size} cur = state_stk.back();
         {u_lr_fsm_size} nxt = GOTO[cur][lhs];
         state_stk.push_back(nxt);
