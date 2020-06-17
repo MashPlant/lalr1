@@ -10,7 +10,7 @@ Now a more efficient method `lalr1_by_lr0` is applied. It has about the same spe
 
 Future extension: 
 
-- [ ] multiple language codegen, e.g., cpp
+- [x] multiple language codegen, e.g., cpp
 - [x] using other parsing technique, e.g., ll(1)
 - [x] use dfa to implement lexical analysis, instead of using many regular expressions now
 
@@ -49,8 +49,11 @@ $ cargo run --example parser_gen -- --help
 Or run a specific example:
 
 ```bash
-# actually we only support `-l rs` now
+# actually we now support cpp & rust
+# this is a rust example
 $ cargo run --example parser_gen -- parser-gen/examples/calc.toml -o calc.rs -l rs
+# this is a cpp example
+$ cargo run --example parser_gen -- parser-gen/examples/calc_cpp.toml -o calc.cpp -l cpp
 ```
 
 Now `calc.rs` will contain a `struct Parser` and a `struct Lexer`. Their apis are easy to understand.

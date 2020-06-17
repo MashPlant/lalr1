@@ -1,0 +1,49 @@
+include = """
+using i32 = int32_t;
+
+// currently there is no direct method to convert std::string_view to integers, lets just write one manually
+// input `sv` is guaranteed to only consists of chars in '0'-'9'
+i32 sv2i32(std::string_view sv) {
+  i32 ret = 0;
+  for (char ch : sv) {
+    ret = ret * 10 + ch - '0';
+  }
+  return ret;
+}
+"""
+
+priority = [
+  { assoc = 'left', terms = ['Add', 'Sub'] },
+  { assoc = 'left', terms = ['Mul', 'Div', 'Mod'] },
+  { assoc = 'no_assoc', terms = ['UMinus'] },
+  { assoc = 'no_assoc', terms = ['RParen'] },
+]
+
+start = 'Expr'
+
+[lexical]
+'\(' = 'LParen'
+'\)' = 'RParen'
+'\d+' = 'IntConst'
+'\+' = 'Add'
+'-' = 'Sub'
+'\*' = 'Mul'
+'/' = 'Div'
+'%' = 'Mod'
+'\d+' = 'IntConst'
+'\s+' = '_Eps'
+
+[[production]]
+lhs = 'Expr'
+type = 'i32'
+rhs = [
+  { rhs = ['Expr', 'Add', 'Expr'], act = '__ = _1 + _3;' },
+  { rhs = ['Expr', 'Sub', 'Expr'], act = '__ = _1 - _3;' },
+  { rhs = ['Expr', 'Mul', 'Expr'], act = '__ = _1 * _3;' },
+  { rhs = ['Expr', 'Div', 'Expr'], act = '__ = _1 / _3;' },
+  { rhs = ['Expr', 'Mod', 'Expr'], act = '__ = _1 % _3;' },
+  { rhs = ['Sub', 'Expr'], act = '__ = -_2;', prec = 'UMinus' },
+  { rhs = ['LParen', 'Expr', 'RParen'], act = '__ = _2;' },
+  { rhs = ['IntConst'], act = '__ = sv2i32(_1.piece);' },
+]
+

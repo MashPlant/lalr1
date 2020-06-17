@@ -1,7 +1,7 @@
 use clap::{App, Arg};
 use std::{io, fs};
-use common::grammar::*;
-use parser_gen::{parse_arrow_prod, show_lr, show_ll};
+use common::{grammar::*, parse_arrow_prod};
+use parser_gen::{show_lr, show_ll};
 use lalr1_core::*;
 use common::{IndexMap, HashSet};
 

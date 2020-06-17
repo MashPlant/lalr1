@@ -3,8 +3,8 @@ extern crate proc_macro;
 
 use quote::ToTokens;
 use proc_macro::{Diagnostic, Level, TokenStream};
-use parser_gen::{*, workflow::*};
-use common::{grammar::*, IndexMap};
+use parser_gen::*;
+use common::{grammar::*, IndexMap, parse_arrow_prod};
 use syn::{FnArg, NestedMeta, ItemImpl, ImplItem, Attribute, ReturnType, Error};
 use darling::FromMeta;
 use std::fmt::{self, Display};
@@ -62,7 +62,7 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
 
   let Config { lex, verbose, show_fsm, show_dfa, log_token, log_reduce, use_unsafe, expand }
     = Config::from_list(&parse_attrs(&parser.attrs)).unwrap_or_else(|e| panic!("failed to read attributes: {}", e));
-  let mut cfg = workflow::Config {
+  let mut cfg = parser_gen::Config {
     verbose: verbose.as_deref(),
     show_fsm: show_fsm.as_deref(),
     show_dfa: show_dfa.as_deref(),
@@ -97,7 +97,7 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
     } else { panic!("only support method impl, found {:?}", item); }
   }
 
-  workflow::work(RawGrammar { include: String::new(), priority, lexical, parser_field: None, start, production, parser_def }, algo, &mut cfg);
+  parser_gen::work(RawGrammar { include: String::new(), priority, lexical, parser_field: None, start, production, parser_def }, algo, &mut cfg);
   if expand { println!("{}", cfg.code); }
   cfg.code.parse().unwrap()
 }

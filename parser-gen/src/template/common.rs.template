@@ -5,7 +5,7 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TokenKind {{ {token_kind} }}
 
-enum StackItem<'p> {{ {stack_item} }}
+enum StackItem<'p> {{ _Token(Token<'p>), {stack_item} }}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Token<'l> {{

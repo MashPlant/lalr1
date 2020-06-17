@@ -1,0 +1,122 @@
+#include <cstdint>
+#include <string_view>
+#include <vector>
+#include <variant>
+#include <utility>
+
+using u8 = uint8_t;
+using u16 = uint16_t;
+using u32 = uint32_t;
+
+{include}
+
+enum TokenKind : {u_term_num} {{ {token_kind} }};
+
+struct Token {{
+  TokenKind ty;
+  std::string_view piece;
+  u32 line, col;
+}};
+
+using StackItem = std::variant<Token, {stack_item}>;
+
+struct Lexer {{
+  std::string_view string;
+  u32 line, col;
+
+  Lexer(std::string_view string) : string(string), line(1), col(1) {{}}
+
+  Token next() {{
+    const static TokenKind ACC[] = {{{acc}}};
+    const static u8 EC[] = {{{ec}}};
+    const static {u_dfa_size} DFA_EDGE[][{ec_size}] = {{{dfa_edge}}};
+    while (true) {{
+      u32 l = line, c = col;
+      TokenKind last_acc = TokenKind::_Err;
+      u32 state = 0, i = 0;
+      while (i < string.size()) {{
+        char ch = string[i];
+        u8 ec = EC[ch];
+        {u_dfa_size} nxt = DFA_EDGE[state][ec];
+        TokenKind acc = ACC[nxt];
+        if (acc != TokenKind::_Err) {{ last_acc = acc; }}
+        state = nxt;
+        if (nxt == 0) {{ // dead, should not eat this char
+          // we are not using substr here, because it does range check and may throws exception
+          std::string_view piece(string.data(), i);
+          string = std::string_view(string.data() + i, string.size() - i);
+          if (last_acc != TokenKind::_Eps) {{
+            return Token{{.ty = last_acc, .piece = piece, .line = l, .col = c}};
+          }} else {{
+            l = line, c = col, last_acc = TokenKind::_Err, state = 0, i = 0;
+          }}
+        }} else {{ // continue, eat this char
+          if (ch == '\n') {{ ++line, col = 1; }} else {{ ++col; }}
+          ++i;
+        }}
+      }}
+      // end of file
+      std::string_view piece(string.data(), i);
+      string = "";
+      if (last_acc != TokenKind::_Eps && i != 0) {{
+        return Token{{.ty = last_acc, .piece = piece, .line = l, .col = c}};
+      }} else {{
+        return Token{{.ty = TokenKind::_Eof, .piece = "", .line = l, .col = c}};
+      }}
+    }}
+  }}
+}};
+
+{parser_struct}
+
+struct Act {{
+  enum : u8 {{ Shift, Reduce, Acc, Err }} kind;
+  {u_lr_fsm_size} val;
+}};
+
+std::variant<{res_type}, Token> parse({parser_type} &parser, Lexer &lexer) {{
+  const static {u_prod} PROD[][2] = {{{prod}}};
+  const static Act ACTION[][{term_num}] = {{{action}}};
+  const static {u_lr_fsm_size} GOTO[][{nt_num}] = {{{goto}}};
+  std::vector<StackItem> value_stk;
+  std::vector<{u_lr_fsm_size}> state_stk;
+  state_stk.push_back(0);
+  u32 state = 0;
+  Token token = lexer.next();
+  while (true) {{
+    Act act = ACTION[state][token.ty];
+    switch (act.kind) {{
+      case Act::Shift: {{
+        value_stk.push_back(StackItem{{._token = token}});
+        state_stk.push_back(act.val);
+        state = act.val;
+        token = lexer.next();
+        break;
+      }}
+      case Act::Reduce: {{
+        {u_prod} lhs = PROD[act.val][0], rhs_len = PROD[act.val][1];
+        state_stk.erase(state_stk.end() - rhs_len, state_stk.end());
+        StackItem value;
+        // we are confident that the value must be what we expect, so directly dereference the return value of `std::get_if`
+        // we are not using `std::get`, because it performs runtime check, and throws exceptions when fails
+        switch (act.val) {{
+          {parser_act}
+          default:
+            __builtin_unreachable();
+        }}
+        value_stk.push_back(value);
+        {u_lr_fsm_size} cur = state_stk.back();
+        {u_lr_fsm_size} nxt = GOTO[cur][lhs];
+        state_stk.push_back(nxt);
+        state = nxt;
+        break;
+      }}
+      case Act::Acc:
+        return std::move(*std::get_if<{res_type}>(&value_stk.back()));
+      case Act::Err:
+        return token;
+      default:
+        __builtin_unreachable();
+    }}
+  }}
+}}

@@ -9,3 +9,12 @@ pub type IndexSet<K> = indexmap::IndexSet<K, DefaultHashBuilder>;
 pub use hashbrown::{HashMap, HashSet};
 pub use smallvec::{smallvec, SmallVec};
 pub use bitset::{BitSet, traits::ToUsize};
+
+// parse a "lhs -> rhs1 rhs2 ..." string
+pub fn parse_arrow_prod(s: &str) -> Option<(String, Vec<String>)> {
+  let mut sp = s.split_whitespace();
+  let lhs = sp.next()?.to_owned();
+  match sp.next() { Some("->") => {} _ => return None };
+  let rhs = sp.map(|s| s.to_owned()).collect();
+  Some((lhs, rhs))
+}

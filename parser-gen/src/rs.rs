@@ -1,34 +1,16 @@
 use re2dfa::dfa::Dfa;
 use lalr1_core::{TableEntry, Table};
-use common::{grammar::{Grammar, ERR}, HashMap};
+use common::{grammar::Grammar, HashMap};
 use ll1_core::LLCtx;
 use std::fmt::Write;
+use crate::{Config, fmt};
 
-pub struct RustCodegen {
-  pub log_token: bool,
-  pub log_reduce: bool,
-  pub use_unsafe: bool,
-  pub show_token_prod: bool,
-}
-
-impl RustCodegen {
-  fn gather_types<'a>(&self, g: &Grammar<'a>) -> (Vec<&'a str>, HashMap<&'a str, u32>) {
-    let mut types = Vec::new();
-    let mut types2id = HashMap::new();
-    for nt in &g.nt {
-      types2id.entry(nt.ty).or_insert_with(|| {
-        let id = types.len() as u32;
-        types.push(nt.ty);
-        id
-      });
-    }
-    (types, types2id)
-  }
-
+impl<F> Config<'_, F> {
   // return None if this dfa is not suitable for a lexer
   // i.e., it doesn't accept anything, or it accept empty string
   // these 2 characteristics make lexer behaviour hard to define and make lex generator hard to write
-  fn gen_common(&self, g: &Grammar, dfa: &Dfa, ec: &[u8; 256], types: &[&str], stack_need_fail: bool) -> Option<String> {
+  fn rs_common(&self, g: &Grammar, dfa_ec: &(Dfa, [u8; 256]), types: &[&str], stack_need_fail: bool) -> Option<String> {
+    let (dfa, ec) = dfa_ec;
     if dfa.nodes.is_empty() || dfa.nodes[0].0.is_some() { return None; }
     Some(format!(
       include_str!("template/common.rs.template"),
@@ -38,47 +20,21 @@ impl RustCodegen {
       } else {
         "macro_rules! index { ($arr: expr, $idx: expr) => { $arr[$idx as usize] }; } macro_rules! impossible { () => { unreachable!() }; }"
       },
-      token_kind = {
-        let mut s = String::new();
-        for t in &g.terms { let _ = write!(s, "{}, ", t.name); }
-        s
-      },
+      token_kind = fmt::token_kind(g),
       stack_item = {
-        let mut s = "_Token(Token<'p>), ".to_owned();
+        let mut s = String::new();
         if stack_need_fail { let _ = write!(s, "_Fail, "); }
         for (i, ty) in types.iter().enumerate() { let _ = write!(s, "_{}({}), ", i, ty); }
         s
       },
       dfa_size = dfa.nodes.len(),
-      acc = {
-        let mut s = String::new();
-        for &(acc, _) in &dfa.nodes {
-          match acc {
-            Some(acc) => { let _ = write!(s, "TokenKind::{}, ", g.raw.lexical.get_index(acc as usize).unwrap().1); }
-            None => { let _ = write!(s, "TokenKind::{}, ", ERR); }
-          }
-        }
-        s
-      },
-      ec = {
-        let mut s = String::new();
-        for ch in 0..256 { let _ = write!(s, "{}, ", ec[ch]); }
-        s
-      },
-      u_dfa_size = crate::min_u(dfa.nodes.len()),
+      acc = fmt::acc(g, dfa),
+      ec = fmt::ec(ec),
+      u_dfa_size = fmt::min_u(dfa.nodes.len()),
       ec_size = *ec.iter().max().unwrap() + 1,
-      dfa_edge = {
-        let mut s = String::new();
-        let mut outs = vec![0; (*ec.iter().max().unwrap() + 1) as usize];
-        for (_, edges) in dfa.nodes.iter() {
-          for x in &mut outs { *x = 0; }
-          for (&k, &out) in edges { outs[ec[k as usize] as usize] = out; }
-          let _ = write!(s, "{:?}, ", outs);
-        }
-        s
-      },
+      dfa_edge = fmt::dfa_edge(dfa, ec, ('[', ']')),
       show_token_prod = {
-        if self.show_token_prod {
+        if self.verbose.is_some() {
           format!("fn show_token(id: u32) -> &'static str {{ {:?}[id as usize] }} fn show_prod(id: u32) -> &'static str {{ {:?}[id as usize] }}",
                   (0..g.token_num()).map(|i| g.show_token(i)).collect::<Vec<_>>(),
                   (0..g.prod.len()).map(|i| g.show_prod(i, None)).collect::<Vec<_>>())
@@ -87,7 +43,7 @@ impl RustCodegen {
       parser_struct = {
         let mut s = String::new();
         if g.raw.parser_def.is_none() {
-          let _ = writeln!(s, "struct Parser {{");
+          let _ = writeln!(s, "pub struct Parser {{");
           if let Some(ext) = &g.raw.parser_field {
             for field in ext { let _ = writeln!(s, "{},", field); }
           }
@@ -107,7 +63,7 @@ impl RustCodegen {
       }
       for (j, &x) in prod.rhs.iter().enumerate().rev() {
         let name = match prod.args {
-          Some(args) => args[j].0.as_ref().map(|s| s.as_str()).unwrap_or("_").to_owned(),
+          Some(args) => args[j].0.as_deref().unwrap_or("_").to_owned(),
           None => format!("_{}", j + 1),
         };
         if let Some(x) = g.as_nt(x) {
@@ -125,19 +81,19 @@ impl RustCodegen {
   }
 }
 
-impl RustCodegen {
-  // return None if `gen_common` returns None, you can check the doc of `gen_common`
-  pub fn gen_lalr1(&self, g: &Grammar, table: &Table, dfa: &Dfa, ec: &[u8; 256]) -> Option<String> {
-    let (types, types2id) = self.gather_types(g);
+impl<F> Config<'_, F> {
+  // return None if `rs_common` returns None, you can check the doc of `rs_common`
+  pub fn rs_lalr1(&self, g: &Grammar, table: &Table, dfa_ec: &(Dfa, [u8; 256])) -> Option<String> {
+    let (types, types2id) = fmt::gather_types(g);
     let parse_res = g.nt.last().unwrap().ty;
-    let common = self.gen_common(g, dfa, ec, &types, false)?;
+    let common = self.rs_common(g, dfa_ec, &types, false)?;
     let lalr1 = format!(
       include_str!("template/lalr1.rs.template"),
-      u_lr_fsm_size = crate::min_u(table.len()),
+      u_lr_fsm_size = fmt::min_u(table.len()),
       parser_type = g.raw.parser_def.as_deref().unwrap_or("Parser"),
       res_type = parse_res,
       res_id = types2id[parse_res],
-      u_prod_len = crate::min_u(g.prod.iter().map(|x| x.rhs.len()).max().unwrap()),
+      u_prod_len = fmt::min_u(g.prod.iter().map(|x| x.rhs.len()).max().unwrap()),
       prod_size = g.prod.len(),
       prod = {
         let mut s = String::new();
@@ -161,25 +117,17 @@ impl RustCodegen {
         }
         s
       },
-      goto = {
-        let mut s = String::new();
-        for TableEntry { goto, .. } in table {
-          let _ = write!(s, "[");
-          for i in g.nt_range() { let _ = write!(s, "{}, ", goto.get(&(i as u32)).unwrap_or(&0)); }
-          let _ = write!(s, "], ");
-        }
-        s
-      },
+      goto = fmt::goto(g, &table, ('[', ']')),
       parser_act = self.gen_act(g, &types2id, "impossible!()"),
       log_token = if self.log_token { r#"println!("{:?}", token);"# } else { "" },
     );
     Some(common + &lalr1)
   }
 
-  pub fn gen_ll1(&self, g: &Grammar, ll: &LLCtx, dfa: &Dfa, ec: &[u8; 256]) -> Option<String> {
-    let (types, types2id) = self.gather_types(g);
+  pub fn rs_ll1(&self, g: &Grammar, ll: &LLCtx, dfa_ec: &(Dfa, [u8; 256])) -> Option<String> {
+    let (types, types2id) = fmt::gather_types(g);
     let parse_res = g.nt.last().unwrap().ty;
-    let common = self.gen_common(g, dfa, ec, &types, true)?;
+    let common = self.rs_common(g, dfa_ec, &types, true)?;
     let ll1 = format!(
       include_str!("template/ll1.rs.template"),
       term_num = g.terms.len(),

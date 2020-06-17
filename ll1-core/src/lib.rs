@@ -129,7 +129,7 @@ impl LLCtx {
       for (&prod, predict) in ps {
         for i in 0..g.token_num() {
           if predict.test(i) {
-            tbi.entry(i as u32).or_insert_with(|| SmallVec::new()).push(prod);
+            tbi.entry(i as u32).or_insert_with(SmallVec::new).push(prod);
           }
         }
       }
