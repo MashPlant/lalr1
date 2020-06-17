@@ -67,7 +67,7 @@ pub fn validate_variable_name(s: &str) -> bool {
 
 // input: the two field in RawGrammar(or constructed in other ways)
 // return: (Vec<(term, pri_assoc)>, term2id)
-fn parse_term<'a>(priority: &'a [RawPriorityRow], lexical: &'a IndexMap<String, String>) -> Result<(Vec<Term<'a>>, HashMap<&'a str, u32>), String> {
+fn parse_term<'a>(priority: &'a [RawPriorityRow], lexical: &'a IndexMap<String, String>, validate_name: bool) -> Result<(Vec<Term<'a>>, HashMap<&'a str, u32>), String> {
   let mut terms = vec![Term { name: EPS, pri_assoc: None }, Term { name: EOF, pri_assoc: None }, Term { name: ERR, pri_assoc: None }];
   let mut term2id = HashMap::new();
   term2id.insert(EPS, 0);
@@ -76,20 +76,20 @@ fn parse_term<'a>(priority: &'a [RawPriorityRow], lexical: &'a IndexMap<String, 
 
   for (pri, pri_row) in priority.iter().enumerate() {
     let pri_assoc = (pri as u32, pri_row.assoc);
-    for name in pri_row.terms.iter().map(String::as_str) {
-      if !validate_variable_name(name) {
+    for name in &pri_row.terms {
+      if validate_name && !validate_variable_name(name) {
         return Err(format!("term is not a valid variable name: \"{}\"", name));
-      } else if term2id.contains_key(name) {
+      } else if term2id.contains_key(name.as_str()) {
         return Err(format!("duplicate term when assigning priority: \"{}\"", name));
       } else {
-        term2id.insert(name, terms.len() as u32);
+        term2id.insert(name.as_str(), terms.len() as u32);
         terms.push(Term { name, pri_assoc: Some(pri_assoc) });
       }
     }
   }
 
   for (_, name) in lexical {
-    if name != EOF && name != ERR && name != EPS && !validate_variable_name(name) {
+    if name != EOF && name != ERR && name != EPS && validate_name && !validate_variable_name(name) {
       return Err(format!("term is not a valid variable name: \"{}\"", name));
     }
     term2id.entry(name).or_insert_with(|| {
@@ -137,8 +137,10 @@ pub struct Prod<'a> {
 
 impl RawGrammar {
   // will add a production _Start -> Start, so need mut
-  pub fn extend(&mut self) -> Result<Grammar, String> {
-    let (terms, term2id) = parse_term(&self.priority, &self.lexical)?;
+  // if `validate_name == true`, will call `validate_variable_name` to check every token's name
+  // otherwise those names will not be checked
+  pub fn extend(&mut self, validate_name: bool) -> Result<Grammar, String> {
+    let (terms, term2id) = parse_term(&self.priority, &self.lexical, validate_name)?;
     let mut nt = Vec::new();
     let mut nt2id = HashMap::new();
 
@@ -165,7 +167,7 @@ impl RawGrammar {
     for (idx, prod) in self.production.iter().enumerate() {
       let lhs = prod.lhs.as_str();
       // _Start is at `self.production.len() - 1`, this name is invalid, but won't cause error
-      if !validate_variable_name(lhs) && idx != self.production.len() - 1 {
+      if validate_name && !validate_variable_name(lhs) && idx != self.production.len() - 1 {
         return Err(format!("non-term is not a valid variable name: \"{}\"", lhs));
       } else if term2id.contains_key(lhs) {
         return Err(format!("non-term has a duplicate name with term: \"{}\"", lhs));
