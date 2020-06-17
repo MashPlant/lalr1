@@ -23,27 +23,30 @@ Currently this repository provided 4 tools that can be used directly, including 
 Run `simple_grammar` for help:
 
 ```bash
-$ cargo run --example simple_grammar -- --help
+$ cd parser-gen
+$ cargo run --example simple_grammar --features="clap" -- --help
 ```
 
 Or run a specific example:
 
 ```bash
-$ cargo run --example simple_grammar -- parser-gen/examples/expr.cfg -g lalr1 -o expr.dot
+$ cargo run --example simple_grammar --features="clap" -- examples/expr.cfg -g lalr1 -o expr.dot
+# use your favorite dot file viewer to check expr.dot
 ```
 
 Then use your favorite dot file viewer to view this file, you will get:
 
-![](parser-gen/examples/expr.png)
+<img src="parser-gen/examples/expr.png" width=600 alt="" class="center">
 
 Note that you can also use ll(1) grammar in `simple_grammar`, but since I don't know any proper way to show ll(1) table in graphics, it will just show some text information, including first/follow/predict set.
 
-## `parser_gen`: toml to rust
+## `parser_gen`: toml to code
 
 Run `parser_gen` for help:
 
 ```bash
-$ cargo run --example parser_gen -- --help
+$ cd parser-gen
+$ cargo run --bin parser_gen --features="clap toml" -- --help
 ```
 
 Or run a specific example:
@@ -51,12 +54,12 @@ Or run a specific example:
 ```bash
 # actually we now support cpp & rust
 # this is a rust example
-$ cargo run --example parser_gen -- parser-gen/examples/calc.toml -o calc.rs -l rs
+$ cargo run --bin parser_gen --features="clap toml" -- examples/calc.toml -o calc.rs -l rs
 # this is a cpp example
-$ cargo run --example parser_gen -- parser-gen/examples/calc_cpp.toml -o calc.cpp -l cpp
+$ cargo run --bin parser_gen --features="clap toml" -- examples/calc_cpp.toml -o calc.cpp -l cpp
 ```
 
-Now `calc.rs` will contain a `struct Parser` and a `struct Lexer`. Their apis are easy to understand.
+Generated `calc.rs`/`calc.cpp` will contain a `struct Parser` and a `struct Lexer`. Their apis are easy to understand. Please note that the generated C++ code requires C++17 to compile.
 
 ## `#[lalr1]`
 

@@ -74,6 +74,8 @@ struct Act {{
   {u_lr_fsm_size} val;
 }};
 
+// it may brings you inconvenience that `parse` is a top level function, not a member function
+// but we can't make it one, because we allow you to define your own Parser class, and we can't add method to a existing class
 std::variant<{res_type}, Token> parse({parser_type} &parser, Lexer &lexer) {{
   const static {u_prod} PROD[][2] = {{{prod}}};
   const static Act ACTION[][{term_num}] = {{{action}}};

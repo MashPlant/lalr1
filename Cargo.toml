@@ -7,3 +7,7 @@ members = [
   "parser-macros",
   "tests",
 ]
+
+[profile.release]
+lto = true
+panic = "abort"
