@@ -2,6 +2,7 @@ import * as lalr1 from "lalr1-frontend";
 import * as svgPanZoom from "svg-pan-zoom";
 import * as ace from "ace-builds";
 import Split from 'split.js'
+const Viz = require('viz.js');
 
 const resizeEvent = new Event("paneresize");
 Split(["#editor", "#graph"], {
