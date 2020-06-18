@@ -1,0 +1,25 @@
+{
+  "name": "lalr1-frontend",
+  "version": "0.1.0",
+  "description": "display parsing algorithms result graphically",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack --config webpack.config.js",
+    "start": "webpack-dev-server"
+  },
+  "author": "MashPlant",
+  "license": "MIT",
+  "devDependencies": {
+    "lalr1-frontend": "file:../pkg",
+    "webpack": "^4.29.3",
+    "webpack-cli": "^3.1.0",
+    "webpack-dev-server": "^3.1.5",
+    "copy-webpack-plugin": "^5.0.0"
+  },
+  "dependencies": {
+    "ace-builds": "^1.4.11",
+    "split.js": "^1.6.0",
+    "svg-pan-zoom": "^3.6.1",
+    "viz.js": "^1.7.1"
+  }
+}
