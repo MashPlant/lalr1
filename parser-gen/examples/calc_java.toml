@@ -1,0 +1,37 @@
+include = ''
+
+priority = [
+  { assoc = 'left', terms = ['Add', 'Sub'] },
+  { assoc = 'left', terms = ['Mul', 'Div', 'Mod'] },
+  { assoc = 'no_assoc', terms = ['UMinus'] },
+  { assoc = 'no_assoc', terms = ['RParen'] },
+]
+
+start = 'Expr'
+
+[lexical]
+'\(' = 'LParen'
+'\)' = 'RParen'
+'\d+' = 'IntConst'
+'\+' = 'Add'
+'-' = 'Sub'
+'\*' = 'Mul'
+'/' = 'Div'
+'%' = 'Mod'
+'\d+' = 'IntConst'
+'\s+' = '_Eps'
+
+[[production]]
+lhs = 'Expr'
+ty = 'int'
+rhs = [
+  { rhs = ['Expr', 'Add', 'Expr'], act = '$.$ = $1 + $3;' },
+  { rhs = ['Expr', 'Sub', 'Expr'], act = '$.$ = $1 - $3;' },
+  { rhs = ['Expr', 'Mul', 'Expr'], act = '$.$ = $1 * $3;' },
+  { rhs = ['Expr', 'Div', 'Expr'], act = '$.$ = $1 / $3;' },
+  { rhs = ['Expr', 'Mod', 'Expr'], act = '$.$ = $1 % $3;' },
+  { rhs = ['Sub', 'Expr'], act = '$.$ = -$2;', prec = 'UMinus' },
+  { rhs = ['LParen', 'Expr', 'RParen'], act = '$.$ = $2;' },
+  { rhs = ['IntConst'], act = '$.$ = Integer.parseInt($1.piece);' },
+]
+

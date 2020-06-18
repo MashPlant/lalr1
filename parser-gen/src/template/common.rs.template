@@ -30,50 +30,44 @@ impl<'l> Lexer<'l> {{
     static ACC: [TokenKind; {dfa_size}] = [{acc}];
     static EC: [u8; 256] = [{ec}];
     static DFA_EDGE: [[{u_dfa_size}; {ec_size}]; {dfa_size}] = [{dfa_edge}];
-    loop {{
-      // line & col is the beginning of this token, self.line & col is the latest char
-      let (mut line, mut col) = (self.line, self.col);
-      let mut last_acc = TokenKind::_Err;
-      let mut state = 0;
-      let mut i = 0;
-      while i < self.string.len() {{
-        let ch = index!(self.string, i);
-        let ec = index!(EC, ch);
-        let nxt = index!(index!(DFA_EDGE, state), ec);
-        let acc = index!(ACC, nxt);
-        if acc != TokenKind::_Err {{ last_acc = acc }};
-        state = nxt;
-        if nxt == 0 {{ // dead, should not eat this char
-          let piece = &self.string[..i];
-          self.string = &self.string[i..];
-          if last_acc != TokenKind::_Eps {{
-            return Token {{ ty: last_acc, piece, line, col }};
-          }} else {{
-            line = self.line;
-            col = self.col;
-            last_acc = TokenKind::_Err;
-            state = 0;
-            i = 0;
-          }}
-        }} else {{ // continue, eat this char
-          if ch == b'\n' {{
-            self.line += 1;
-            self.col = 1;
-          }} else {{
-            self.col += 1;
-          }}
-          i += 1;
+    // line & col is the beginning of this token, self.line & col is the latest char
+    let (mut line, mut col) = (self.line, self.col);
+    let mut last_acc = TokenKind::_Err;
+    let mut state = 0;
+    let mut i = 0;
+    while i < self.string.len() {{
+      let ch = index!(self.string, i);
+      let ec = index!(EC, ch);
+      let nxt = index!(index!(DFA_EDGE, state), ec);
+      let acc = index!(ACC, nxt);
+      if acc != TokenKind::_Err {{ last_acc = acc }};
+      state = nxt;
+      if nxt == 0 {{ // dead, should not eat this char
+        let piece = &self.string[..i];
+        self.string = &self.string[i..];
+        if last_acc != TokenKind::_Eps {{
+          return Token {{ ty: last_acc, piece, line, col }};
+        }} else {{
+          line = self.line;
+          col = self.col;
+          last_acc = TokenKind::_Err;
+          state = 0;
+          i = 0;
         }}
+      }} else {{ // continue, eat this char
+        if ch == b'\n' {{
+          self.line += 1;
+          self.col = 1;
+        }} else {{
+          self.col += 1;
+        }}
+        i += 1;
       }}
-      // end of file
-      let piece = &self.string[..i];
-      self.string = b"";
-      return if last_acc != TokenKind::_Eps && i != 0 {{
-        Token {{ ty: last_acc, piece, line, col }}
-      }} else {{
-        Token {{ ty: TokenKind::_Eof, piece: b"", line: self.line, col: self.col }}
-      }};
     }}
+    // end of file
+    let piece = &self.string[..i];
+    self.string = b"";
+    if last_acc != TokenKind::_Eps && i != 0 {{ Token {{ ty: last_acc, piece, line, col }} }} else {{ Token {{ ty: TokenKind::_Eof, piece: b"", line: self.line, col: self.col }} }}
   }}
 }}
 

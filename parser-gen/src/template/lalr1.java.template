@@ -1,0 +1,133 @@
+import java.util.ArrayList;
+{include}
+
+public class {parser_type} {{
+  public static final class Token {{
+    public final int ty;
+    public final String piece;
+    public final int line, col;
+
+    Token(int ty, String piece, int line, int col) {{
+      this.ty = ty;
+      this.piece = piece;
+      this.line = line;
+      this.col = col;
+    }}
+  }}
+
+  public static class Lexer {{
+    private static final int []ACC = {{{acc}}};
+    private static final int []EC = {{{ec}}};
+    private static final int [][]DFA_EDGE = {{{dfa_edge}}};
+    private static final int EPS = 0, EOF = 1, ERR = 2;
+
+    private byte[] string;
+    private int offset = 0;
+    private int line = 1, col = 1;
+
+    Lexer(byte[] string) {{ this.string = string; }}
+
+    Token next() {{
+      int l = line, c = col;
+      int last_acc = ERR;
+      int state = 0, i = offset;
+      while (i < string.length) {{
+        byte ch = string[i];
+        int ec = EC[ch & 0xFF];
+        int nxt = DFA_EDGE[state][ec];
+        int acc = ACC[nxt];
+        if (acc != ERR) {{
+          last_acc = acc;
+        }}
+        state = nxt;
+        if (nxt == 0) {{ // dead, should not eat this char
+          int old = offset;
+          offset = i;
+          if (last_acc != EPS) {{
+            return new Token(last_acc, new String(string, old, i - old), l, c);
+          }} else {{
+            l = line;
+            c = col;
+            last_acc = ERR;
+            state = 0;
+            i = offset;
+          }}
+        }} else {{ // continue, eat this char
+          if (ch == '\n') {{
+            ++line;
+            col = 1;
+          }} else {{
+            ++col;
+          }}
+          ++i;
+        }}
+      }}
+      // end of file
+      String piece = new String(string, offset, string.length - offset);
+      int old = offset;
+      offset = string.length;
+      return last_acc != EPS && i != old ? new Token(last_acc, piece, l, c) : new Token(EOF, "", line, col);
+    }}
+  }}
+
+  // we use a single stack to store state & value
+  public static class StackItem {{ int state; }}
+
+  public static final class StackItemToken extends StackItem {{ Token $; }}
+  {stack_item}
+
+  // we assume a 32-bit integer can hold (2 bit tag, val) pair for ACTION
+  private static final int []PROD = {{{prod}}};
+  private static final int [][]ACTION = {{{action}}};
+  private static final int [][]GOTO = {{{goto}}};
+
+  // ideally it should be a tagged-union, but it is not convenient to implement one in java
+  public static final class Result {{
+    public {res_type} ok;
+    public Token err;
+  }}
+
+  Result parse(Lexer lexer) {{
+    ArrayList<StackItem> stk = new ArrayList<>();
+    stk.add(new StackItem()); // .state is default to 0
+    int state = 0;
+    Token token = lexer.next();
+    while (true) {{
+      int act = ACTION[state][token.ty], val = act >>> 2;
+      switch (act & 0x3) {{
+        case 0: {{
+          StackItemToken s = new StackItemToken();
+          s.state = val;
+          s.$ = token;
+          stk.add(s);
+          state = val;
+          token = lexer.next();
+          break;
+        }}
+        case 1: {{
+          StackItem value;
+          switch (val) {{
+            {parser_act}
+            default: // unreachable in any case
+              throw new IllegalStateException();
+          }}
+          int nxt = GOTO[stk.get(stk.size() - 1).state][PROD[val]];
+          value.state = nxt;
+          stk.add(value);
+          state = nxt;
+          break;
+        }}
+        case 2: {{
+          Result r = new Result();
+          r.ok = ((StackItem{res_id}) stk.get(stk.size() - 1)).$;
+          return r;
+        }}
+        case 3: {{
+          Result r = new Result();
+          r.err = token;
+          return r;
+        }}
+      }}
+    }}
+  }}
+}}

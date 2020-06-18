@@ -30,36 +30,34 @@ struct Lexer {{
     const static TokenKind ACC[] = {{{acc}}};
     const static u8 EC[] = {{{ec}}};
     const static {u_dfa_size} DFA_EDGE[][{ec_size}] = {{{dfa_edge}}};
-    while (true) {{
-      u32 l = line, c = col;
-      TokenKind last_acc = TokenKind::_Err;
-      u32 state = 0, i = 0;
-      while (i < string.size()) {{
-        u8 ch = string[i];
-        u8 ec = EC[ch];
-        {u_dfa_size} nxt = DFA_EDGE[state][ec];
-        TokenKind acc = ACC[nxt];
-        if (acc != TokenKind::_Err) {{ last_acc = acc; }}
-        state = nxt;
-        if (nxt == 0) {{ // dead, should not eat this char
-          // we are not using substr here, because it does range check and may throws exception
-          std::string_view piece(string.data(), i);
-          string = std::string_view(string.data() + i, string.size() - i);
-          if (last_acc != TokenKind::_Eps) {{
-            return Token{{last_acc, piece, l, c}};
-          }} else {{
-            l = line, c = col, last_acc = TokenKind::_Err, state = 0, i = 0;
-          }}
-        }} else {{ // continue, eat this char
-          if (ch == '\n') {{ ++line, col = 1; }} else {{ ++col; }}
-          ++i;
+    u32 l = line, c = col;
+    TokenKind last_acc = TokenKind::_Err;
+    u32 state = 0, i = 0;
+    while (i < string.size()) {{
+      u8 ch = string[i];
+      u8 ec = EC[ch];
+      {u_dfa_size} nxt = DFA_EDGE[state][ec];
+      TokenKind acc = ACC[nxt];
+      if (acc != TokenKind::_Err) {{ last_acc = acc; }}
+      state = nxt;
+      if (nxt == 0) {{ // dead, should not eat this char
+        // we are not using substr here, because it does range check and may throws exception
+        std::string_view piece(string.data(), i);
+        string = std::string_view(string.data() + i, string.size() - i);
+        if (last_acc != TokenKind::_Eps) {{
+          return Token{{last_acc, piece, l, c}};
+        }} else {{
+          l = line, c = col, last_acc = TokenKind::_Err, state = 0, i = 0;
         }}
+      }} else {{ // continue, eat this char
+        if (ch == '\n') {{ ++line, col = 1; }} else {{ ++col; }}
+        ++i;
       }}
-      // end of file
-      std::string_view piece(string.data(), i);
-      string = "";
-      return last_acc != TokenKind::_Eps && i != 0 ? Token{{last_acc, piece, l, c}} : Token{{TokenKind::_Eof, "", l, c}};
     }}
+    // end of file
+    std::string_view piece(string.data(), i);
+    string = "";
+    return last_acc != TokenKind::_Eps && i != 0 ? Token{{last_acc, piece, l, c}} : Token{{TokenKind::_Eof, "", line, col}};
   }}
 }};
 

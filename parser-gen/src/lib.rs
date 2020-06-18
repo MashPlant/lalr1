@@ -1,6 +1,7 @@
 mod fmt;
 pub mod rs;
 pub mod cpp;
+pub mod java;
 pub mod show_lr;
 pub mod show_ll;
 
@@ -30,7 +31,7 @@ pub trait Codegen {
 pub enum PGAlgo { LL1, LR0, LR1, LALR1 }
 
 #[derive(Eq, PartialEq, Copy, Clone)]
-pub enum Lang { RS, CPP }
+pub enum Lang { Rs, Cpp, Java }
 
 pub struct Config<'a, F> {
   pub verbose: Option<&'a str>,
@@ -59,7 +60,7 @@ impl<F: Fn(String)> Codegen for Config<'_, F> {
     }
     for c in show_ll::conflict(&ll.table, g) { (self.on_conflict)(c); }
     self.code = match self.lang {
-      Lang::RS => self.rs_ll1(&g, &ll, dfa_ec),
+      Lang::Rs => self.rs_ll1(&g, &ll, dfa_ec),
       _ => unimplemented!("ll1 codegen is currently only implemented for rust"),
     }.unwrap_or_else(|| panic!(INVALID_DFA));
   }
@@ -77,8 +78,9 @@ impl<F: Fn(String)> Codegen for Config<'_, F> {
     for c in show_lr::conflict(g, &conflict) { (self.on_conflict)(c); }
     if conflict.iter().any(Conflict::is_many) { panic!(">= 3 conflicts on one token, give up solving conflicts"); }
     self.code = match self.lang {
-      Lang::RS => self.rs_lalr1(&g, &table, dfa_ec),
-      Lang::CPP => self.cpp_lalr1(&g, &table, dfa_ec),
+      Lang::Rs => self.rs_lalr1(&g, &table, dfa_ec),
+      Lang::Cpp => self.cpp_lalr1(&g, &table, dfa_ec),
+      Lang::Java => self.java_lalr1(&g, &table, dfa_ec),
     }.unwrap_or_else(|| panic!(INVALID_DFA));
   }
 }

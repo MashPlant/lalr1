@@ -72,7 +72,7 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
     log_reduce,
     use_unsafe,
     code: String::new(),
-    lang: Lang::RS,
+    lang: Lang::Rs,
     on_conflict: |c| Diagnostic::new(Level::Warning, c).emit(),
   };
   let RawLexer { priority, lexical } =

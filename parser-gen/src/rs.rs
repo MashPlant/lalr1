@@ -23,7 +23,7 @@ impl<F> Config<'_, F> {
       token_kind = fmt::token_kind(g),
       stack_item = {
         let mut s = String::new();
-        if stack_need_fail { let _ = write!(s, "_Fail, "); }
+        if stack_need_fail { s += "_Fail, "; }
         for (i, ty) in types.iter().enumerate() { let _ = write!(s, "_{}({}), ", i, ty); }
         s
       },
@@ -43,11 +43,11 @@ impl<F> Config<'_, F> {
       parser_struct = {
         let mut s = String::new();
         if g.raw.parser_def.is_none() {
-          let _ = writeln!(s, "pub struct Parser {{");
+          s += "pub struct Parser {\n";
           if let Some(ext) = &g.raw.parser_field {
             for field in ext { let _ = writeln!(s, "{},", field); }
           }
-          let _ = writeln!(s, "}}");
+          s += "}\n";
         }
         s
       }
@@ -71,8 +71,7 @@ impl<F> Config<'_, F> {
         }
       }
       let id = types2id[g.nt[prod.lhs as usize].ty];
-      let _ = writeln!(s, "StackItem::_{}({{ {} }})", id, prod.act);
-      let _ = writeln!(s, "}}");
+      let _ = writeln!(s, "StackItem::_{}({{ {} }})\n}}", id, prod.act);
     }
     s
   }
@@ -103,14 +102,14 @@ impl<F> Config<'_, F> {
       action = {
         let mut s = String::new();
         for TableEntry { act, .. } in table {
-          let _ = write!(s, "[");
+          s.push('[');
           for i in 0..g.terms.len() as u32 {
             match act.get(&i) {
               Some(act) if !act.is_empty() => { let _ = write!(s, "Act::{:?}, ", act[0]); }
-              _ => { let _ = write!(s, "Act::Err, "); }
+              _ => { s += "Act::Err, "; }
             }
           }
-          let _ = write!(s, "], ");
+          s += "], ";
         }
         s
       },
@@ -132,23 +131,23 @@ impl<F> Config<'_, F> {
       follow = {
         let mut s = String::new();
         for follow in &ll.follow.0 {
-          let _ = write!(s, "set!(");
+          s += "set!(";
           for i in 0..g.token_num() {
             if follow.test(i as usize) { let _ = write!(s, "{}, ", i); }
           }
-          let _ = writeln!(s, "),");
+          s += "),\n";
         }
         s
       },
       table = {
         let mut s = String::new();
         for table in &ll.table {
-          let _ = write!(s, "map!(");
+          s += "map!(";
           for (&predict, prod_ids) in table {
             let prod_id = prod_ids[0] as usize;
             let _ = write!(s, "{} => ({}, vec!{:?}), ", predict, prod_id, g.prod[prod_ids[0] as usize].rhs);
           }
-          let _ = writeln!(s, "),");
+          s += "),\n";
         }
         s
       },

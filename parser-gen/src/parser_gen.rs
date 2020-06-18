@@ -8,7 +8,7 @@ fn main() -> io::Result<()> {
     .author("MashPlant").about("Read config from a toml file, and generate a parser in various language")
     .arg(Arg::with_name("input").required(true))
     .arg(Arg::with_name("output").long("output").short("o").takes_value(true).required(true).value_name("path"))
-    .arg(Arg::with_name("lang").long("lang").short("l").takes_value(true).possible_values(&["rs", "cpp"]).required(true))
+    .arg(Arg::with_name("lang").long("lang").short("l").takes_value(true).possible_values(&["rs", "cpp", "java"]).required(true))
     .arg(Arg::with_name("verbose").long("verbose").takes_value(true).value_name("path").help("Print some parser information (ll table or lr fsm) to the path"))
     .arg(Arg::with_name("show_fsm").long("show_fsm").takes_value(true).value_name("path").help("Print lr fsm in dot file format to the path"))
     .arg(Arg::with_name("show_dfa").long("show_dfa").takes_value(true).value_name("path").help("Print dfa in dot file format to the path"))
@@ -25,7 +25,7 @@ fn main() -> io::Result<()> {
     use_unsafe: m.is_present("use_unsafe"),
     code: String::new(),
     lang: match m.value_of("lang") {
-      Some("rs") => Lang::RS, Some("cpp") => Lang::CPP,
+      Some("rs") => Lang::Rs, Some("cpp") => Lang::Cpp, Some("java") => Lang::Java,
       _ => unreachable!()
     },
     on_conflict: |c| eprintln!("{}", c),
