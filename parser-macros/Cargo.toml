@@ -17,6 +17,7 @@ toml = "0.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_derive = "1.0"
 darling = "0.10"
+typed-arena = "2.0"
 
 [lib]
 proc-macro = true

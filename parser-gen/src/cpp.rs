@@ -33,7 +33,7 @@ impl<F> Config<'_, F> {
         s
       },
       u_lr_fsm_size = fmt::min_u(table.len()),
-      parser_type = g.raw.parser_def.as_deref().unwrap_or("Parser"),
+      parser_type = g.raw.parser_def.unwrap_or("Parser"),
       res_type = parse_res,
       u_prod = fmt::min_u(table.len().max(g.prod.iter().map(|x| x.rhs.len()).max().unwrap())),
       prod = {
@@ -67,10 +67,7 @@ impl<F> Config<'_, F> {
         for (i, prod) in g.prod.iter().enumerate() {
           let _ = writeln!(s, "case {}: {{", i);
           for (j, &x) in prod.rhs.iter().enumerate().rev() {
-            let name = match prod.args {
-              Some(args) => args[j].0.as_deref().unwrap_or("_").to_owned(),
-              None => format!("_{}", j + 1),
-            };
+            let name = match prod.args { Some(args) => args[j].0.to_owned(), None => format!("_{}", j + 1) };
             let ty = if let Some(x) = g.as_nt(x) {g.nt[x].ty} else {"Token"};
             let _ = writeln!(s, "[[maybe_unused]] auto {}(std::move(*std::get_if<{}>(&value_stk.back()))); value_stk.pop_back();", name, ty);
           }

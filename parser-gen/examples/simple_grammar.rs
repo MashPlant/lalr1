@@ -4,28 +4,35 @@ use common::{grammar::*, parse_arrow_prod};
 use parser_gen::{show_lr, show_ll};
 use lalr1_core::*;
 use common::{IndexMap, HashSet};
+use typed_arena::Arena;
 
-fn parse_lines(s: &str) -> Result<RawGrammar, String> {
+fn parse_lines<'a>(s: &'a str, arena: &'a Arena<u8>) -> Result<RawGrammar<'a>, String> {
   let mut production = Vec::new();
   let mut all_lhs = HashSet::new();
   for s in s.lines() {
     let (lhs, rhs) = parse_arrow_prod(s).ok_or_else(|| format!("invalid input \"{}\", expect form of \"lhs -> rhs1 rhs2 ...\"", s))?;
-    all_lhs.insert(lhs.clone());
-    production.push(RawProduction { lhs, type_: String::new(), rhs: vec![RawProductionRhs { rhs, rhs_arg: None, act: String::new(), prec: None }] });
+    if lhs == START_NT_NAME || rhs.iter().any(|&x| x == START_NT_NAME) {
+      // we are not going to validate user input names (see `raw.extend(false)`)
+      // so we should check it here manually that the manually added START_NT_NAME isn't used
+      return Err(format!("invalid token name: \"{}\"", START_NT_NAME));
+    }
+    all_lhs.insert(lhs);
+    production.push(RawProduction { lhs, ty: "", rhs: vec![RawProductionRhs { rhs, rhs_arg: None, act: "", prec: None }] });
   }
-  let start = production.get(0).ok_or_else(|| "grammar must have at least one production rule".to_owned())?.lhs.clone();
+  let start = production.get(0).ok_or_else(|| "grammar must have at least one production rule".to_owned())?.lhs;
   let mut lexical = IndexMap::default();
   for p in &production {
     for r in &p.rhs {
-      for r in &r.rhs {
-        if !all_lhs.contains(r.as_str()) {
+      for &r in &r.rhs {
+        if !all_lhs.contains(r) {
           // use current len as a unique id (key will be used regex)
-          lexical.insert(lexical.len().to_string(), r.clone());
+          let k = &*arena.alloc_str(&lexical.len().to_string());
+          lexical.insert(k, r);
         }
       }
     }
   }
-  Ok(RawGrammar { include: String::new(), priority: vec![], lexical, parser_field: None, start, production, parser_def: None })
+  Ok(RawGrammar { include: "", priority: vec![], lexical, parser_field: None, start, production, parser_def: None })
 }
 
 fn main() -> io::Result<()> {
@@ -35,7 +42,8 @@ fn main() -> io::Result<()> {
     .arg(Arg::with_name("grammar").long("grammar").short("g").takes_value(true).possible_values(&["lr0", "lr1", "lalr1", "ll1"]).required(true))
     .get_matches();
   let input = fs::read_to_string(m.value_of("input").unwrap())?;
-  let mut raw = parse_lines(&input).unwrap_or_else(|e| panic!("input is invalid: {}", e));
+  let arena = Arena::<u8>::new();
+  let mut raw = parse_lines(&input, &arena).unwrap_or_else(|e| panic!("input is invalid: {}", e));
   let ref g = raw.extend(false).unwrap(); // it should not fail
   let result = match m.value_of("grammar") {
     Some("lr0") => show_lr::lr0_dot(g, &lr0::work(g)),

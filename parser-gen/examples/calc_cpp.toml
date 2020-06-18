@@ -35,7 +35,7 @@ start = 'Expr'
 
 [[production]]
 lhs = 'Expr'
-type = 'i32'
+ty = 'i32'
 rhs = [
   { rhs = ['Expr', 'Add', 'Expr'], act = '__ = _1 + _3;' },
   { rhs = ['Expr', 'Sub', 'Expr'], act = '__ = _1 - _3;' },

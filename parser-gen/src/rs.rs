@@ -36,8 +36,8 @@ impl<F> Config<'_, F> {
       show_token_prod = {
         if self.verbose.is_some() {
           format!("fn show_token(id: u32) -> &'static str {{ {:?}[id as usize] }} fn show_prod(id: u32) -> &'static str {{ {:?}[id as usize] }}",
-                  (0..g.token_num()).map(|i| g.show_token(i)).collect::<Vec<_>>(),
-                  (0..g.prod.len()).map(|i| g.show_prod(i, None)).collect::<Vec<_>>())
+                  (0..g.token_num() as u32).map(|i| g.show_token(i)).collect::<Vec<_>>(),
+                  (0..g.prod.len() as u32).map(|i| g.show_prod(i, None)).collect::<Vec<_>>())
         } else { String::new() }
       },
       parser_struct = {
@@ -59,13 +59,10 @@ impl<F> Config<'_, F> {
     for (i, prod) in g.prod.iter().enumerate() {
       let _ = writeln!(s, "{} => {{", i);
       if self.log_reduce {
-        let _ = writeln!(s, r#"println!("{}");"#, g.show_prod(i, None));
+        let _ = writeln!(s, r#"println!("{}");"#, g.show_prod(i as u32, None));
       }
       for (j, &x) in prod.rhs.iter().enumerate().rev() {
-        let name = match prod.args {
-          Some(args) => args[j].0.as_deref().unwrap_or("_").to_owned(),
-          None => format!("_{}", j + 1),
-        };
+        let name = match prod.args { Some(args) => args[j].0.to_owned(), None => format!("_{}", j + 1) };
         if let Some(x) = g.as_nt(x) {
           let id = types2id[g.nt[x].ty];
           let _ = writeln!(s, "let {} = match value_stk.pop() {{ Some(StackItem::_{}(x)) => x, _ => {} }};", name, id, handle_unexpect_stack);
@@ -90,7 +87,7 @@ impl<F> Config<'_, F> {
     let lalr1 = format!(
       include_str!("template/lalr1.rs.template"),
       u_lr_fsm_size = fmt::min_u(table.len()),
-      parser_type = g.raw.parser_def.as_deref().unwrap_or("Parser"),
+      parser_type = g.raw.parser_def.unwrap_or("Parser"),
       res_type = parse_res,
       res_id = types2id[parse_res],
       u_prod_len = fmt::min_u(g.prod.iter().map(|x| x.rhs.len()).max().unwrap()),
@@ -155,7 +152,7 @@ impl<F> Config<'_, F> {
         }
         s
       },
-      parser_type = g.raw.parser_def.as_deref().unwrap_or("Parser"),
+      parser_type = g.raw.parser_def.unwrap_or("Parser"),
       parser_act = self.gen_act(g, &types2id, "return StackItem::_Fail"),
       res_type = parse_res,
       res_nt_id = g.token_num() - 1,

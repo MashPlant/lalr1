@@ -71,7 +71,7 @@ impl Follow {
       while changed {
         changed = false;
         for i in 0..g.nt.len() {
-          for prod in g.get_prod(i as u32) {
+          for prod in g.get_prod(i) {
             let lhs_follow = follow[i].as_ptr();
             for (i, &ch) in prod.rhs.iter().enumerate() {
               if let Some(ch) = g.as_nt(ch) {

@@ -24,19 +24,19 @@ Run `simple_grammar` for help:
 
 ```bash
 $ cd parser-gen
-$ cargo run --example simple_grammar --features="clap" -- --help
+$ cargo run --example simple_grammar --features="clap typed-arena" -- --help
 ```
 
 Or run a specific example:
 
 ```bash
-$ cargo run --example simple_grammar --features="clap" -- examples/expr.cfg -g lalr1 -o expr.dot
-# use your favorite dot file viewer to check expr.dot
+$ cargo run --example simple_grammar --features="clap typed-arena" -- examples/expr.cfg -g lalr1 -o expr.dot
+# use your favorite dot file viewer to check output "expr.dot"
 ```
 
 Then use your favorite dot file viewer to view this file, you will get:
 
-<img src="parser-gen/examples/expr.png" width=600 alt="" class="center">
+<img src="parser-gen/examples/expr.png" width=600 alt="">
 
 Note that you can also use ll(1) grammar in `simple_grammar`, but since I don't know any proper way to show ll(1) table in graphics, it will just show some text information, including first/follow/predict set.
 

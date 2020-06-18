@@ -61,7 +61,8 @@ pub fn goto(g: &Grammar, table: &Table, bracket: (char, char)) -> String {
   let mut s = String::new();
   for t in table {
     let _ = write!(s, "{}", bracket.0);
-    for i in g.nt_range() { let _ = write!(s, "{}, ", t.goto.get(&(i as u32)).unwrap_or(&0)); }
+    // iterate over all non-terminals
+    for i in g.terms.len()..g.token_num() { let _ = write!(s, "{}, ", t.goto.get(&(i as u32)).unwrap_or(&0)); }
     let _ = write!(s, "{}, ", bracket.1);
   }
   s
