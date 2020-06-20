@@ -3,42 +3,32 @@ pub enum Act {{ Shift({u_lr_fsm_size}), Reduce({u_lr_fsm_size}), Acc, Err }}
 
 impl<'p> {parser_type} {{
   pub fn parse<'l: 'p>(&mut self, lexer: &mut Lexer<'l>) -> Result<{res_type}, Token<'l>> {{
-    static PROD: [({u_lr_fsm_size}, {u_prod_len}); {prod_size}] = [{prod}];
+    static PROD: [{u_lr_fsm_size}; {prod_size}] = [{prod}];
     static ACTION: [[Act; {term_num}]; {lr_fsm_size}] = [{action}];
     static GOTO: [[{u_lr_fsm_size}; {nt_num}]; {lr_fsm_size}] = [{goto}];
-    let mut value_stk: Vec<StackItem<'p>> = vec![];
-    let mut state_stk: Vec<{u_lr_fsm_size}> = vec![0];
+    let mut stk: Vec<(_, {u_lr_fsm_size})> = vec![(StackItem::_Token(Token {{ ty: TokenKind::_Eps, piece: b"", line: 0, col: 0 }}), 0)];
     let mut state = 0;
     let mut token = lexer.next();
     {log_token}
     loop {{
-      let act = index!(index!(ACTION, state), token.ty as u32);
+      let act = *index!(index!(ACTION, state), token.ty as usize);
       match act {{
         Act::Shift(s) => {{
-          value_stk.push(StackItem::_Token(token));
-          state_stk.push(s);
-          state = s;
+          stk.push((StackItem::_Token(token), s));
+          state = s as usize;
           token = lexer.next();
           {log_token}
         }}
         Act::Reduce(r) => {{
-          let prod = index!(PROD, r);
-          for _ in 0..prod.1 {{ match state_stk.pop() {{ Some(_) => {{}}, None => impossible!() }} }}
           let value = match r {{
             {parser_act}
             _ => impossible!(),
           }};
-          value_stk.push(value);
-          let cur = index!(state_stk, state_stk.len() - 1);
-          let nxt = index!(index!(GOTO, cur), prod.0);
-          state_stk.push(nxt);
-          state = nxt;
+          let nxt = *index!(index!(GOTO, index!(stk, stk.len() - 1).1 as usize), *index!(PROD, r as usize) as usize);
+          stk.push((value, nxt));
+          state = nxt as usize;
         }}
-        Act::Acc => {{
-          match state_stk.pop() {{ None => impossible!(), Some(_) => {{}} }};
-          let res = match value_stk.pop() {{ Some(StackItem::_{res_id}(r)) => r, _ => impossible!() }};
-          return Ok(res);
-        }}
+        Act::Acc => return Ok(match stk.pop() {{ Some((StackItem::_{res_id}(r), _)) => r, _ => impossible!() }}),
         Act::Err => return Err(token),
       }}
     }}

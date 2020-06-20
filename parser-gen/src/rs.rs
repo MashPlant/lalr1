@@ -3,7 +3,7 @@ use lalr1_core::{TableEntry, Table};
 use common::{grammar::Grammar, HashMap};
 use ll1_core::LLCtx;
 use std::fmt::Write;
-use crate::{Config, fmt};
+use crate::{Config, fmt::{self, CommaSep}};
 
 impl<F> Config<'_, F> {
   // return None if this dfa is not suitable for a lexer
@@ -16,11 +16,11 @@ impl<F> Config<'_, F> {
       include_str!("template/common.rs.template"),
       include = g.raw.include,
       macros = if self.use_unsafe {
-        "macro_rules! index { ($arr: expr, $idx: expr) => { unsafe { *$arr.get_unchecked($idx as usize) } }; } macro_rules! impossible { () => { unsafe { std::hint::unreachable_unchecked() } }; }"
+        "macro_rules! index { ($arr: expr, $idx: expr) => { unsafe { $arr.get_unchecked($idx) } }; } macro_rules! impossible { () => { unsafe { std::hint::unreachable_unchecked() } }; }"
       } else {
-        "macro_rules! index { ($arr: expr, $idx: expr) => { $arr[$idx as usize] }; } macro_rules! impossible { () => { unreachable!() }; }"
+        "macro_rules! index { ($arr: expr, $idx: expr) => { &$arr[$idx] }; } macro_rules! impossible { () => { unreachable!() }; }"
       },
-      token_kind = fmt::token_kind(g),
+      token_kind = CommaSep(g.terms.iter().map(|x| x.name)),
       stack_item = {
         let mut s = String::new();
         if stack_need_fail { s += "_Fail, "; }
@@ -29,32 +29,24 @@ impl<F> Config<'_, F> {
       },
       dfa_size = dfa.nodes.len(),
       acc = fmt::acc(g, dfa),
-      ec = fmt::ec(ec),
+      ec = CommaSep(ec.iter()),
       u_dfa_size = fmt::min_u(dfa.nodes.len()),
       ec_size = *ec.iter().max().unwrap() + 1,
       dfa_edge = fmt::dfa_edge(dfa, ec, ('[', ']')),
-      show_token_prod = {
-        if self.verbose.is_some() {
-          format!("fn show_token(id: u32) -> &'static str {{ {:?}[id as usize] }} fn show_prod(id: u32) -> &'static str {{ {:?}[id as usize] }}",
-                  (0..g.token_num() as u32).map(|i| g.show_token(i)).collect::<Vec<_>>(),
-                  (0..g.prod.len() as u32).map(|i| g.show_prod(i, None)).collect::<Vec<_>>())
-        } else { String::new() }
-      },
-      parser_struct = {
-        let mut s = String::new();
-        if g.raw.parser_def.is_none() {
-          s += "pub struct Parser {\n";
-          if let Some(ext) = &g.raw.parser_field {
-            for field in ext { let _ = writeln!(s, "{},", field); }
-          }
-          s += "}\n";
-        }
-        s
-      }
+      show_token_prod = if self.verbose.is_some() {
+        format!("fn show_token(id: u32) -> &'static str {{ {:?}[id as usize] }} fn show_prod(id: u32) -> &'static str {{ {:?}[id as usize] }}",
+                (0..g.token_num() as u32).map(|i| g.show_token(i)).collect::<Vec<_>>(),
+                (0..g.prod.len() as u32).map(|i| g.show_prod(i, None)).collect::<Vec<_>>())
+      } else { String::new() },
+      parser_struct = if g.raw.parser_def.is_none() {
+        format!("pub struct Parser {{ {} }}", CommaSep(g.raw.parser_field.iter()))
+      } else { String::new() }
     ))
   }
 
-  fn gen_act(&self, g: &Grammar, types2id: &HashMap<&str, u32>, handle_unexpect_stack: &str) -> String {
+  // is_pair == true: `stk` is Vec<(StackItem, integer)>; is_pair == false: `stk` is Vec<StackItem>
+  fn gen_act(&self, g: &Grammar, types2id: &HashMap<&str, u32>, is_pair: bool, handle_err: &str) -> String {
+    let pat = if is_pair { ", _" } else { "" };
     let mut s = String::new();
     for (i, prod) in g.prod.iter().enumerate() {
       let _ = writeln!(s, "{} => {{", i);
@@ -65,9 +57,9 @@ impl<F> Config<'_, F> {
         let name = match prod.args { Some(args) => args[j].0.to_owned(), None => format!("_{}", j + 1) };
         if let Some(x) = g.as_nt(x) {
           let id = types2id[g.nt[x].ty];
-          let _ = writeln!(s, "let {} = match value_stk.pop() {{ Some(StackItem::_{}(x)) => x, _ => {} }};", name, id, handle_unexpect_stack);
+          let _ = writeln!(s, "let {} = match stk.pop() {{ Some((StackItem::_{}(x){})) => x, _ => {} }};", name, id, pat, handle_err);
         } else {
-          let _ = writeln!(s, "let {} = match value_stk.pop() {{ Some(StackItem::_Token(x)) => x, _ => {} }};", name, handle_unexpect_stack);
+          let _ = writeln!(s, "let {} = match stk.pop() {{ Some((StackItem::_Token(x){})) => x, _ => {} }};", name, pat, handle_err);
         }
       }
       let id = types2id[g.nt[prod.lhs as usize].ty];
@@ -89,13 +81,8 @@ impl<F> Config<'_, F> {
       parser_type = g.raw.parser_def.unwrap_or("Parser"),
       res_type = parse_res,
       res_id = types2id[parse_res],
-      u_prod_len = fmt::min_u(g.prod.iter().map(|x| x.rhs.len()).max().unwrap()),
       prod_size = g.prod.len(),
-      prod = {
-        let mut s = String::new();
-        for p in &g.prod { let _ = write!(s, "({}, {}), ", p.lhs, p.rhs.len()); }
-        s
-      },
+      prod = CommaSep(g.prod.iter().map(|x| x.lhs)),
       term_num = g.terms.len(),
       nt_num = g.nt.len(),
       lr_fsm_size = table.len(),
@@ -114,7 +101,7 @@ impl<F> Config<'_, F> {
         s
       },
       goto = fmt::goto(g, &table, ('[', ']')),
-      parser_act = self.gen_act(g, &types2id, "impossible!()"),
+      parser_act = self.gen_act(g, &types2id, true, "impossible!()"),
       log_token = if self.log_token { r#"println!("{:?}", token);"# } else { "" },
     );
     Some(common + &lalr1)
@@ -131,11 +118,7 @@ impl<F> Config<'_, F> {
       follow = {
         let mut s = String::new();
         for follow in &ll.follow.0 {
-          s += "set!(";
-          for i in 0..g.token_num() {
-            if follow.test(i as usize) { let _ = write!(s, "{}, ", i); }
-          }
-          s += "),\n";
+          let _ = writeln!(s, "set!({}),", CommaSep((0..g.token_num()).filter(|&i| follow.test(i))));
         }
         s
       },
@@ -152,7 +135,7 @@ impl<F> Config<'_, F> {
         s
       },
       parser_type = g.raw.parser_def.unwrap_or("Parser"),
-      parser_act = self.gen_act(g, &types2id, "return StackItem::_Fail"),
+      parser_act = self.gen_act(g, &types2id, false, "return StackItem::_Fail"),
       res_type = parse_res,
       res_nt_id = g.token_num() - 1,
       res_id = types2id[parse_res]

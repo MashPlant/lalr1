@@ -2,7 +2,7 @@ use re2dfa::dfa::Dfa;
 use lalr1_core::{TableEntry, Table, Act::*};
 use common::{grammar::*, HashMap};
 use std::fmt::Write;
-use crate::{Config, fmt};
+use crate::{Config, fmt::{self, CommaSep}};
 
 impl<F> Config<'_, F> {
   pub fn java_lalr1(&self, g: &Grammar, table: &Table, dfa_ec: &(Dfa, [u8; 256])) -> Option<String> {
@@ -15,15 +15,11 @@ impl<F> Config<'_, F> {
       include = g.raw.include,
       parser_type = g.raw.parser_def.unwrap_or("Parser"),
       acc = {
-        let mut s = String::new();
         let terms2id = g.terms.iter().enumerate().map(|(idx, t)| (t.name, idx as u32)).collect::<HashMap<_, _>>();
-        for &(acc, _) in &dfa.nodes {
-          let _ = write!(s, "{}, ", acc.map(|x| terms2id[g.raw.lexical.get_index(x as usize).unwrap().1])
-            .unwrap_or(ERR_IDX as u32));
-        }
-        s
+        format!("{}", CommaSep(dfa.nodes.iter().map(|&(acc, _)|
+          acc.map(|x| terms2id[g.raw.lexical.get_index(x as usize).unwrap().1]).unwrap_or(ERR_IDX as u32))))
       },
-      ec = fmt::ec(ec),
+      ec = CommaSep(ec.iter()),
       dfa_edge = fmt::dfa_edge(dfa, ec, ('{', '}')),
       stack_item = {
         let mut s = String::new();
@@ -34,11 +30,7 @@ impl<F> Config<'_, F> {
       },
       res_type = parse_res,
       res_id = types2id[parse_res],
-      prod = {
-        let mut s = String::new();
-        for p in &g.prod { let _ = write!(s, "{}, ", p.lhs); }
-        s
-      },
+      prod = CommaSep(g.prod.iter().map(|x| x.lhs)),
       action = {
         let mut s = String::new();
         for TableEntry { act, .. } in table {

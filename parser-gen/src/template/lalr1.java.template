@@ -21,7 +21,7 @@ public class {parser_type} {{
     private static final int [][]DFA_EDGE = {{{dfa_edge}}};
     private static final int EPS = 0, EOF = 1, ERR = 2;
 
-    private byte[] string;
+    private final byte[] string;
     private int offset = 0;
     private int line = 1, col = 1;
 
@@ -67,6 +67,12 @@ public class {parser_type} {{
       int old = offset;
       offset = string.length;
       return last_acc != EPS && i != old ? new Token(last_acc, piece, l, c) : new Token(EOF, "", line, col);
+    }}
+
+    void reset() {{
+      offset = 0;
+      line = 1;
+      col = 1;
     }}
   }}
 

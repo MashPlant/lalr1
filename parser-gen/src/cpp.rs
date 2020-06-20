@@ -2,7 +2,7 @@ use re2dfa::dfa::Dfa;
 use lalr1_core::{TableEntry, Table, Act::*};
 use common::{grammar::Grammar};
 use std::fmt::Write;
-use crate::{Config, fmt};
+use crate::{Config, fmt::{self, CommaSep}};
 
 impl<F> Config<'_, F> {
   pub fn cpp_lalr1(&self, g: &Grammar, table: &Table, dfa_ec: &(Dfa, [u8; 256])) -> Option<String> {
@@ -14,10 +14,10 @@ impl<F> Config<'_, F> {
       include_str!("template/lalr1.cpp.template"),
       include = g.raw.include,
       u_term_num = fmt::min_u(g.terms.len()),
-      token_kind = fmt::token_kind(g),
+      token_kind = CommaSep(g.terms.iter().map(|x| x.name)),
       stack_item = types.join(", "),
       acc = fmt::acc(g, dfa),
-      ec = fmt::ec(ec),
+      ec = CommaSep(ec.iter()),
       u_dfa_size = fmt::min_u(dfa.nodes.len()),
       ec_size = *ec.iter().max().unwrap() + 1,
       dfa_edge = fmt::dfa_edge(dfa, ec, ('{', '}')),
@@ -25,7 +25,7 @@ impl<F> Config<'_, F> {
         let mut s = String::new();
         if g.raw.parser_def.is_none() {
           s += "struct Parser {\n";
-          if let Some(ext) = &g.raw.parser_field { for field in ext { let _ = writeln!(s, "{};", field); } }
+          for &field in &g.raw.parser_field { let _ = writeln!(s, "{};", field); }
           s += "};\n"
         }
         s
@@ -33,12 +33,7 @@ impl<F> Config<'_, F> {
       u_lr_fsm_size = fmt::min_u(table.len()),
       parser_type = g.raw.parser_def.unwrap_or("Parser"),
       res_type = parse_res,
-      u_prod = fmt::min_u(table.len().max(g.prod.iter().map(|x| x.rhs.len()).max().unwrap())),
-      prod = {
-        let mut s = String::new();
-        for p in &g.prod { let _ = write!(s, "{{{}, {}}}, ", p.lhs, p.rhs.len()); }
-        s
-      },
+      prod = CommaSep(g.prod.iter().map(|x| x.lhs)),
       term_num = g.terms.len(),
       nt_num = g.nt.len(),
       action = {
@@ -64,7 +59,7 @@ impl<F> Config<'_, F> {
           for (j, &x) in prod.rhs.iter().enumerate().rev() {
             let name = match prod.args { Some(args) => args[j].0.to_owned(), None => format!("_{}", j + 1) };
             let ty = if let Some(x) = g.as_nt(x) { g.nt[x].ty } else { "Token" };
-            let _ = writeln!(s, "[[maybe_unused]] {1} {}(std::move(*std::get_if<{1}>(&value_stk.back()))); value_stk.pop_back();", name, ty);
+            let _ = writeln!(s, "[[maybe_unused]] {1} {}(std::move(*std::get_if<{1}>(&stk.back().first))); stk.pop_back();", name, ty);
           }
           let _ = writeln!(s, "{}\nbreak;\n}}", if i == g.prod.len() - 1 { "__ = _1;" } else { prod.act });
         }

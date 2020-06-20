@@ -18,7 +18,7 @@ pub struct RawGrammar<'a> {
   // map re to term
   pub lexical: IndexMap<&'a str, &'a str>,
   // this string should contain name & type, e.g.: "a: u32" for rust, "int a" for c++
-  pub parser_field: Option<Vec<&'a str>>,
+  #[serde(default)] pub parser_field: Vec<&'a str>,
   pub start: &'a str,
   pub production: Vec<RawProduction<'a>>,
   // None -> will define a struct Parser<'a> { _p: std::marker::PhantomData<&'a ()>, parser_field_ext }

@@ -32,7 +32,7 @@ fn parse_lines<'a>(s: &'a str, arena: &'a Arena<u8>) -> Result<RawGrammar<'a>, S
       }
     }
   }
-  Ok(RawGrammar { include: "", priority: vec![], lexical, parser_field: None, start, production, parser_def: None })
+  Ok(RawGrammar { include: "", priority: vec![], lexical, parser_field: Vec::new(), start, production, parser_def: None })
 }
 
 fn main() -> io::Result<()> {

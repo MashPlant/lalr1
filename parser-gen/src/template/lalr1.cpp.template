@@ -71,27 +71,23 @@ struct Act {{
 // it may brings you inconvenience that `parse` is a top level function, not a member function
 // but we can't make it one, because we allow you to define your own Parser class, and we can't add method to a existing class
 std::variant<{res_type}, Token> parse([[maybe_unused]] {parser_type} &parser, Lexer &lexer) {{
-  const static {u_prod} PROD[][2] = {{{prod}}};
+  const static {u_lr_fsm_size} PROD[] = {{{prod}}};
   const static Act ACTION[][{term_num}] = {{{action}}};
   const static {u_lr_fsm_size} GOTO[][{nt_num}] = {{{goto}}};
-  std::vector<StackItem> value_stk;
-  std::vector<{u_lr_fsm_size}> state_stk;
-  state_stk.push_back(0);
+  std::vector<std::pair<StackItem, {u_lr_fsm_size}>> stk;
+  stk.emplace_back(StackItem{{}}, 0);
   u32 state = 0;
   Token token = lexer.next();
   while (true) {{
     Act act = ACTION[state][token.ty];
     switch (act.kind) {{
       case Act::Shift: {{
-        value_stk.emplace_back(token);
-        state_stk.push_back(act.val);
+        stk.emplace_back(token, act.val);
         state = act.val;
         token = lexer.next();
         break;
       }}
       case Act::Reduce: {{
-        {u_prod} lhs = PROD[act.val][0], rhs_len = PROD[act.val][1];
-        state_stk.erase(state_stk.end() - rhs_len, state_stk.end());
         StackItem __;
         // we are confident that the value must be what we expect, so directly dereference the return value of `std::get_if`
         // we are not using `std::get`, because it performs runtime check, and throws exceptions when fails
@@ -100,15 +96,13 @@ std::variant<{res_type}, Token> parse([[maybe_unused]] {parser_type} &parser, Le
           default:
             __builtin_unreachable();
         }}
-        value_stk.emplace_back(std::move(__));
-        {u_lr_fsm_size} cur = state_stk.back();
-        {u_lr_fsm_size} nxt = GOTO[cur][lhs];
-        state_stk.push_back(nxt);
+        {u_lr_fsm_size} nxt = GOTO[stk.back().second][PROD[act.val]];
+        stk.emplace_back(std::move(__), nxt);
         state = nxt;
         break;
       }}
       case Act::Acc:
-        return std::move(*std::get_if<{res_type}>(&value_stk.back()));
+        return std::move(*std::get_if<{res_type}>(&stk.back().first));
       case Act::Err:
         return token;
       default:

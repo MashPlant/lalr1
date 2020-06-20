@@ -102,7 +102,7 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
     } else { panic!("only support method impl, found {:?}", item); }
   }
 
-  parser_gen::work(RawGrammar { include: "", priority, lexical, parser_field: None, start, production, parser_def: parser_def.as_deref() }, algo, &mut cfg);
+  parser_gen::work(RawGrammar { include: "", priority, lexical, parser_field: Vec::new(), start, production, parser_def: parser_def.as_deref() }, algo, &mut cfg);
   if expand { println!("{}", cfg.code); }
   cfg.code.parse().unwrap()
 }
