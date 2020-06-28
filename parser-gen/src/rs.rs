@@ -28,7 +28,7 @@ impl<F> Config<'_, F> {
         s
       },
       dfa_size = dfa.nodes.len(),
-      acc = fmt::acc(g, dfa),
+      acc = fmt::acc(g, dfa, "TokenKind"),
       ec = CommaSep(ec.iter()),
       u_dfa_size = fmt::min_u(dfa.nodes.len()),
       ec_size = *ec.iter().max().unwrap() + 1,

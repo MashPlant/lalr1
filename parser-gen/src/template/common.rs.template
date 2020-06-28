@@ -9,7 +9,7 @@ enum StackItem<'p> {{ _Token(Token<'p>), {stack_item} }}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Token<'l> {{
-  pub ty: TokenKind,
+  pub kind: TokenKind,
   pub piece: &'l [u8],
   pub line: u32,
   pub col: u32,
@@ -46,7 +46,7 @@ impl<'l> Lexer<'l> {{
         let piece = index!(self.string, ..i);
         self.string = index!(self.string, i..);
         if last_acc != TokenKind::_Eps {{
-          return Token {{ ty: last_acc, piece, line, col }};
+          return Token {{ kind: last_acc, piece, line, col }};
         }} else {{
           line = self.line;
           col = self.col;
@@ -67,7 +67,7 @@ impl<'l> Lexer<'l> {{
     // end of file
     let piece = index!(self.string, ..i);
     self.string = b"";
-    if last_acc != TokenKind::_Eps && i != 0 {{ Token {{ ty: last_acc, piece, line, col }} }} else {{ Token {{ ty: TokenKind::_Eof, piece: b"", line: self.line, col: self.col }} }}
+    if last_acc != TokenKind::_Eps && i != 0 {{ Token {{ kind: last_acc, piece, line, col }} }} else {{ Token {{ kind: TokenKind::_Eof, piece: b"", line: self.line, col: self.col }} }}
   }}
 }}
 

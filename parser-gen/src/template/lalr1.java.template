@@ -3,12 +3,12 @@ import java.util.ArrayList;
 
 public class {parser_type} {{
   public static final class Token {{
-    public final int ty;
+    public final int kind;
     public final String piece;
     public final int line, col;
 
-    Token(int ty, String piece, int line, int col) {{
-      this.ty = ty;
+    Token(int kind, String piece, int line, int col) {{
+      this.kind = kind;
       this.piece = piece;
       this.line = line;
       this.col = col;
@@ -99,7 +99,7 @@ public class {parser_type} {{
     int state = 0;
     Token token = lexer.next();
     while (true) {{
-      int act = ACTION[state][token.ty], val = act >>> 2;
+      int act = ACTION[state][token.kind], val = act >>> 2;
       switch (act & 0x3) {{
         case 0: {{
           StackItemToken s = new StackItemToken();

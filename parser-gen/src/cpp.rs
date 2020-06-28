@@ -16,7 +16,7 @@ impl<F> Config<'_, F> {
       u_term_num = fmt::min_u(g.terms.len()),
       token_kind = CommaSep(g.terms.iter().map(|x| x.name)),
       stack_item = types.join(", "),
-      acc = fmt::acc(g, dfa),
+      acc = fmt::acc(g, dfa, "Token"),
       ec = CommaSep(ec.iter()),
       u_dfa_size = fmt::min_u(dfa.nodes.len()),
       ec_size = *ec.iter().max().unwrap() + 1,
@@ -24,7 +24,8 @@ impl<F> Config<'_, F> {
       parser_struct = {
         let mut s = String::new();
         if g.raw.parser_def.is_none() {
-          s += "struct Parser {\n";
+          let _ = writeln!(s, r"struct Parser {{
+  std::variant<{}, Token> parse(Lexer &lexer);", parse_res);
           for &field in &g.raw.parser_field { let _ = writeln!(s, "{};", field); }
           s += "};\n"
         }
@@ -45,7 +46,7 @@ impl<F> Config<'_, F> {
               Some(act) if !act.is_empty() => match act[0] { Acc => ("Acc", 0), Shift(x) => ("Shift", x), Reduce(x) => ("Reduce", x) }
               _ => ("Err", 0)
             };
-            let _ = write!(s, "Act{{Act::{}, {}}}, ", kind, val);
+            let _ = write!(s, "{{Act::{}, {}}}, ", kind, val);
           }
           s += "},";
         }

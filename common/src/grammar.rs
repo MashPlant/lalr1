@@ -182,7 +182,8 @@ impl RawGrammar<'_> {
       }
     }
     // set the type of _Start the same as Start
-    nt.last_mut().unwrap().ty = nt[nt2id[self.start] as usize].ty;
+    nt.last_mut().unwrap().ty = nt[*nt2id.get(self.start).ok_or_else(||
+      format!("start non-term \"{}\" undefined", self.start))? as usize].ty;
 
     let mut prod = vec![Vec::new(); nt.len()];
     for raw_prod in &self.production {

@@ -32,12 +32,12 @@ pub fn gather_types<'a>(g: &Grammar<'a>) -> (Vec<&'a str>, HashMap<&'a str, u32>
   (types, types2id)
 }
 
-pub fn acc(g: &Grammar, dfa: &Dfa) -> String {
+pub fn acc(g: &Grammar, dfa: &Dfa, namespace: &str) -> String {
   let mut s = String::new();
   for &(acc, _) in &dfa.nodes {
     match acc {
-      Some(acc) => { let _ = write!(s, "TokenKind::{}, ", g.raw.lexical.get_index(acc as usize).unwrap().1); }
-      None => { let _ = write!(s, "TokenKind::{}, ", ERR); }
+      Some(acc) => { let _ = write!(s, "{}::{}, ", namespace, g.raw.lexical.get_index(acc as usize).unwrap().1); }
+      None => { let _ = write!(s, "{}::{}, ", namespace, ERR); }
     }
   }
   s

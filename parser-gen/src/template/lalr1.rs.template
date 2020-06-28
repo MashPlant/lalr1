@@ -6,12 +6,12 @@ impl<'p> {parser_type} {{
     static PROD: [{u_lr_fsm_size}; {prod_size}] = [{prod}];
     static ACTION: [[Act; {term_num}]; {lr_fsm_size}] = [{action}];
     static GOTO: [[{u_lr_fsm_size}; {nt_num}]; {lr_fsm_size}] = [{goto}];
-    let mut stk: Vec<(_, {u_lr_fsm_size})> = vec![(StackItem::_Token(Token {{ ty: TokenKind::_Eps, piece: b"", line: 0, col: 0 }}), 0)];
+    let mut stk: Vec<(_, {u_lr_fsm_size})> = vec![(StackItem::_Token(Token {{ kind: TokenKind::_Eps, piece: b"", line: 0, col: 0 }}), 0)];
     let mut state = 0;
     let mut token = lexer.next();
     {log_token}
     loop {{
-      let act = *index!(index!(ACTION, state), token.ty as usize);
+      let act = *index!(index!(ACTION, state), token.kind as usize);
       match act {{
         Act::Shift(s) => {{
           stk.push((StackItem::_Token(token), s));

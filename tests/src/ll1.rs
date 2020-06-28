@@ -105,7 +105,7 @@ impl Parser {
 
     let mut end = f.clone();
     end.extend(follow[target].iter());
-    match table[target].get(&(lookahead.ty as u32)) {
+    match table[target].get(&(lookahead.kind as u32)) {
       None => {
         unimplemented!() // error recovery code here
       }
@@ -114,7 +114,7 @@ impl Parser {
           if is_nt(x) {
             self._parse(x, lookahead, lexer, &end)
           } else {
-            if (lookahead.ty as u32) == x {
+            if (lookahead.kind as u32) == x {
               let token = *lookahead;
               *lookahead = lexer.next();
               StackItem::_Token(token)

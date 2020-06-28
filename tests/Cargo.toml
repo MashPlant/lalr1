@@ -7,4 +7,4 @@ edition = "2018"
 [dependencies]
 common = { path = "../common" }
 parser-macros = { path = "../parser-macros" }
-lazy_static = "1.4.0"
+lazy_static = "*"

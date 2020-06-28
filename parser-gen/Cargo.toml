@@ -9,9 +9,9 @@ re2dfa = { git = "https://github.com/MashPlant/re2dfa" }
 lalr1-core = { path = "../lalr1-core" }
 ll1-core = { path = "../ll1-core" }
 common = { path = "../common" }
-clap = { version = "2.33.0", optional = true }
-toml = { version = "0.5", optional = true }
-typed-arena = { version = "2.0", optional = true }
+clap = { version = "*", optional = true }
+toml = { version = "*", optional = true }
+typed-arena = { version = "*", optional = true }
 
 [[example]]
 name = "simple_grammar"
