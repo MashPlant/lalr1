@@ -1,6 +1,6 @@
 macro_rules! set {{
   ($($x: expr,)*) => {{{{
-    let mut s = HashSet::new();
+    let mut s = HashSet::default();
     $(s.insert($x);)*
     s
   }}}};
@@ -8,7 +8,7 @@ macro_rules! set {{
 
 macro_rules! map {{
   ($($k: expr => $v: expr,)*) => {{{{
-    let mut m = HashMap::new();
+    let mut m = HashMap::default();
     $(m.insert($k, $v);)*
     m
   }}}};
@@ -30,7 +30,7 @@ impl<'p> {parser_type} {{
   }}
 
   pub fn parse<'l: 'p>(&mut self, lexer: &mut Lexer<'l>) -> Option<{res_type}> {{
-    match self._parse({res_nt_id}, &mut lexer.next(), lexer, &HashSet::new()) {{
+    match self._parse({res_nt_id}, &mut lexer.next(), lexer, &HashSet::default()) {{
       StackItem::_{res_id}(parse_res) => Some(parse_res),
       _ => None
     }}

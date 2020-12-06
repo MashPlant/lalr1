@@ -1,6 +1,6 @@
 use crate::{Lr0Item, Lr1Closure, Lr1Item};
-use common::{grammar::{Grammar, EPS_IDX, EOF_IDX}, HashMap, BitSet};
-use std::collections::vec_deque::VecDeque;
+use common::{grammar::{Grammar, EPS_IDX, EOF_IDX}, *};
+use std::collections::VecDeque;
 use ll1_core::First;
 
 pub struct Lr1Ctx(pub First);
@@ -20,7 +20,7 @@ impl Lr1Ctx {
 
   // `go` was used by lr1 before, now not used
   pub fn go<'a>(&mut self, state: &Lr1Closure<'a>, mov: u32, g: &'a Grammar<'a>) -> Lr1Closure<'a> {
-    let mut new_items = HashMap::new();
+    let mut new_items = HashMap::default();
     for Lr1Item { lr0, lookahead } in state {
       if lr0.dot as usize >= lr0.prod.len() { // dot is after the last ch
         continue;
@@ -73,13 +73,13 @@ impl Lr1Ctx {
 // I think it is only for `simple_grammar.rs`'s use now...
 pub fn work<'a>(g: &'a Grammar) -> crate::Lr1Fsm<'a> {
   let mut ctx = Lr1Ctx(First::new(g));
-  let mut ss = HashMap::new();
+  let mut ss = HashMap::default();
   let init = ctx.closure({
                            let start = g.start().1;
                            let item = Lr0Item { prod: &start.rhs, prod_id: start.id, dot: 0 };
                            let mut lookahead = BitSet::new(g.token_num() as usize);
                            lookahead.set(EOF_IDX);
-                           let mut init = HashMap::new();
+                           let mut init = HashMap::default();
                            init.insert(item, lookahead);
                            init
                          }, g);
@@ -88,7 +88,7 @@ pub fn work<'a>(g: &'a Grammar) -> crate::Lr1Fsm<'a> {
   ss.insert(init.clone(), 0);
   q.push_back(init);
   while let Some(cur) = q.pop_front() {
-    let mut link = HashMap::new();
+    let mut link = HashMap::default();
     for mov in 0..g.token_num() as u32 {
       let ns = ctx.go(&cur, mov, g);
       if !ns.is_empty() {

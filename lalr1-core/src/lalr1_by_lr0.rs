@@ -1,6 +1,6 @@
 // "Compilers: Principles, Techniques and Tools" Algorithm 4.63
 use crate::{lr1::Lr1Ctx, Lr1Item, Lr0Fsm, Lr0Node, Lr1Node, Lr1Fsm};
-use common::{grammar::{Grammar, EOF_IDX, ERR_IDX}, HashMap, BitSet};
+use common::{grammar::{Grammar, EOF_IDX, ERR_IDX}, *};
 
 pub fn work<'a>(lr0: Lr0Fsm<'a>, g: &'a Grammar<'a>) -> Lr1Fsm<'a> {
   let mut ctx = Lr1Ctx::new(g);
@@ -24,7 +24,7 @@ pub fn work<'a>(lr0: Lr0Fsm<'a>, g: &'a Grammar<'a>) -> Lr1Fsm<'a> {
         let cl = ctx.closure({
                                let mut lookahead = BitSet::new(g.token_num());
                                lookahead.set(ERR_IDX);
-                               let mut init = HashMap::new();
+                               let mut init = HashMap::default();
                                init.insert(item, lookahead);
                                init
                              }, g);

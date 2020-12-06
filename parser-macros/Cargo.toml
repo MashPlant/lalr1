@@ -6,13 +6,12 @@ edition = "2018"
 
 [dependencies]
 common = { path = "../common" }
-syn = { version = "*", features = ["extra-traits", "full"] }
+syn = "*"
 proc-macro2 = { version = "*", features = ["span-locations"] }
 quote = "*"
 lalr1-core = { path = "../lalr1-core" }
 ll1-core = { path = "../ll1-core" }
 parser-gen = { path = "../parser-gen" }
-re2dfa = { git = "https://github.com/MashPlant/re2dfa" }
 toml = "*"
 serde = { version = "*", features = ["derive"] }
 serde_derive = "*"

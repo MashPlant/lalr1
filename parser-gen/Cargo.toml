@@ -5,7 +5,6 @@ authors = ["MashPlant <740678788@qq.com>"]
 edition = "2018"
 
 [dependencies]
-re2dfa = { git = "https://github.com/MashPlant/re2dfa" }
 lalr1-core = { path = "../lalr1-core" }
 ll1-core = { path = "../ll1-core" }
 common = { path = "../common" }

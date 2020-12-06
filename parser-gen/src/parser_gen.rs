@@ -16,6 +16,9 @@ fn main() -> io::Result<()> {
     .arg(Arg::with_name("log_reduce").long("log_reduce").help("Make parser print the rule used when reducing"))
     .arg(Arg::with_name("use_unsafe").long("use_unsafe").help("Make parser use some unsafe operations to improve speed"))
     .get_matches();
+  let output = fs::File::create(m.value_of("output").unwrap())
+    .expect("failed to open output file");
+  let output = io::BufWriter::new(output);
   let mut cfg = Config {
     verbose: m.value_of("verbose"),
     show_fsm: m.value_of("show_fsm"),
@@ -23,15 +26,25 @@ fn main() -> io::Result<()> {
     log_token: m.is_present("log_token"),
     log_reduce: m.is_present("log_reduce"),
     use_unsafe: m.is_present("use_unsafe"),
-    code: String::new(),
     lang: match m.value_of("lang") {
       Some("rs") => Lang::Rs, Some("cpp") => Lang::Cpp, Some("java") => Lang::Java,
       _ => unreachable!()
     },
     on_conflict: |c| eprintln!("{}", c),
+    code_output: output,
   };
+  unsafe {
+    let now = std::time::SystemTime::now();
+    TIME = now;
+  }
   let input = fs::read_to_string(m.value_of("input").unwrap())?;
+  // todo: replace unwrap_or_else with expect
   let raw = toml::from_str::<RawGrammar>(&input).unwrap_or_else(|e| panic!("invalid grammar toml: {}", e));
+  unsafe {
+    let now = std::time::SystemTime::now();
+    dbg!(now.duration_since(TIME).unwrap().as_micros());
+    TIME = now;
+  }
   work(raw, PGAlgo::LALR1, &mut cfg);
-  fs::write(m.value_of("output").unwrap(), &cfg.code)
+  Ok(())
 }

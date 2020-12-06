@@ -8,7 +8,7 @@ use common::{grammar::*, IndexMap, parse_arrow_prod};
 use syn::{FnArg, NestedMeta, ItemImpl, ImplItem, Attribute, ReturnType, Error};
 use darling::FromMeta;
 use typed_arena::Arena;
-use std::fmt::{self, Display};
+use std::{fmt::{self, Display}, borrow::Cow};
 
 fn parse_arg(arg: &FnArg) -> Option<(String, String)> {
   match arg {
@@ -34,7 +34,7 @@ struct Config {
 struct RawLexer<'a> {
   #[serde(borrow)]
   priority: Vec<RawPriorityRow<'a>>,
-  lexical: IndexMap<&'a str, &'a str>,
+  lexical: IndexMap<Cow<'a, str>, &'a str>,
 }
 
 #[derive(FromMeta)]
@@ -71,9 +71,9 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
     log_token,
     log_reduce,
     use_unsafe,
-    code: String::new(),
     lang: Lang::Rs,
     on_conflict: |c| Diagnostic::new(Level::Warning, c).emit(),
+    code_output: Vec::new(),
   };
   let RawLexer { priority, lexical } =
     toml::from_str::<RawLexer>(&lex).unwrap_or_else(|e| panic!("fail to parse lexer toml: {}", e));
@@ -103,8 +103,9 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
   }
 
   parser_gen::work(RawGrammar { include: "", priority, lexical, parser_field: Vec::new(), start, production, parser_def: parser_def.as_deref() }, algo, &mut cfg);
-  if expand { println!("{}", cfg.code); }
-  cfg.code.parse().unwrap()
+  let code = unsafe { String::from_utf8_unchecked(cfg.code_output) }; // must be valid utf-8
+  if expand { println!("{}", code); }
+  code.parse().unwrap()
 }
 
 #[proc_macro_attribute]

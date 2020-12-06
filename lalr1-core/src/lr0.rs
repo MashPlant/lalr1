@@ -1,9 +1,9 @@
 use crate::{Lr0Item, Lr0Fsm, Lr0Node};
-use common::{grammar::Grammar, HashMap, HashSet};
-use std::collections::vec_deque::VecDeque;
+use common::{grammar::Grammar, *};
+use std::collections::VecDeque;
 
 fn go<'a>(items: &Vec<Lr0Item<'a>>, mov: usize, g: &'a Grammar<'a>) -> Vec<Lr0Item<'a>> {
-  let mut new_items = HashSet::new();
+  let mut new_items = HashSet::default();
   for item in items {
     if item.dot as usize >= item.prod.len() { // dot is after the last ch
       continue;
@@ -38,10 +38,10 @@ fn closure<'a>(mut items: HashSet<Lr0Item<'a>>, g: &'a Grammar<'a>) -> Vec<Lr0It
 
 pub fn work<'a>(g: &'a Grammar) -> Lr0Fsm<'a> {
   let token_num = g.token_num();
-  let mut ss = HashMap::new();
+  let mut ss = HashMap::default();
   let init = closure({
                        let start = g.start().1;
-                       let mut init = HashSet::new();
+                       let mut init = HashSet::default();
                        init.insert(Lr0Item { prod: &start.rhs, prod_id: start.id, dot: 0 });
                        init
                      }, g);
@@ -50,7 +50,7 @@ pub fn work<'a>(g: &'a Grammar) -> Lr0Fsm<'a> {
   let mut result = Vec::new();
   q.push_back(init);
   while let Some(cur) = q.pop_front() {
-    let mut link = HashMap::new();
+    let mut link = HashMap::default();
     for mov in 0..token_num {
       let ns = go(&cur, mov, g);
       if !ns.is_empty() {

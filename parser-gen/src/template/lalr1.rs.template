@@ -1,26 +1,24 @@
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Act {{ Shift({u_lr_fsm_size}), Reduce({u_lr_fsm_size}), Acc, Err }}
-
 impl<'p> {parser_type} {{
   pub fn parse<'l: 'p>(&mut self, lexer: &mut Lexer<'l>) -> Result<{res_type}, Token<'l>> {{
     static PROD: [{u_lr_fsm_size}; {prod_size}] = [{prod}];
-    static ACTION: [[Act; {term_num}]; {lr_fsm_size}] = [{action}];
+    static ACTION: [[{u_act_size}; {term_num}]; {lr_fsm_size}] = [{action}];
     static GOTO: [[{u_lr_fsm_size}; {nt_num}]; {lr_fsm_size}] = [{goto}];
     let mut stk: Vec<(_, {u_lr_fsm_size})> = vec![(StackItem::_Token(Token {{ kind: TokenKind::_Eps, piece: b"", line: 0, col: 0 }}), 0)];
     let mut state = 0;
     let mut token = lexer.next();
     {log_token}
     loop {{
-      let act = *index!(index!(ACTION, state), token.kind as usize);
-      match act {{
-        Act::Shift(s) => {{
-          stk.push((StackItem::_Token(token), s));
-          state = s as usize;
+      let act = *index!(index!(ACTION, state), token.kind as usize) as usize;
+      let act_val = act >> 2;
+      match act & 3 {{
+        0 => {{
+          stk.push((StackItem::_Token(token), act_val as _));
+          state = act_val;
           token = lexer.next();
           {log_token}
         }}
-        Act::Reduce(r) => {{
-          let value = match r {{
+        1 => {{
+          let value = match act_val {{
             {parser_act}
             _ => impossible!(),
           }};
@@ -28,8 +26,8 @@ impl<'p> {parser_type} {{
           stk.push((value, nxt));
           state = nxt as usize;
         }}
-        Act::Acc => return Ok(match stk.pop() {{ Some((StackItem::_{res_id}(r), _)) => r, _ => impossible!() }}),
-        Act::Err => return Err(token),
+        2 => return Ok(match stk.pop() {{ Some((StackItem::_{res_id}(r), _)) => r, _ => impossible!() }}),
+        _ => return Err(token),
       }}
     }}
   }}

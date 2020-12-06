@@ -1,12 +1,13 @@
 pub mod grammar;
 
-use hashbrown::hash_map::DefaultHashBuilder;
+use std::hash::BuildHasherDefault;
+use ahash::AHasher;
 
 // define some data structures that will be used in other crates, so that they don't need to import them
-pub type IndexMap<K, V> = indexmap::IndexMap<K, V, DefaultHashBuilder>;
-pub type IndexSet<K> = indexmap::IndexSet<K, DefaultHashBuilder>;
+pub type IndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<AHasher>>;
+pub type IndexSet<K> = indexmap::IndexSet<K, BuildHasherDefault<AHasher>>;
 
-pub use hashbrown::{HashMap, HashSet};
+pub use re2dfa::{self, HashMap, HashSet, print::fn2display};
 pub use smallvec::{smallvec, SmallVec};
 pub use bitset::{BitSet, traits::ToUsize};
 

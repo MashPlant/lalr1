@@ -29,7 +29,7 @@ impl<'l> Lexer<'l> {{
   pub fn next(&mut self) -> Token<'l> {{
     static ACC: [TokenKind; {dfa_size}] = [{acc}];
     static EC: [u8; 256] = [{ec}];
-    static DFA_EDGE: [[{u_dfa_size}; {ec_size}]; {dfa_size}] = [{dfa_edge}];
+    static DFA_EDGE: [[{u_dfa_size}; {ec_num}]; {dfa_size}] = [{dfa_edge}];
     // line & col is the beginning of this token, self.line & col is the latest char
     let (mut line, mut col) = (self.line, self.col);
     let mut last_acc = TokenKind::_Err;

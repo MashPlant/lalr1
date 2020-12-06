@@ -1,5 +1,6 @@
 use serde::Deserialize;
-use crate::{IndexMap, HashMap, SmallVec};
+use std::{fmt, borrow::Cow};
+use crate::*;
 
 pub type ProdVec = SmallVec<[u32; 4]>;
 
@@ -16,7 +17,10 @@ pub struct RawGrammar<'a> {
   pub include: &'a str,
   pub priority: Vec<RawPriorityRow<'a>>,
   // map re to term
-  pub lexical: IndexMap<&'a str, &'a str>,
+  // K must be Cow<str>, because sometimes we have to write escape chars in the key string
+  // so the actually key may not be a borrow from the input string
+  // but we can always avoid escape chars in the value string
+  pub lexical: IndexMap<Cow<'a, str>, &'a str>,
   // this string should contain name & type, e.g.: "a: u32" for rust, "int a" for c++
   #[serde(default)] pub parser_field: Vec<&'a str>,
   pub start: &'a str,
@@ -71,9 +75,9 @@ pub fn validate_variable_name(s: &str) -> bool {
 
 // input: the two field in RawGrammar(or constructed in other ways)
 // return: (Vec<(term, pri_assoc)>, term2id)
-fn parse_term<'a>(priority: &'a [RawPriorityRow], lexical: &'a IndexMap<&'a str, &'a str>, validate_name: bool) -> Result<(Vec<Term<'a>>, HashMap<&'a str, u32>), String> {
+fn parse_term<'a>(priority: &'a [RawPriorityRow], lexical: &'a IndexMap<Cow<'a, str>, &'a str>, validate_name: bool) -> Result<(Vec<Term<'a>>, HashMap<&'a str, u32>), String> {
   let mut terms = vec![Term { name: EPS, pri_assoc: None }, Term { name: EOF, pri_assoc: None }, Term { name: ERR, pri_assoc: None }];
-  let mut term2id = HashMap::new();
+  let mut term2id = HashMap::default();
   term2id.insert(EPS, 0);
   term2id.insert(EOF, 1);
   term2id.insert(ERR, 2);
@@ -146,7 +150,7 @@ impl RawGrammar<'_> {
   pub fn extend(&mut self, validate_name: bool) -> Result<Grammar, String> {
     let (terms, term2id) = parse_term(&self.priority, &self.lexical, validate_name)?;
     let mut nt = Vec::new();
-    let mut nt2id = HashMap::new();
+    let mut nt2id = HashMap::default();
 
     if self.production.is_empty() { return Err("grammar must have at least one production rule".to_owned()); }
 
@@ -265,21 +269,20 @@ impl Grammar<'_> {
   }
 
   // parameter `id` is a general id (in [0, terms.len() + nt.len()))
-  pub fn show_token(&self, id: u32) -> &str {
-    let id = id as usize;
+  pub fn show_token(&self, id: usize) -> &str {
     self.terms.get(id).map(|x| x.name).unwrap_or_else(|| self.nt[id - self.terms.len()].name)
   }
 
   // parameter `id` is a production id (in [0, prod.len()))
-  pub fn show_prod(&self, id: u32, dot: Option<u32>) -> String {
-    let id = id as usize;
-    let prod = &self.prod[id];
-    let mut s = format!("{} ->", self.nt[prod.lhs as usize].name);
-    for (idx, &rhs) in prod.rhs.iter().enumerate() {
-      s.push(if Some(idx as u32) == dot { '.' } else { ' ' });
-      s += self.show_token(rhs);
-    }
-    if Some(prod.rhs.len() as u32) == dot { s.push('.'); }
-    s
+  pub fn show_prod<'a>(&'a self, id: usize, dot: Option<u32>) -> impl fmt::Display + 'a {
+    fn2display(move |f| {
+      let prod = &self.prod[id];
+      let _ = write!(f, "{} ->", self.nt[prod.lhs as usize].name);
+      for (idx, &rhs) in prod.rhs.iter().enumerate() {
+        let sep = if Some(idx as u32) == dot { '.' } else { ' ' };
+        let _ = write!(f, "{}{}", sep, self.show_token(rhs as usize));
+      }
+      if Some(prod.rhs.len() as u32) == dot { let _ = f.write_str("."); }
+    })
   }
 }

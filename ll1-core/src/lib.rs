@@ -65,7 +65,7 @@ impl Follow {
     let mut follow = vec![BitSet::new(g.token_num()); g.nt.len()];
     follow[g.start().0 as usize].set(EOF_IDX);
     let inner_len = BitSet::calc_inner_len(g.token_num());
-    let mut first_cache = HashMap::new();
+    let mut first_cache = HashMap::default();
     unsafe {
       let mut changed = true;
       while changed {
@@ -125,7 +125,7 @@ impl LLCtx {
     }
     let mut table = Vec::new();
     for ps in &ps {
-      let mut tbi = HashMap::new();
+      let mut tbi = HashMap::default();
       for (&prod, predict) in ps {
         for i in 0..g.token_num() {
           if predict.test(i) {

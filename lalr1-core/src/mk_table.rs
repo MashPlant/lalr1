@@ -1,13 +1,13 @@
 use crate::{Act, ConflictKind, Conflict, TableEntry, Table, Lr1Fsm, Lr1Node, Lr1Item};
 use std::cmp::Ordering::*;
-use common::{grammar::{Assoc, Grammar, EOF_IDX}, smallvec, SmallVec, HashMap};
+use common::{grammar::{Assoc, Grammar, EOF_IDX}, *};
 
 pub fn mk_table<'a>(lr1: &'a Lr1Fsm<'a>, g: &'a Grammar<'a>) -> Table<'a> {
   let mut table = Vec::with_capacity(lr1.len());
   let start_id = g.start().1.id;
   let token_num = g.token_num();
   for Lr1Node { closure, link } in lr1 {
-    let (mut act, mut goto) = (HashMap::new(), HashMap::new());
+    let (mut act, mut goto) = (HashMap::default(), HashMap::default());
     for (&k, &v) in link {
       if g.as_nt(k).is_some() { goto.insert(k, v); } else { act.insert(k, smallvec![Act::Shift(v)]); }
     }
