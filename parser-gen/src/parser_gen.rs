@@ -1,4 +1,3 @@
-use common::grammar::*;
 use clap::{App, Arg};
 use std::{io, fs};
 use parser_gen::*;
@@ -33,18 +32,8 @@ fn main() -> io::Result<()> {
     on_conflict: |c| eprintln!("{}", c),
     code_output: output,
   };
-  unsafe {
-    let now = std::time::SystemTime::now();
-    TIME = now;
-  }
   let input = fs::read_to_string(m.value_of("input").unwrap())?;
-  // todo: replace unwrap_or_else with expect
-  let raw = toml::from_str::<RawGrammar>(&input).unwrap_or_else(|e| panic!("invalid grammar toml: {}", e));
-  unsafe {
-    let now = std::time::SystemTime::now();
-    dbg!(now.duration_since(TIME).unwrap().as_micros());
-    TIME = now;
-  }
+  let raw = toml::from_str(&input).expect("invalid grammar toml");
   work(raw, PGAlgo::LALR1, &mut cfg);
   Ok(())
 }

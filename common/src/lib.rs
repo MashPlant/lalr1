@@ -9,7 +9,7 @@ pub type IndexSet<K> = indexmap::IndexSet<K, BuildHasherDefault<AHasher>>;
 
 pub use re2dfa::{self, HashMap, HashSet, print::fn2display};
 pub use smallvec::{smallvec, SmallVec};
-pub use bitset::{BitSet, traits::ToUsize};
+pub use bitset;
 
 // parse a "lhs -> rhs1 rhs2 ..." string
 pub fn parse_arrow_prod(s: &str) -> Option<(&str, Vec<&str>)> {

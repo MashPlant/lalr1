@@ -1,96 +1,110 @@
 use common::{grammar::{Grammar, EPS_IDX, EOF_IDX}, *};
 
-// first.len() == follow.len() == g.nt.len() (calculating the first/follow set of terminal is meaningless)
-pub struct First(pub Vec<BitSet>);
+// both First and Follow are equivalent to vec![BitSet(g.token_num()); g.nt.len()]
+// (calculating the first/follow set of terminal is meaningless)
+pub struct First { bitsets: Box<[u32]>, elem_len: usize }
 
-pub struct Follow(pub Vec<BitSet>);
+pub struct Follow { bitsets: Box<[u32]>, elem_len: usize }
 
 impl First {
   pub fn new(g: &Grammar) -> First {
-    let token_num = g.token_num();
-    let mut first = vec![BitSet::new(token_num); g.nt.len()];
-    let mut tmp = BitSet::new(token_num);
-    let inner_len = BitSet::calc_inner_len(token_num);
+    let (token_num, nt_num) = (g.token_num(), g.nt.len());
+    let elem_len = bitset::bslen(token_num);
+    let first = vec![0; elem_len * nt_num].into_boxed_slice();
+    let mut tmp = vec![0; elem_len];
     unsafe {
-      let mut changed = true;
-      while changed {
-        changed = false;
-        for i in 0..g.nt.len() {
-          let lhs = first[i].as_mut_ptr();
+      let tmp_bs = bitset::ubs(tmp.as_ref());
+      loop {
+        let mut changed = false;
+        for i in 0..nt_num {
           for prod in g.get_prod(i) {
             let mut all_have_eps = true;
-            tmp.clear_all();
+            bitset::bs(&mut tmp).clear();
             for &ch in &prod.rhs {
               if let Some(ch) = g.as_nt(ch) {
-                let rhs = first[ch as usize].as_ptr();
-                BitSet::or_raw(tmp.as_mut_ptr(), rhs, inner_len);
-                tmp.clear_unchecked(EPS_IDX);
-                if !BitSet::test_raw(rhs, EPS_IDX) {
+                let rhs = first.as_ptr().add(ch as usize * elem_len);
+                tmp_bs.or(rhs, elem_len);
+                tmp_bs.del(EPS_IDX);
+                if !bitset::ubs1(rhs).get(EPS_IDX) {
                   all_have_eps = false;
                   break;
                 }
               } else {
-                tmp.set_unchecked(ch as usize);
+                tmp_bs.set(ch as usize);
                 all_have_eps = false;
                 break;
               }
             }
-            if all_have_eps { tmp.set_unchecked(EPS_IDX); }
-            changed |= BitSet::or_raw(lhs, tmp.as_ptr(), inner_len);
+            if all_have_eps { tmp_bs.set(EPS_IDX); }
+            changed |= bitset::ubs1(first.as_ptr().add(i * elem_len)).or(tmp.as_ptr(), elem_len);
           }
         }
+        if !changed { break; }
       }
     }
-    First(first)
+    First { bitsets: first, elem_len }
   }
 
-  pub fn first(&self, string: &[u32], g: &Grammar) -> BitSet {
-    let mut ret = BitSet::new(g.token_num());
-    for &ch in string {
-      if let Some(ch) = g.as_nt(ch) {
-        let rhs = &self.0[ch as usize];
-        ret.or(rhs);
-        ret.clear(EPS_IDX);
-        if !rhs.test(EPS_IDX) { return ret; }
-      } else { return (ret.set(ch as usize), ret).1; }
+  pub fn first(&self, string: &[u32], g: &Grammar) -> Box<[u32]> {
+    let ret = vec![0; self.elem_len].into_boxed_slice();
+    unsafe {
+      let ret_bs = bitset::ubs(ret.as_ref());
+      for &ch in string {
+        if let Some(ch) = g.as_nt(ch) {
+          let rhs = self.bitsets.as_ptr().add(ch as usize * self.elem_len);
+          ret_bs.or(rhs, self.elem_len);
+          ret_bs.del(EPS_IDX);
+          if !bitset::ubs1(rhs).get(EPS_IDX) { return ret; }
+        } else {
+          ret_bs.set(ch as usize);
+          return ret;
+        }
+      }
+      // reach here, so string -> eps
+      ret_bs.set(EPS_IDX);
     }
-    // reach here, so string -> eps
-    ret.set(EPS_IDX);
     ret
   }
+
+  pub fn get(&self, i: usize) -> &[u32] { &self.bitsets[i * self.elem_len..(i + 1) * self.elem_len] }
 }
 
 impl Follow {
   pub fn new(g: &Grammar, first: &First) -> Follow {
-    let mut follow = vec![BitSet::new(g.token_num()); g.nt.len()];
-    follow[g.start().0 as usize].set(EOF_IDX);
-    let inner_len = BitSet::calc_inner_len(g.token_num());
+    let (token_num, nt_num) = (g.token_num(), g.nt.len());
+    let elem_len = bitset::bslen(token_num);
+    let follow = vec![0; elem_len * nt_num].into_boxed_slice();
     let mut first_cache = HashMap::default();
     unsafe {
-      let mut changed = true;
-      while changed {
-        changed = false;
-        for i in 0..g.nt.len() {
+      bitset::ubs1(follow.as_ptr().add(g.start().0 as usize * elem_len)).set(EOF_IDX);
+      loop {
+        let mut changed = false;
+        for i in 0..nt_num {
           for prod in g.get_prod(i) {
-            let lhs_follow = follow[i].as_ptr();
+            let lhs_follow = follow.as_ptr().add(i * elem_len);
             for (i, &ch) in prod.rhs.iter().enumerate() {
               if let Some(ch) = g.as_nt(ch) {
-                let ch_follow = follow[ch as usize].as_mut_ptr();
-                let remain = &prod.rhs[i + 1..];
+                let ch_follow = bitset::ubs1(follow.as_ptr().add(ch as usize * elem_len));
+                let remain = prod.rhs.get_unchecked(i + 1..);
                 let remain_first = first_cache.entry(remain).or_insert_with(|| first.first(remain, g));
-                changed |= BitSet::or_raw(ch_follow, remain_first.as_ptr(), inner_len);
-                if remain_first.test(EPS_IDX) {
-                  changed |= BitSet::or_raw(ch_follow, lhs_follow, inner_len);
+                changed |= ch_follow.or(remain_first.as_ptr(), elem_len);
+                if bitset::ubs(remain_first.as_ref()).get(EPS_IDX) {
+                  changed |= ch_follow.or(lhs_follow, elem_len);
                 }
               }
             }
           }
         }
+        if !changed { break; }
+      }
+      for i in 0..nt_num {
+        bitset::ubs1(follow.as_ptr().add(i * elem_len)).del(EPS_IDX);
       }
     }
-    for f in &mut follow { f.clear(EPS_IDX); }
-    Follow(follow)
+    Follow { bitsets: follow, elem_len }
   }
+
+  pub fn get(&self, i: usize) -> &[u32] { &self.bitsets[i * self.elem_len..(i + 1) * self.elem_len] }
 }
 
 pub type LLTable = Vec<HashMap<u32, SmallVec<[u32; 2]>>>;
@@ -115,9 +129,10 @@ impl LLCtx {
       let mut psi = IndexMap::default();
       for prod in g.get_prod(i) {
         let mut predict = first.first(&prod.rhs, g);
-        if predict.test(EPS_IDX) {
-          predict.or(&follow.0[i]);
-          predict.clear(EPS_IDX);
+        let mut predict_bs = bitset::bs(&mut predict);
+        if predict_bs.as_imm().get(EPS_IDX) {
+          predict_bs.or(follow.get(i));
+          predict_bs.del(EPS_IDX);
         }
         psi.insert(prod.id, predict);
       }
@@ -127,11 +142,9 @@ impl LLCtx {
     for ps in &ps {
       let mut tbi = HashMap::default();
       for (&prod, predict) in ps {
-        for i in 0..g.token_num() {
-          if predict.test(i) {
-            tbi.entry(i as u32).or_insert_with(SmallVec::new).push(prod);
-          }
-        }
+        bitset::ibs(predict).ones(|i| {
+          tbi.entry(i as u32).or_insert_with(SmallVec::new).push(prod);
+        });
       }
       table.push(tbi);
     }

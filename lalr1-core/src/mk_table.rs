@@ -5,7 +5,6 @@ use common::{grammar::{Assoc, Grammar, EOF_IDX}, *};
 pub fn mk_table<'a>(lr1: &'a Lr1Fsm<'a>, g: &'a Grammar<'a>) -> Table<'a> {
   let mut table = Vec::with_capacity(lr1.len());
   let start_id = g.start().1.id;
-  let token_num = g.token_num();
   for Lr1Node { closure, link } in lr1 {
     let (mut act, mut goto) = (HashMap::default(), HashMap::default());
     for (&k, &v) in link {
@@ -13,15 +12,13 @@ pub fn mk_table<'a>(lr1: &'a Lr1Fsm<'a>, g: &'a Grammar<'a>) -> Table<'a> {
     }
     for Lr1Item { lr0, lookahead } in closure {
       if lr0.dot == lr0.prod.len() as u32 {
-        if lookahead.test(EOF_IDX) && lr0.prod_id == start_id {
+        if bitset::ibs(lookahead).get(EOF_IDX) && lr0.prod_id == start_id {
           act.insert(EOF_IDX as u32, smallvec![Act::Acc]);
         } else {
-          for i in 0..token_num {
-            if lookahead.test(i) {
-              // maybe conflict here
-              act.entry(i as u32).or_insert_with(SmallVec::new).push(Act::Reduce(lr0.prod_id));
-            }
-          }
+          bitset::ibs(lookahead).ones(|i| {
+            // maybe conflict here
+            act.entry(i as u32).or_insert_with(SmallVec::new).push(Act::Reduce(lr0.prod_id));
+          });
         }
       }
     }

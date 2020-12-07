@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 common = { path = "../common" }
 ll1-core = { path = "../ll1-core" }
+unchecked_unwrap = "*"

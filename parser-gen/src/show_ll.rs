@@ -18,15 +18,13 @@ pub fn table<'a>(ll: &'a LLCtx, g: &'a Grammar) -> impl Display + 'a {
     let _ = write!(f, "{}", show_prod_token(g));
     for (idx, t) in ll.table.iter().enumerate() {
       let _ = writeln!(f, "{}:", g.show_token(idx));
-      let mut show_set = |name: &str, set: &BitSet| {
+      let mut show_set = |name: &str, set: &[u32]| {
         let _ = write!(f, "{}:", name);
-        for i in 0..set.inner_len() * 64 { // this is quite ugly, may be I will encapsulate it later on
-          if set.test(i) { let _ = write!(f, " {}", g.show_token(i)); }
-        }
+        bitset::ibs(set).ones(|i| { let _ = write!(f, " {}", g.show_token(i)); });
         let _ = f.write_str("\n");
       };
-      show_set("first", &ll.first.0[idx]);
-      show_set("follow", &ll.follow.0[idx]);
+      show_set("first", &ll.first.get(idx));
+      show_set("follow", &ll.follow.get(idx));
       // this is not necessary, but sorting it will provide better readability
       let mut t = t.iter().map(|(ch, prod)| (*ch, prod)).collect::<Vec<_>>();
       t.sort_unstable_by_key(|x| x.0);

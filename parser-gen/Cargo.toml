@@ -10,11 +10,10 @@ ll1-core = { path = "../ll1-core" }
 common = { path = "../common" }
 clap = { version = "*", optional = true }
 toml = { version = "*", optional = true }
-typed-arena = { version = "*", optional = true }
 
 [[example]]
 name = "simple_grammar"
-required-features = ["clap", "typed-arena"]
+required-features = ["clap"]
 
 [[bin]]
 path = "src/parser_gen.rs"

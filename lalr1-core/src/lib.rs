@@ -1,5 +1,5 @@
 use std::{hash::{Hash, Hasher}, cmp::Ordering, ops::Deref};
-use common::{SmallVec, BitSet, HashMap};
+use common::{SmallVec, HashMap};
 
 pub mod lr1;
 pub mod lr0;
@@ -17,7 +17,7 @@ pub struct Lr0Item<'a> {
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub struct Lr1Item<'a> {
   pub lr0: Lr0Item<'a>,
-  pub lookahead: BitSet,
+  pub lookahead: Box<[u32]>,
 }
 
 pub type Lr0Closure<'a> = Vec<Lr0Item<'a>>;

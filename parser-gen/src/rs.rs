@@ -1,4 +1,4 @@
-use lalr1_core::{TableEntry, Table};
+use lalr1_core::Table;
 use common::{grammar::Grammar, re2dfa::Dfa, *};
 use ll1_core::LLCtx;
 use crate::{Config, fmt};
@@ -25,22 +25,18 @@ impl<W: std::io::Write> Config<'_, W> {
       u_dfa_size = fmt::min_u(dfa.nodes.len()),
       ec_num = dfa.ec_num,
       dfa_edge = fmt::dfa_edge(dfa, ('[', ']')),
-      show_token_prod = fn2display(move |f| {
-        if verbose {
-          let _ = f.write_str("fn show_token(id: u32) -> &'static str { [");
-          for i in 0..g.token_num() { let _ = write!(f, "{:?}, ", g.show_token(i)); }
-          let _ = f.write_str("][id as usize] }\nfn show_prod(id: u32) -> &'static str { [");
-          for i in 0..g.prod.len() {
-            // this cannot be simplified, must use the debug format of result String
-            let _ = write!(f, "{:?}, ", format!("{}", g.show_prod(i, None)));
-          }
-          let _ = f.write_str("][id as usize] }");
+      show_token_prod = fn2display(move |f| if verbose {
+        let _ = f.write_str("fn show_token(id: u32) -> &'static str { [");
+        for i in 0..g.token_num() { let _ = write!(f, "{:?}, ", g.show_token(i)); }
+        let _ = f.write_str("][id as usize] }\nfn show_prod(id: u32) -> &'static str { [");
+        for i in 0..g.prod.len() {
+          // this cannot be simplified, must use the debug format of result String
+          let _ = write!(f, "{:?}, ", format!("{}", g.show_prod(i, None)));
         }
+        let _ = f.write_str("][id as usize] }");
       }),
-      parser_struct = fn2display(move |f| {
-        if g.raw.parser_def.is_none() {
-          let _ = write!(f, "pub struct Parser {{ {} }}", fmt::comma_sep(g.raw.parser_field.iter()));
-        }
+      parser_struct = fn2display(move |f| if g.raw.parser_def.is_none() {
+        let _ = write!(f, "pub struct Parser {{ {} }}", fmt::comma_sep(g.raw.parser_field.iter()));
       })
     );
   }
@@ -90,7 +86,7 @@ impl<W: std::io::Write> Config<'_, W> {
       nt_num = g.nt.len(),
       lr_fsm_size = table.len(),
       u_act_size = fmt::min_u(table.len() * 4),
-      action = fmt::action(g, table),
+      action = fmt::action(g, table, ('[', ']')),
       goto = fmt::goto(g, &table, ('[', ']')),
       parser_act = Self::gen_act(self.log_reduce, g, types2id, true, "impossible!()"),
       log_token = if self.log_token { r#"println!("{:?}", token);"# } else { "" },
@@ -106,20 +102,18 @@ impl<W: std::io::Write> Config<'_, W> {
       self.code_output, include_str!("template/ll1.rs.template"),
       term_num = g.terms.len(),
       nt_num = g.nt.len(),
-      follow = fn2display(move |f| {
-        for follow in &ll.follow.0 {
-          let _ = writeln!(f, "set!({}),", fmt::comma_sep((0..g.token_num()).filter(|&i| follow.test(i))));
-        }
+      follow = fn2display(move |f| for i in 0..g.nt.len() {
+        let _ = f.write_str("set!(");
+        bitset::ibs(ll.follow.get(i)).ones(|i| { let _ = write!(f, "{}, ", i); });
+        let _ = f.write_str("),\n");
       }),
-      table = fn2display(move |f| {
-        for table in &ll.table {
-          let _ = f.write_str("map!(");
-          for (&predict, prod_ids) in table {
-            let prod_id = prod_ids[0] as usize;
-            let _ = write!(f, "{} => ({}, vec!{:?}), ", predict, prod_id, g.prod[prod_ids[0] as usize].rhs);
-          }
-          let _ = f.write_str("),\n");
+      table = fn2display(move |f| for table in &ll.table {
+        let _ = f.write_str("map!(");
+        for (&predict, prod_ids) in table {
+          let prod_id = prod_ids[0] as usize;
+          let _ = write!(f, "{} => ({}, vec!{:?}), ", predict, prod_id, g.prod[prod_ids[0] as usize].rhs);
         }
+        let _ = f.write_str("),\n");
       }),
       parser_type = g.raw.parser_def.unwrap_or("Parser"),
       parser_act = Self::gen_act(self.log_reduce, g, types2id, false, "return StackItem::_Fail"),

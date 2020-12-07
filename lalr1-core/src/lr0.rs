@@ -2,14 +2,11 @@ use crate::{Lr0Item, Lr0Fsm, Lr0Node};
 use common::{grammar::Grammar, *};
 use std::collections::VecDeque;
 
-fn go<'a>(items: &Vec<Lr0Item<'a>>, mov: usize, g: &'a Grammar<'a>) -> Vec<Lr0Item<'a>> {
+fn go<'a>(items: &Vec<Lr0Item<'a>>, mov: u32, g: &'a Grammar<'a>) -> Vec<Lr0Item<'a>> {
   let mut new_items = HashSet::default();
-  for item in items {
-    if item.dot as usize >= item.prod.len() { // dot is after the last ch
-      continue;
-    }
-    if item.prod[item.dot as usize] == mov as u32 {
-      new_items.insert(Lr0Item { prod: item.prod, prod_id: item.prod_id, dot: item.dot + 1 });
+  for &Lr0Item { prod, prod_id, dot } in items {
+    if prod.get(dot as usize) == Some(&mov) {
+      new_items.insert(Lr0Item { prod, prod_id, dot: dot + 1 });
     }
   }
   closure(new_items, g)
@@ -18,11 +15,8 @@ fn go<'a>(items: &Vec<Lr0Item<'a>>, mov: usize, g: &'a Grammar<'a>) -> Vec<Lr0It
 fn closure<'a>(mut items: HashSet<Lr0Item<'a>>, g: &'a Grammar<'a>) -> Vec<Lr0Item<'a>> {
   let mut q = items.clone().into_iter().collect::<VecDeque<_>>();
   while let Some(item) = q.pop_front() {
-    if item.dot as usize >= item.prod.len() { // dot is after the last ch
-      continue;
-    }
-    let ch = item.prod[item.dot as usize];
-    if let Some(ch) = g.as_nt(ch) {
+    // if the token after dot is a non-terminal
+    if let Some(ch) = item.prod.get(item.dot as usize).and_then(|&ch| g.as_nt(ch)) { // if the token after dot is a non-terminal
       for new_prod in g.get_prod(ch) {
         let new_item = Lr0Item { prod: &new_prod.rhs, prod_id: new_prod.id, dot: 0 };
         if items.insert(new_item) {
@@ -37,7 +31,7 @@ fn closure<'a>(mut items: HashSet<Lr0Item<'a>>, g: &'a Grammar<'a>) -> Vec<Lr0It
 }
 
 pub fn work<'a>(g: &'a Grammar) -> Lr0Fsm<'a> {
-  let token_num = g.token_num();
+  let token_num = g.token_num() as u32;
   let mut ss = HashMap::default();
   let init = closure({
                        let start = g.start().1;
@@ -56,7 +50,7 @@ pub fn work<'a>(g: &'a Grammar) -> Lr0Fsm<'a> {
       if !ns.is_empty() {
         let new_id = ss.len() as u32;
         let id = *ss.entry(ns.clone()).or_insert_with(|| (q.push_back(ns), new_id).1);
-        link.insert(mov as u32, id);
+        link.insert(mov, id);
       }
     }
     result.push(Lr0Node { closure: cur, link });

@@ -89,13 +89,11 @@ pub fn lr1_dot<'a>(g: &'a Grammar, lr1: &'a Lr1Fsm) -> impl Display + 'a {
         if idx != 0 { let _ = f.write_str(r#"\n"#); }
         let _ = write!(f, "{},", g.show_prod(lr0.prod_id as usize, Some(lr0.dot)));
         let mut first = true;
-        for i in 0..g.terms.len() {
-          if lookahead.test(i) {
-            let sep = if first { "" } else { "/" };
-            first = false;
-            let _ = write!(f, "{}{}", sep, g.show_token(i));
-          }
-        }
+        bitset::ibs(lookahead).ones(|i| {
+          let sep = if first { "" } else { "/" };
+          first = false;
+          let _ = write!(f, "{}{}", sep, g.show_token(i));
+        });
       }
       let _ = f.write_str("\"]\n");
     }

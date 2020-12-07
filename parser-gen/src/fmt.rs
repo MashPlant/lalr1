@@ -27,12 +27,10 @@ pub fn gather_types<'a>(g: &Grammar<'a>) -> (Vec<&'a str>, HashMap<&'a str, u32>
 }
 
 pub fn acc<'a>(g: &'a Grammar, dfa: &'a Dfa, namespace: &'a str) -> impl Display + 'a {
-  fn2display(move |f| {
-    for &(acc, _) in &dfa.nodes {
-      match acc {
-        Some(acc) => { let _ = write!(f, "{}::{}, ", namespace, g.raw.lexical.get_index(acc as usize).unwrap().1); }
-        None => { let _ = write!(f, "{}::_Err, ", namespace); }
-      }
+  fn2display(move |f| for &(acc, _) in &dfa.nodes {
+    match acc {
+      Some(acc) => { let _ = write!(f, "{}::{}, ", namespace, g.raw.lexical.get_index(acc as usize).unwrap().1); }
+      None => { let _ = write!(f, "{}::_Err, ", namespace); }
     }
   })
 }
@@ -49,26 +47,22 @@ pub fn dfa_edge<'a>(dfa: &'a Dfa, bracket: (char, char)) -> impl Display + 'a {
 }
 
 pub fn goto<'a>(g: &'a Grammar, table: &'a Table, bracket: (char, char)) -> impl Display + 'a {
-  fn2display(move |f| {
-    for t in table {
-      // iterate over all non-terminals
-      let goto = comma_sep((g.terms.len()..g.token_num()).map(|x| t.goto.get(&(x as u32)).unwrap_or(&0)));
-      let _ = write!(f, "{}{}{}, ", bracket.0, goto, bracket.1);
-    }
+  fn2display(move |f| for t in table {
+    // iterate over all non-terminals
+    let goto = comma_sep((g.terms.len()..g.token_num()).map(|x| t.goto.get(&(x as u32)).unwrap_or(&0)));
+    let _ = write!(f, "{}{}{}, ", bracket.0, goto, bracket.1);
   })
 }
 
-pub fn action<'a>(g: &'a Grammar, table: &'a Table) -> impl Display + 'a {
-  fn2display(move |f| {
-    for TableEntry { act, .. } in table {
-      let _ = f.write_char('{');
-      for i in 0..g.terms.len() as u32 {
-        let (tag, val) = act.get(&i).and_then(|x| x.get(0))
-          .map(|&x| match x { Act::Acc => (2, 0), Act::Shift(x) => (0, x), Act::Reduce(x) => (1, x) })
-          .unwrap_or((3, 0));
-        let _ = write!(f, "{}, ", tag | (val << 2));
-      };
-      let _ = f.write_str("},");
-    }
+pub fn action<'a>(g: &'a Grammar, table: &'a Table, bracket: (char, char)) -> impl Display + 'a {
+  fn2display(move |f| for TableEntry { act, .. } in table {
+    let _ = f.write_char(bracket.0);
+    for i in 0..g.terms.len() as u32 {
+      let (tag, val) = act.get(&i).and_then(|x| x.get(0))
+        .map(|&x| match x { Act::Acc => (2, 0), Act::Shift(x) => (0, x), Act::Reduce(x) => (1, x) })
+        .unwrap_or((3, 0));
+      let _ = write!(f, "{}, ", tag | (val << 2));
+    };
+    let _ = write!(f, "{},", bracket.1);
   })
 }

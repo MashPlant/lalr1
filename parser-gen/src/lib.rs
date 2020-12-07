@@ -83,53 +83,21 @@ impl<W: Write> Codegen for Config<'_, W> {
   }
 }
 
-pub static mut TIME: std::time::SystemTime = std::time::SystemTime::UNIX_EPOCH;
-
 pub fn work(mut raw: RawGrammar, algo: PGAlgo, gen: &mut impl Codegen) {
   use PGAlgo::*;
-  let dfa = match re2dfa(raw.lexical.iter().map(|(s, _)| s)) {
+  let dfa = match re2dfa(raw.lexical.iter().map(|(s, _)| s.as_bytes())) {
     Ok(x) => x, Err((idx, reason)) => return gen.re2dfa_error(raw.lexical.get_index(idx).unwrap().0, reason)
   };
   gen.dfa(&dfa);
-  unsafe {
-    let now = std::time::SystemTime::now();
-    dbg!(now.duration_since(TIME).unwrap().as_micros());
-    TIME = now;
-  }
   let ref g = match raw.extend(true) { Ok(x) => x, Err(reason) => return gen.grammar_error(reason) };
-  unsafe {
-    let now = std::time::SystemTime::now();
-    dbg!(now.duration_since(TIME).unwrap().as_micros());
-    TIME = now;
-  }
   match algo {
     LL1 => gen.ll(g, LLCtx::new(g), &dfa),
     LALR1 | LR1 => {
       let lr1 = if algo == LALR1 { lalr1_by_lr0::work(lr0::work(g), g) } else { lr1::work(g) };
-      unsafe {
-        let now = std::time::SystemTime::now();
-        dbg!(now.duration_since(TIME).unwrap().as_micros());
-        TIME = now;
-      }
       let orig_table = mk_table::mk_table(&lr1, g);
-      unsafe {
-        let now = std::time::SystemTime::now();
-        dbg!(now.duration_since(TIME).unwrap().as_micros());
-        TIME = now;
-      }
       let mut table = orig_table.clone();
       let conflict = lalr1_core::mk_table::solve(&mut table, g);
-      unsafe {
-        let now = std::time::SystemTime::now();
-        dbg!(now.duration_since(TIME).unwrap().as_micros());
-        TIME = now;
-      }
       gen.lr1(g, &lr1, &dfa, orig_table, table, conflict);
-      unsafe {
-        let now = std::time::SystemTime::now();
-        dbg!(now.duration_since(TIME).unwrap().as_micros());
-        TIME = now;
-      }
     }
   }
 }

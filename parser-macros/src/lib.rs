@@ -8,7 +8,7 @@ use common::{grammar::*, IndexMap, parse_arrow_prod};
 use syn::{FnArg, NestedMeta, ItemImpl, ImplItem, Attribute, ReturnType, Error};
 use darling::FromMeta;
 use typed_arena::Arena;
-use std::{fmt::{self, Display}, borrow::Cow};
+use std::{fmt::{self, Debug}, borrow::Cow};
 
 fn parse_arg(arg: &FnArg) -> Option<(String, String)> {
   match arg {
@@ -43,9 +43,9 @@ struct Rule {
   #[darling(default)] prec: Option<String>,
 }
 
-struct PrettyError(Error);
+struct E(Error); // pretty print `Error` with location info
 
-impl Display for PrettyError {
+impl Debug for E {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     let lc = self.0.span().start();
     write!(f, "{} at {}:{}", self.0, lc.line, lc.column)
@@ -53,17 +53,16 @@ impl Display for PrettyError {
 }
 
 fn parse_attrs(attrs: &[Attribute]) -> Vec<NestedMeta> {
-  attrs.iter().map(|x| NestedMeta::Meta(x.parse_meta()
-    .unwrap_or_else(|e| panic!("failed to parse meta: {}", PrettyError(e))))).collect()
+  attrs.iter().map(|x| NestedMeta::Meta(x.parse_meta().map_err(E).expect("failed to parse meta"))).collect()
 }
 
 fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
-  let parser = syn::parse::<ItemImpl>(input).unwrap_or_else(|e| panic!("failed to parse impl block: {}", PrettyError(e)));
+  let parser = syn::parse::<ItemImpl>(input).map_err(E).expect("failed to parse impl block");
   let start = &attr.to_string();
   let parser_def = Some(parser.self_ty.to_token_stream().to_string());
 
   let Config { lex, verbose, show_fsm, show_dfa, log_token, log_reduce, use_unsafe, expand }
-    = Config::from_list(&parse_attrs(&parser.attrs)).unwrap_or_else(|e| panic!("failed to read attributes: {}", e));
+    = Config::from_list(&parse_attrs(&parser.attrs)).expect("failed to read attributes");
   let mut cfg = parser_gen::Config {
     verbose: verbose.as_deref(),
     show_fsm: show_fsm.as_deref(),
@@ -75,14 +74,13 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
     on_conflict: |c| Diagnostic::new(Level::Warning, c).emit(),
     code_output: Vec::new(),
   };
-  let RawLexer { priority, lexical } =
-    toml::from_str::<RawLexer>(&lex).unwrap_or_else(|e| panic!("fail to parse lexer toml: {}", e));
+  let RawLexer { priority, lexical } = toml::from_str(&lex).expect("failed to parse lexer toml");
 
   let mut production = Vec::new();
-  let arena = Arena::<u8>::new();
+  let arena = Arena::new();
   for item in &parser.items {
     if let ImplItem::Method(method) = item {
-      let Rule { rule, prec } = Rule::from_list(&parse_attrs(&method.attrs)).unwrap_or_else(|e| panic!("failed to parse rule: {}", e));
+      let Rule { rule, prec } = Rule::from_list(&parse_attrs(&method.attrs)).expect("failed to parse rule");
       let rule = &*arena.alloc_str(&rule);
       let prec = prec.map(|x| &*arena.alloc_str(&x));
       let (lhs, rhs) = parse_arrow_prod(&rule).unwrap_or_else(||
@@ -109,11 +107,7 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn lalr1(attr: TokenStream, input: TokenStream) -> TokenStream {
-  work(attr, input, PGAlgo::LALR1)
-}
+pub fn lalr1(attr: TokenStream, input: TokenStream) -> TokenStream { work(attr, input, PGAlgo::LALR1) }
 
 #[proc_macro_attribute]
-pub fn ll1(attr: TokenStream, input: TokenStream) -> TokenStream {
-  work(attr, input, PGAlgo::LL1)
-}
+pub fn ll1(attr: TokenStream, input: TokenStream) -> TokenStream { work(attr, input, PGAlgo::LL1) }

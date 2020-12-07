@@ -17,13 +17,11 @@ impl<W: std::io::Write> Config<'_, W> {
       u_dfa_size = fmt::min_u(dfa.nodes.len()),
       ec_num = dfa.ec_num,
       dfa_edge = fmt::dfa_edge(dfa, ('{', '}')),
-      parser_struct = fn2display(move |f| {
-        if g.raw.parser_def.is_none() {
-          let _ = writeln!(f, r"struct Parser {{
+      parser_struct = fn2display(move |f| if g.raw.parser_def.is_none() {
+        let _ = writeln!(f, r"struct Parser {{
   std::variant<{}, Token> parse(Lexer &lexer);", parse_res);
-          for &field in &g.raw.parser_field { let _ = writeln!(f, "{};", field); }
-          let _ = f.write_str("};\n");
-        }
+        for &field in &g.raw.parser_field { let _ = writeln!(f, "{};", field); }
+        let _ = f.write_str("};\n");
       }),
       u_lr_fsm_size = fmt::min_u(table.len()),
       u_act_size = fmt::min_u(table.len() * 4),
@@ -32,18 +30,16 @@ impl<W: std::io::Write> Config<'_, W> {
       prod = fmt::comma_sep(g.prod.iter().map(|x| x.lhs)),
       term_num = g.terms.len(),
       nt_num = g.nt.len(),
-      action = fmt::action(g, table),
+      action = fmt::action(g, table, ('{', '}')),
       goto = fmt::goto(g, table, ('{', '}')),
-      parser_act = fn2display(|f| {
-        for (i, prod) in g.prod.iter().enumerate() {
-          let _ = writeln!(f, "case {}: {{", i);
-          for (j, &x) in prod.rhs.iter().enumerate().rev() {
-            let name = match prod.args { Some(args) => args[j].0.to_owned(), None => format!("_{}", j + 1) };
-            let ty = if let Some(x) = g.as_nt(x) { g.nt[x].ty } else { "Token" };
-            let _ = writeln!(f, "[[maybe_unused]] {1} {}(std::move(*std::get_if<{1}>(&stk.back().first))); stk.pop_back();", name, ty);
-          }
-          let _ = writeln!(f, "{}\nbreak;\n}}", if i == g.prod.len() - 1 { "__ = _1;" } else { prod.act });
+      parser_act = fn2display(|f| for (i, prod) in g.prod.iter().enumerate() {
+        let _ = writeln!(f, "case {}: {{", i);
+        for (j, &x) in prod.rhs.iter().enumerate().rev() {
+          let name = match prod.args { Some(args) => args[j].0.to_owned(), None => format!("_{}", j + 1) };
+          let ty = if let Some(x) = g.as_nt(x) { g.nt[x].ty } else { "Token" };
+          let _ = writeln!(f, "[[maybe_unused]] {1} {}(std::move(*std::get_if<{1}>(&stk.back().first))); stk.pop_back();", name, ty);
         }
+        let _ = writeln!(f, "{}\nbreak;\n}}", if i == g.prod.len() - 1 { "__ = _1;" } else { prod.act });
       })
     );
   }

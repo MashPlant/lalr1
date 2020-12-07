@@ -22,7 +22,7 @@ impl<'p> {parser_type} {{
             {parser_act}
             _ => impossible!(),
           }};
-          let nxt = *index!(index!(GOTO, index!(stk, stk.len() - 1).1 as usize), *index!(PROD, r as usize) as usize);
+          let nxt = *index!(index!(GOTO, index!(stk, stk.len() - 1).1 as usize), *index!(PROD, act_val) as usize);
           stk.push((value, nxt));
           state = nxt as usize;
         }}
