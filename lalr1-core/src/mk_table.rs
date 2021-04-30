@@ -1,6 +1,4 @@
-use crate::{Act, ConflictKind, Conflict, TableEntry, Table, Lr1Fsm, Lr1Node, Lr1Item};
-use std::cmp::Ordering::*;
-use common::{grammar::{Assoc, Grammar, EOF_IDX}, *};
+use crate::*;
 
 pub fn mk_table<'a>(lr1: &'a Lr1Fsm<'a>, g: &'a Grammar<'a>) -> Table<'a> {
   let mut table = Vec::with_capacity(lr1.len());

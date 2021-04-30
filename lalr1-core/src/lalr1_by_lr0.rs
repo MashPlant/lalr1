@@ -1,7 +1,5 @@
 // "Compilers: Principles, Techniques and Tools" Algorithm 4.63
-use crate::{lr1::Lr1Ctx, Lr1Item, Lr0Fsm, Lr0Node, Lr1Node, Lr1Fsm};
-use common::{grammar::{Grammar, EOF_IDX, ERR_IDX}, *};
-use unchecked_unwrap::UncheckedUnwrap;
+use crate::*;
 
 pub fn work<'a>(lr0: Lr0Fsm<'a>, g: &'a Grammar<'a>) -> Lr1Fsm<'a> {
   let token_num = g.token_num();
@@ -26,20 +24,20 @@ pub fn work<'a>(lr0: Lr0Fsm<'a>, g: &'a Grammar<'a>) -> Lr1Fsm<'a> {
       if item.prod_id == start_prod || item.dot != 0 {
         unsafe {
           let cl = ctx.closure({
-                                 let lookahead = bitset::bsmake(g.token_num());
-                                 bitset::ubs(lookahead.as_ref()).set(ERR_IDX);
-                                 let mut init = HashMap::default();
-                                 init.insert(item, lookahead);
-                                 init
-                               }, g);
+            let lookahead = bitset::bsmake(g.token_num());
+            bitset::ubs(lookahead.as_ref()).set(ERR_IDX);
+            let mut init = HashMap::default();
+            init.insert(item, lookahead);
+            init
+          }, g);
           let from = lookahead.get_unchecked(i).as_ptr().add(item_id * elem_len);
           for Lr1Item { lr0: cl_item, lookahead: cl_lookahead } in &cl {
             if let Some(ch) = cl_item.prod.get(cl_item.dot as usize) {
-              let goto_state = *link.get(ch).unchecked_unwrap() as usize;
+              let goto_state = *link.get(ch).unwrap_or_else(|| std::hint::unreachable_unchecked()) as usize;
               let goto_item_id = cl_item.unique_id() + 1; // dot + 1
-              let goto_item_idx = lr0.get_unchecked(goto_state as usize).closure.iter()
-                .position(|item| item.unique_id() == goto_item_id).unchecked_unwrap();
-              let goto_lookahead = lookahead.get_unchecked(goto_state as usize).as_ptr().add(goto_item_idx * elem_len);
+              let goto_item_idx = lr0.get_unchecked(goto_state).closure.iter()
+                .position(|item| item.unique_id() == goto_item_id).unwrap_or_else(|| std::hint::unreachable_unchecked());
+              let goto_lookahead = lookahead.get_unchecked(goto_state).as_ptr().add(goto_item_idx * elem_len);
               bitset::ubs1(goto_lookahead).or(cl_lookahead.as_ptr(), elem_len);
               if bitset::ubs(cl_lookahead.as_ref()).get(ERR_IDX) {
                 prop.push((from, goto_lookahead));

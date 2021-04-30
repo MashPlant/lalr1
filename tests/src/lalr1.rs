@@ -9,25 +9,7 @@ struct Parser;
 #[expand]
 #[show_fsm = "fsm.dot"]
 #[show_dfa = "dfa.dot"]
-#[lex = r#"
-priority = [
-  { assoc = 'left', terms = ['Add', 'Sub'] },
-  { assoc = 'left', terms = ['Mul', 'Div', 'Mod'] },
-  { assoc = 'no_assoc', terms = ['UMinus'] },
-  { assoc = 'no_assoc', terms = ['RPar'] },
-]
-
-[lexical]
-'\(' = 'LPar'
-'\)' = 'RPar'
-'\+' = 'Add'
-'-' = 'Sub'
-'\*' = 'Mul'
-'/' = 'Div'
-'%' = 'Mod'
-'\d+' = 'IntLit'
-'\s+' = '_Eps'
-"#]
+#[lex_path = "tests/src/lex.toml"]
 impl Parser {
   #[rule = "Expr -> Expr Add Expr"]
   fn expr_add(l: i32, _op: Token, r: i32) -> i32 { l + r }

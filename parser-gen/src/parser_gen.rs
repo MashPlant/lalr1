@@ -34,6 +34,6 @@ fn main() -> io::Result<()> {
   };
   let input = fs::read_to_string(m.value_of("input").unwrap())?;
   let raw = toml::from_str(&input).expect("invalid grammar toml");
-  work(raw, PGAlgo::LALR1, &mut cfg);
+  work(raw, PGAlgo::LALR1, &mut cfg).expect("failed to generate code");
   Ok(())
 }

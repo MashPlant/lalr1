@@ -1,9 +1,8 @@
 use clap::{App, Arg};
 use std::{io, fs};
-use common::{grammar::*, parse_arrow_prod};
-use parser_gen::{show_lr, show_ll};
+use common::*;
+use parser_gen::*;
 use lalr1_core::*;
-use common::{IndexMap, HashSet};
 
 fn parse_lines(s: &str) -> Result<RawGrammar, String> {
   let mut production = Vec::new();

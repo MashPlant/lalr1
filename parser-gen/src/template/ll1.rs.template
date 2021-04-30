@@ -25,13 +25,13 @@ impl<'p> {parser_type} {{
   fn act(&mut self, prod: u32, mut stk: Vec<StackItem<'p>>) -> StackItem<'p> {{
     match prod {{
       {parser_act}
-      _ => impossible!(),
+      _ => err!(),
     }}
   }}
 
   pub fn parse<'l: 'p>(&mut self, lexer: &mut Lexer<'l>) -> Option<{res_type}> {{
     match self._parse({res_nt_id}, &mut lexer.next(), lexer, &HashSet::default()) {{
-      StackItem::_{res_id}(parse_res) => Some(parse_res),
+      _S{res_id}(parse_res) => Some(parse_res),
       _ => None
     }}
   }}

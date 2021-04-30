@@ -1,15 +1,13 @@
-use common::{grammar::Grammar, re2dfa::Dfa, *};
-use std::fmt::{Write, Display};
-use lalr1_core::{Table, TableEntry, Act};
+use crate::*;
 
 #[inline(always)]
-pub fn comma_sep<T: Display>(it: impl Iterator<Item=T> + Clone) -> impl Display {
-  fn2display(move |f| { for t in it.clone() { let _ = write!(f, "{}, ", t); } })
+pub fn comma_sep<'a, T: Display + 'a>(it: impl Iterator<Item=T> + Clone + 'a) -> impl Display + 'a {
+  fmt_::sep(it, ",")
 }
 
 #[inline(always)]
 pub fn min_u(x: usize) -> &'static str {
-  // I don't think any number beyond `u32` is really possible
+  // I don't think any number beyond `u32` is possible
   match x { 0..=255 => "u8", 256..=65535 => "u16", _ => "u32" }
 }
 
@@ -26,43 +24,54 @@ pub fn gather_types<'a>(g: &Grammar<'a>) -> (Vec<&'a str>, HashMap<&'a str, u32>
   (types, types2id)
 }
 
-pub fn acc<'a>(g: &'a Grammar, dfa: &'a Dfa, namespace: &'a str) -> impl Display + 'a {
-  fn2display(move |f| for &(acc, _) in &dfa.nodes {
-    match acc {
-      Some(acc) => { let _ = write!(f, "{}::{}, ", namespace, g.raw.lexical.get_index(acc as usize).unwrap().1); }
-      None => { let _ = write!(f, "{}::_Err, ", namespace); }
+pub fn acc<'a>(g: &'a Grammar, dfa: &'a Dfa) -> impl Display + 'a {
+  fmt_::fn2display(move |f| {
+    for &(acc, _) in &dfa.nodes {
+      match acc {
+        Some(acc) => write!(f, "{},", g.raw.lexical.get_index(acc as _).unwrap().1)?,
+        None => write!(f, "_Err,")?,
+      }
     }
+    Ok(())
   })
 }
 
 pub fn dfa_edge<'a>(dfa: &'a Dfa, bracket: (char, char)) -> impl Display + 'a {
-  fn2display(move |f| {
-    let mut outs = [0; 256];
+  fmt_::fn2display(move |f| {
     for (_, edges) in dfa.nodes.iter() {
-      for x in outs.iter_mut() { *x = 0; }
-      for (&k, &out) in edges { outs[k as usize] = out; }
-      let _ = write!(f, "{}{}{}, ", bracket.0, comma_sep(outs.iter().take(dfa.ec_num)), bracket.1);
+      let mut outs = [0; 256];
+      for (&k, &out) in edges {
+        assert_ne!(out, 0);
+        outs[k as usize] = out; }
+      write!(f, "{}{}{},", bracket.0, comma_sep(outs.iter().take(dfa.ec_num)), bracket.1)?;
     }
+    Ok(())
   })
 }
 
 pub fn goto<'a>(g: &'a Grammar, table: &'a Table, bracket: (char, char)) -> impl Display + 'a {
-  fn2display(move |f| for t in table {
-    // iterate over all non-terminals
-    let goto = comma_sep((g.terms.len()..g.token_num()).map(|x| t.goto.get(&(x as u32)).unwrap_or(&0)));
-    let _ = write!(f, "{}{}{}, ", bracket.0, goto, bracket.1);
+  fmt_::fn2display(move |f| {
+    for t in table {
+      // iterate over all non-terminals
+      let goto = comma_sep((g.terms.len()..g.token_num()).map(|x| t.goto.get(&(x as u32)).unwrap_or(&0)));
+      write!(f, "{}{}{},", bracket.0, goto, bracket.1)?;
+    }
+    Ok(())
   })
 }
 
 pub fn action<'a>(g: &'a Grammar, table: &'a Table, bracket: (char, char)) -> impl Display + 'a {
-  fn2display(move |f| for TableEntry { act, .. } in table {
-    let _ = f.write_char(bracket.0);
-    for i in 0..g.terms.len() as u32 {
-      let (tag, val) = act.get(&i).and_then(|x| x.get(0))
-        .map(|&x| match x { Act::Acc => (2, 0), Act::Shift(x) => (0, x), Act::Reduce(x) => (1, x) })
-        .unwrap_or((3, 0));
-      let _ = write!(f, "{}, ", tag | (val << 2));
-    };
-    let _ = write!(f, "{},", bracket.1);
+  fmt_::fn2display(move |f| {
+    for TableEntry { act, .. } in table {
+      f.write_char(bracket.0)?;
+      for i in 0..g.terms.len() as u32 {
+        let (tag, val) = act.get(&i).and_then(|x| x.get(0))
+          .map(|&x| match x { Act::Acc => (2, 0), Act::Shift(x) => (0, x), Act::Reduce(x) => (1, x) })
+          .unwrap_or((3, 0));
+        write!(f, "{},", tag | (val << 2))?;
+      };
+      write!(f, "{},", bracket.1)?;
+    }
+    Ok(())
   })
 }

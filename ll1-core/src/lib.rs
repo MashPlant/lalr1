@@ -1,4 +1,4 @@
-use common::{grammar::{Grammar, EPS_IDX, EOF_IDX}, *};
+use common::*;
 
 // both First and Follow are equivalent to vec![BitSet(g.token_num()); g.nt.len()]
 // (calculating the first/follow set of terminal is meaningless)
@@ -30,7 +30,7 @@ impl First {
                   break;
                 }
               } else {
-                tmp_bs.set(ch as usize);
+                tmp_bs.set(ch as _);
                 all_have_eps = false;
                 break;
               }
@@ -56,7 +56,7 @@ impl First {
           ret_bs.del(EPS_IDX);
           if !bitset::ubs1(rhs).get(EPS_IDX) { return ret; }
         } else {
-          ret_bs.set(ch as usize);
+          ret_bs.set(ch as _);
           return ret;
         }
       }

@@ -33,12 +33,9 @@ public class {parser_type} {{
       int state = 0, i = offset;
       while (i < string.length) {{
         byte ch = string[i];
-        int ec = EC[ch & 0xFF];
-        int nxt = DFA_EDGE[state][ec];
+        int nxt = DFA_EDGE[state][EC[ch & 0xFF]];
         int acc = ACC[nxt];
-        if (acc != ERR) {{
-          last_acc = acc;
-        }}
+        if (acc != ERR) {{ last_acc = acc; }}
         state = nxt;
         if (nxt == 0) {{ // dead, should not eat this char
           int old = offset;
@@ -56,9 +53,7 @@ public class {parser_type} {{
           if (ch == '\n') {{
             ++line;
             col = 1;
-          }} else {{
-            ++col;
-          }}
+          }} else {{ ++col; }}
           ++i;
         }}
       }}

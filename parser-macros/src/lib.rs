@@ -3,12 +3,11 @@ extern crate proc_macro;
 
 use quote::ToTokens;
 use proc_macro::{Diagnostic, Level, TokenStream};
-use parser_gen::*;
-use common::{grammar::*, IndexMap, parse_arrow_prod};
 use syn::{FnArg, NestedMeta, ItemImpl, ImplItem, Attribute, ReturnType, Error};
 use darling::FromMeta;
 use typed_arena::Arena;
-use std::{fmt::{self, Debug}, borrow::Cow};
+use parser_gen::*;
+use common::*;
 
 fn parse_arg(arg: &FnArg) -> Option<(String, String)> {
   match arg {
@@ -19,7 +18,8 @@ fn parse_arg(arg: &FnArg) -> Option<(String, String)> {
 
 #[derive(FromMeta)]
 struct Config {
-  lex: String,
+  #[darling(default)] lex: Option<String>,
+  #[darling(default)] lex_path: Option<String>,
   #[darling(default)] verbose: Option<String>,
   #[darling(default)] show_fsm: Option<String>,
   #[darling(default)] show_dfa: Option<String>,
@@ -34,7 +34,7 @@ struct Config {
 struct RawLexer<'a> {
   #[serde(borrow)]
   priority: Vec<RawPriorityRow<'a>>,
-  lexical: IndexMap<Cow<'a, str>, &'a str>,
+  lexical: IndexMap<std::borrow::Cow<'a, str>, &'a str>,
 }
 
 #[derive(FromMeta)]
@@ -46,7 +46,7 @@ struct Rule {
 struct E(Error); // pretty print `Error` with location info
 
 impl Debug for E {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+  fn fmt(&self, f: &mut Formatter) -> FmtResult {
     let lc = self.0.span().start();
     write!(f, "{} at {}:{}", self.0, lc.line, lc.column)
   }
@@ -61,8 +61,11 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
   let start = &attr.to_string();
   let parser_def = Some(parser.self_ty.to_token_stream().to_string());
 
-  let Config { lex, verbose, show_fsm, show_dfa, log_token, log_reduce, use_unsafe, expand }
+  let Config { lex, lex_path, verbose, show_fsm, show_dfa, log_token, log_reduce, use_unsafe, expand }
     = Config::from_list(&parse_attrs(&parser.attrs)).expect("failed to read attributes");
+  let lex = if let Some(lex) = lex { lex } else {
+    std::fs::read_to_string(lex_path.expect("attributes must contain `lex` or `lex_path`")).expect("failed to read lex")
+  };
   let mut cfg = parser_gen::Config {
     verbose: verbose.as_deref(),
     show_fsm: show_fsm.as_deref(),
@@ -100,7 +103,8 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
     } else { panic!("only support method impl, found {:?}", item); }
   }
 
-  parser_gen::work(RawGrammar { include: "", priority, lexical, parser_field: Vec::new(), start, production, parser_def: parser_def.as_deref() }, algo, &mut cfg);
+  parser_gen::work(RawGrammar { include: "", priority, lexical, parser_field: Vec::new(), start, production, parser_def: parser_def.as_deref() }, algo, &mut cfg)
+    .expect("failed to generate code");
   let code = unsafe { String::from_utf8_unchecked(cfg.code_output) }; // must be valid utf-8
   if expand { println!("{}", code); }
   code.parse().unwrap()

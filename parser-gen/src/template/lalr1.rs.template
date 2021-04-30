@@ -3,16 +3,16 @@ impl<'p> {parser_type} {{
     static PROD: [{u_lr_fsm_size}; {prod_size}] = [{prod}];
     static ACTION: [[{u_act_size}; {term_num}]; {lr_fsm_size}] = [{action}];
     static GOTO: [[{u_lr_fsm_size}; {nt_num}]; {lr_fsm_size}] = [{goto}];
-    let mut stk: Vec<(_, {u_lr_fsm_size})> = vec![(StackItem::_Token(Token {{ kind: TokenKind::_Eps, piece: b"", line: 0, col: 0 }}), 0)];
+    let mut stk: Vec<(_, {u_lr_fsm_size})> = vec![(_Token(Token {{ kind: _Eps, piece: b"", line: 0, col: 0 }}), 0)];
     let mut state = 0;
     let mut token = lexer.next();
     {log_token}
     loop {{
-      let act = *index!(index!(ACTION, state), token.kind as usize) as usize;
+      let act = *idx!(idx!(ACTION, state), token.kind as usize) as usize;
       let act_val = act >> 2;
       match act & 3 {{
         0 => {{
-          stk.push((StackItem::_Token(token), act_val as _));
+          stk.push((_Token(token), act_val as _));
           state = act_val;
           token = lexer.next();
           {log_token}
@@ -20,13 +20,13 @@ impl<'p> {parser_type} {{
         1 => {{
           let value = match act_val {{
             {parser_act}
-            _ => impossible!(),
+            _ => err!(),
           }};
-          let nxt = *index!(index!(GOTO, index!(stk, stk.len() - 1).1 as usize), *index!(PROD, act_val) as usize);
+          let nxt = *idx!(idx!(GOTO, idx!(stk, stk.len() - 1).1 as usize), *idx!(PROD, act_val) as usize);
           stk.push((value, nxt));
           state = nxt as usize;
         }}
-        2 => return Ok(match stk.pop() {{ Some((StackItem::_{res_id}(r), _)) => r, _ => impossible!() }}),
+        2 => return Ok(match stk.pop() {{ Some((_S{res_id}(r), _)) => r, _ => err!() }}),
         _ => return Err(token),
       }}
     }}

@@ -5,10 +5,7 @@ authors = ["MashPlant <740678788@qq.com>"]
 edition = "2018"
 
 [dependencies]
+tools = { git = "https://github.com/MashPlant/tools" }
 serde = { version = "*", features = ["derive"] }
-serde_derive = "*"
 indexmap = { version = "*", features = ["serde-1"] }
-ahash = { version = "*", default-features = false }
 smallvec = { version = "*", features = ["union"] }
-bitset = { git = "https://github.com/MashPlant/bitset" }
-re2dfa = { git = "https://github.com/MashPlant/re2dfa" }

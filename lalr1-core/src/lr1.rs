@@ -1,7 +1,5 @@
-use crate::{Lr0Item, Lr1Closure, Lr1Item};
-use common::{grammar::{Grammar, EPS_IDX, EOF_IDX}, *};
-use std::collections::VecDeque;
 use ll1_core::First;
+use crate::*;
 
 pub struct Lr1Ctx(pub First);
 
@@ -68,14 +66,14 @@ pub fn work<'a>(g: &'a Grammar) -> crate::Lr1Fsm<'a> {
   let mut ctx = Lr1Ctx(First::new(g));
   let mut ss = HashMap::default();
   let init = ctx.closure({
-                           let start = g.start().1;
-                           let item = Lr0Item { prod: &start.rhs, prod_id: start.id, dot: 0 };
-                           let mut lookahead = bitset::bsmake(g.token_num());
-                           bitset::bs(&mut lookahead).set(EOF_IDX);
-                           let mut init = HashMap::default();
-                           init.insert(item, lookahead);
-                           init
-                         }, g);
+    let start = g.start().1;
+    let item = Lr0Item { prod: &start.rhs, prod_id: start.id, dot: 0 };
+    let mut lookahead = bitset::bsmake(g.token_num());
+    bitset::bs(&mut lookahead).set(EOF_IDX);
+    let mut init = HashMap::default();
+    init.insert(item, lookahead);
+    init
+  }, g);
   let mut q = VecDeque::new();
   let mut result = Vec::new();
   ss.insert(init.clone(), 0);

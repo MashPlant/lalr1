@@ -6,20 +6,7 @@ struct Parser;
 pub enum Op { Add, Sub, Mul, Div, Mod }
 
 #[ll1(Expr)]
-#[lex = r#"
-priority = []
-
-[lexical]
-'\(' = 'LPar'
-'\)' = 'RPar'
-'\+' = 'Add'
-'-' = 'Sub'
-'\*' = 'Mul'
-'/' = 'Div'
-'%' = 'Mod'
-'\d+' = 'IntLit'
-'\s+' = '_Eps'
-"#]
+#[lex_path = "tests/src/lex.toml"]
 impl Parser {
   #[rule = "Expr -> Term1 Expr1"]
   fn r0(mut t: i32, remain: Vec<(Op, i32)>) -> i32 {
@@ -117,10 +104,10 @@ impl Parser {
             if (lookahead.kind as u32) == x {
               let token = *lookahead;
               *lookahead = lexer.next();
-              StackItem::_Token(token)
+              _Token(token)
             } else {
               self.error();
-              StackItem::_Fail
+              _Fail
             }
           }
         }).collect::<Vec<_>>();

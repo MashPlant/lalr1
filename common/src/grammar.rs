@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use std::{fmt, borrow::Cow};
+use std::borrow::Cow;
 use crate::*;
 
 pub type ProdVec = SmallVec<[u32; 4]>;
@@ -18,10 +18,10 @@ pub struct RawGrammar<'a> {
   pub priority: Vec<RawPriorityRow<'a>>,
   // map re to term
   // K must be Cow<str>, because sometimes we have to write escape chars in the key string
-  // so the actually key may not be a borrow from the input string
+  // so the key may not be a borrow from the input string
   // but we can always avoid escape chars in the value string
   pub lexical: IndexMap<Cow<'a, str>, &'a str>,
-  // this string should contain name & type, e.g.: "a: u32" for rust, "int a" for c++
+  // this string should contain full field definition, e.g.: "a: u32," for rust, "int a;" for c++
   #[serde(default)] pub parser_field: Vec<&'a str>,
   pub start: &'a str,
   pub production: Vec<RawProduction<'a>>,
@@ -219,7 +219,7 @@ impl RawGrammar<'_> {
         if let Some(rhs_arg) = &rhs.rhs_arg {
           if rhs_arg.len() != rhs.rhs.len() {
             return Err(format!("production \"{} -> {}\" rhs and method arguments have different length: {} vs {}",
-                               raw_prod.lhs, rhs.rhs.join(" "), rhs.rhs.len(), rhs_arg.len()));
+              raw_prod.lhs, rhs.rhs.join(" "), rhs.rhs.len(), rhs_arg.len()));
           }
           for (&rhs_tk, &(_, rhs_ty)) in rhs.rhs.iter().zip(rhs_arg.iter()) {
             match (nt2id.get(rhs_tk), term2id.get(rhs_tk)) {
@@ -227,12 +227,12 @@ impl RawGrammar<'_> {
                 let nt_ty = nt[nt_id as usize].ty;
                 if nt_ty != rhs_ty {
                   return Err(format!("production \"{} -> {}\" rhs and method arguments have conflict signature: `{}` requires `{}`, while method takes `{}`",
-                                     raw_prod.lhs, rhs.rhs.join(" "), rhs_tk, nt_ty, rhs_ty));
+                    raw_prod.lhs, rhs.rhs.join(" "), rhs_tk, nt_ty, rhs_ty));
                 }
               }
               (_, Some(_)) => if !rhs_ty.starts_with("Token") { // maybe user will use some lifetime specifier
                 return Err(format!("production \"{} -> {}\" rhs and method arguments have conflict signature: `{}` requires Token, while method takes `{}`",
-                                   raw_prod.lhs, rhs.rhs.join(" "), rhs_tk, rhs_ty));
+                  raw_prod.lhs, rhs.rhs.join(" "), rhs_tk, rhs_ty));
               }
               _ => {} // unreachable, because checked above
             }
@@ -274,15 +274,16 @@ impl Grammar<'_> {
   }
 
   // parameter `id` is a production id (in [0, prod.len()))
-  pub fn show_prod<'a>(&'a self, id: usize, dot: Option<u32>) -> impl fmt::Display + 'a {
-    fn2display(move |f| {
+  pub fn show_prod<'a>(&'a self, id: usize, dot: Option<u32>) -> impl Display + 'a {
+    fmt_::fn2display(move |f| {
       let prod = &self.prod[id];
       let _ = write!(f, "{} ->", self.nt[prod.lhs as usize].name);
       for (idx, &rhs) in prod.rhs.iter().enumerate() {
         let sep = if Some(idx as u32) == dot { '.' } else { ' ' };
-        let _ = write!(f, "{}{}", sep, self.show_token(rhs as usize));
+        let _ = write!(f, "{}{}", sep, self.show_token(rhs as _));
       }
       if Some(prod.rhs.len() as u32) == dot { let _ = f.write_str("."); }
+      Ok(())
     })
   }
 }

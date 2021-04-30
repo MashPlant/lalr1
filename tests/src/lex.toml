@@ -1,0 +1,17 @@
+priority = [ # only useful in lalr1 mode
+  { assoc = 'left', terms = ['Add', 'Sub'] },
+  { assoc = 'left', terms = ['Mul', 'Div', 'Mod'] },
+  { assoc = 'no_assoc', terms = ['UMinus'] },
+  { assoc = 'no_assoc', terms = ['RPar'] },
+]
+
+[lexical]
+'\(' = 'LPar'
+'\)' = 'RPar'
+'\+' = 'Add'
+'-' = 'Sub'
+'\*' = 'Mul'
+'/' = 'Div'
+'%' = 'Mod'
+'\d+' = 'IntLit'
+'\s+' = '_Eps'

@@ -1,10 +1,15 @@
-use std::{hash::{Hash, Hasher}, cmp::Ordering, ops::Deref};
-use common::{SmallVec, HashMap};
-
 pub mod lr1;
 pub mod lr0;
 pub mod lalr1_by_lr0;
 pub mod mk_table;
+
+pub use lr1::*;
+pub use lr0::*;
+pub use lalr1_by_lr0::*;
+pub use mk_table::*;
+
+use common::*;
+use std::{hash::{Hash, Hasher}, cmp::Ordering::{self, *}, ops::Deref, collections::VecDeque};
 
 #[derive(Clone, Copy)]
 pub struct Lr0Item<'a> {

@@ -1,6 +1,4 @@
-use crate::{Lr0Item, Lr0Fsm, Lr0Node};
-use common::{grammar::Grammar, *};
-use std::collections::VecDeque;
+use crate::*;
 
 fn go<'a>(items: &Vec<Lr0Item<'a>>, mov: u32, g: &'a Grammar<'a>) -> Vec<Lr0Item<'a>> {
   let mut new_items = HashSet::default();
@@ -34,11 +32,11 @@ pub fn work<'a>(g: &'a Grammar) -> Lr0Fsm<'a> {
   let token_num = g.token_num() as u32;
   let mut ss = HashMap::default();
   let init = closure({
-                       let start = g.start().1;
-                       let mut init = HashSet::default();
-                       init.insert(Lr0Item { prod: &start.rhs, prod_id: start.id, dot: 0 });
-                       init
-                     }, g);
+    let start = g.start().1;
+    let mut init = HashSet::default();
+    init.insert(Lr0Item { prod: &start.rhs, prod_id: start.id, dot: 0 });
+    init
+  }, g);
   ss.insert(init.clone(), 0);
   let mut q = VecDeque::new();
   let mut result = Vec::new();

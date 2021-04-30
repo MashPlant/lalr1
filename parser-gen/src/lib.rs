@@ -5,23 +5,22 @@ pub mod java;
 pub mod show_lr;
 pub mod show_ll;
 
-pub use rs::*;
-
-use common::{grammar::{RawGrammar, Grammar}, re2dfa::{re2dfa, Dfa}};
+use common::*;
 use lalr1_core::*;
-use ll1_core::LLCtx;
-use std::{fs::File, io::{Result, Write, BufWriter}, fmt::Display};
+use ll1_core::*;
+use re2dfa::*;
+use std::{fs::File, io::{Result, Write, BufWriter}, fmt::Write as _};
 
 pub trait Codegen {
-  fn grammar_error(&mut self, reason: String) { panic!("invalid grammar, reason: {}", reason) }
+  fn grammar_error(&mut self, reason: String) -> ! { panic!("invalid grammar, reason: {}", reason) }
 
-  fn re2dfa_error(&mut self, re: &str, reason: String) { panic!("invalid regex {}, reason: {}", re, reason) }
+  fn re2dfa_error(&mut self, re: &str, reason: String) -> ! { panic!("invalid regex {}, reason: {}", re, reason) }
 
   fn dfa(&mut self, dfa: &Dfa);
 
-  fn ll(&mut self, g: &Grammar, ll: LLCtx, dfa: &Dfa);
+  fn ll(&mut self, g: &Grammar, ll: LLCtx, dfa: &Dfa) -> Result<()>;
 
-  fn lr1(&mut self, g: &Grammar, lr1: &Lr1Fsm, dfa: &Dfa, orig_table: Table, table: Table, conflict: Vec<Conflict>);
+  fn lr1(&mut self, g: &Grammar, lr1: &Lr1Fsm, dfa: &Dfa, orig_table: Table, table: Table, conflict: Vec<Conflict>) -> Result<()>;
 }
 
 #[derive(Eq, PartialEq, Copy, Clone)]
@@ -55,7 +54,7 @@ impl<W: Write> Codegen for Config<'_, W> {
     }
   }
 
-  fn ll(&mut self, g: &Grammar, ll: LLCtx, dfa: &Dfa) {
+  fn ll(&mut self, g: &Grammar, ll: LLCtx, dfa: &Dfa) -> Result<()> {
     if let Some(path) = self.verbose {
       write(path, show_ll::table(&ll, g)).expect("failed to write ll1 table");
     }
@@ -63,10 +62,10 @@ impl<W: Write> Codegen for Config<'_, W> {
     match self.lang {
       Lang::Rs => self.rs_ll1(&g, &ll, dfa),
       _ => unimplemented!("ll1 codegen is currently only implemented for rust"),
-    };
+    }
   }
 
-  fn lr1(&mut self, g: &Grammar, lr1: &Lr1Fsm, dfa: &Dfa, orig_table: Table, table: Table, conflict: Vec<Conflict>) {
+  fn lr1(&mut self, g: &Grammar, lr1: &Lr1Fsm, dfa: &Dfa, orig_table: Table, table: Table, conflict: Vec<Conflict>) -> Result<()> {
     if let Some(path) = self.verbose {
       write(path, show_lr::table(&orig_table, &table, g)).expect("failed to write lr1 table");
     }
@@ -79,17 +78,17 @@ impl<W: Write> Codegen for Config<'_, W> {
       Lang::Rs => self.rs_lalr1(&g, &table, dfa),
       Lang::Cpp => self.cpp_lalr1(&g, &table, dfa),
       Lang::Java => self.java_lalr1(&g, &table, dfa),
-    };
+    }
   }
 }
 
-pub fn work(mut raw: RawGrammar, algo: PGAlgo, gen: &mut impl Codegen) {
+pub fn work(mut raw: RawGrammar, algo: PGAlgo, gen: &mut impl Codegen) -> Result<()> {
   use PGAlgo::*;
   let dfa = match re2dfa(raw.lexical.iter().map(|(s, _)| s.as_bytes())) {
-    Ok(x) => x, Err((idx, reason)) => return gen.re2dfa_error(raw.lexical.get_index(idx).unwrap().0, reason)
+    Ok(x) => x, Err((idx, reason)) => gen.re2dfa_error(raw.lexical.get_index(idx).unwrap().0, reason)
   };
   gen.dfa(&dfa);
-  let ref g = match raw.extend(true) { Ok(x) => x, Err(reason) => return gen.grammar_error(reason) };
+  let ref g = match raw.extend(true) { Ok(x) => x, Err(reason) => gen.grammar_error(reason) };
   match algo {
     LL1 => gen.ll(g, LLCtx::new(g), &dfa),
     LALR1 | LR1 => {
@@ -97,7 +96,7 @@ pub fn work(mut raw: RawGrammar, algo: PGAlgo, gen: &mut impl Codegen) {
       let orig_table = mk_table::mk_table(&lr1, g);
       let mut table = orig_table.clone();
       let conflict = lalr1_core::mk_table::solve(&mut table, g);
-      gen.lr1(g, &lr1, &dfa, orig_table, table, conflict);
+      gen.lr1(g, &lr1, &dfa, orig_table, table, conflict)
     }
   }
 }
