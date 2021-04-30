@@ -10,10 +10,13 @@ impl<W: std::io::Write> Config<'_, W> {
       self.code_output, include_str!("template/lalr1.java.template"),
       include = g.raw.include,
       parser_type = g.raw.parser_def.unwrap_or("Parser"),
+      parser_field = g.raw.parser_field,
       acc = fmt::comma_sep(dfa.nodes.iter().map(move |&(acc, _)|
         acc.map(|x| terms2id[g.raw.lexical.get_index(x as _).unwrap().1]).unwrap_or(ERR_IDX as u32))),
       ec = fmt::comma_sep(dfa.ec.iter()),
       dfa_edge = fmt::dfa_edge(dfa, ('{', '}')),
+      lexer_field = g.raw.lexer_field,
+      lexer_action = g.raw.lexer_action,
       stack_item = fmt_::fn2display(move |f| (for (i, ty) in types.iter().enumerate() {
         let _ = writeln!(f, "public static final class StackItem{} extends StackItem {{ {} $; }}", i, ty);
       }, Ok(())).1),
@@ -23,7 +26,7 @@ impl<W: std::io::Write> Config<'_, W> {
       action = fmt::action(g, table, ('{', '}')),
       goto = fmt::goto(g, table, ('{', '}')),
       parser_act = fmt_::fn2display(move |f| (for (i, prod) in g.prod.iter().enumerate() {
-        let _ = writeln!(f, "case {}:{{", i);
+        let _ = write!(f, "case {}:{{", i);
         for (j, &x) in prod.rhs.iter().enumerate().rev() {
           let name = fmt_::fn2display(move |f|
             match prod.args { Some(args) => f.write_str(args[j].0), None => write!(f, "${}", j + 1) });

@@ -14,15 +14,17 @@ impl<W: std::io::Write> Config<'_, W> {
       token_kind = fmt::comma_sep(g.terms.iter().map(|x| x.name)),
       stack_item = fmt_::fn2display(move |f| {
         if stack_need_fail { f.write_str("_Fail,")?; }
-        for (i, ty) in types.iter().enumerate() { write!(f, "_S{}({}),", i, ty)?; }
+        for (i, ty) in types.iter().enumerate() { write!(f, "_{}({}),", i, ty)?; }
         Ok(())
       }),
+      lexer_field = g.raw.lexer_field,
       dfa_size = dfa.nodes.len(),
-      acc = fmt::acc(g, dfa),
+      acc = fmt::acc(g, dfa, "TokenKind"),
       ec = fmt::comma_sep(dfa.ec.iter()),
       u_dfa_size = fmt::min_u(dfa.nodes.len()),
       ec_num = dfa.ec_num,
       dfa_edge = fmt::dfa_edge(dfa, ('[', ']')),
+      lexer_action = g.raw.lexer_action,
       show_token_prod = fmt_::fn2display(move |f| if verbose {
         f.write_str("fn show_token(id:u32)->&'static str{[")?;
         for i in 0..g.token_num() { write!(f, "{:?}, ", g.show_token(i))?; }
@@ -34,7 +36,7 @@ impl<W: std::io::Write> Config<'_, W> {
         f.write_str("][id as usize]}")
       } else { Ok(()) }),
       parser_struct = fmt_::fn2display(move |f| if g.raw.parser_def.is_none() {
-        write!(f, "pub struct Parser{{{}}}", fmt::comma_sep(g.raw.parser_field.iter()))
+        write!(f, "pub struct Parser{{{}}}", g.raw.parser_field)
       } else { Ok(()) })
     )
   }
@@ -45,7 +47,7 @@ impl<W: std::io::Write> Config<'_, W> {
     fmt_::fn2display(move |f| {
       let pat = if is_pair { ",_" } else { "" };
       for (i, prod) in g.prod.iter().enumerate() {
-        writeln!(f, "{}=>{{", i)?;
+        write!(f, "{}=>{{", i)?;
         if log_reduce {
           writeln!(f, r#"println!("{}");"#, g.show_prod(i, None))?;
         }
@@ -54,13 +56,13 @@ impl<W: std::io::Write> Config<'_, W> {
             match prod.args { Some(args) => f.write_str(args[j].0), None => write!(f, "_{}", j + 1) });
           if let Some(x) = g.as_nt(x) {
             let id = types2id[g.nt[x].ty];
-            writeln!(f, "let {}=match stk.pop(){{Some((_S{}(x){}))=>x,_=>{}}};", name, id, pat, handle_err)?;
+            writeln!(f, "let {}=match stk.pop(){{Some((StackItem::_{}(x){}))=>x,_=>{}}};", name, id, pat, handle_err)?;
           } else {
-            writeln!(f, "let {}=match stk.pop(){{Some((_Token(x){}))=>x,_=>{}}};", name, pat, handle_err)?;
+            writeln!(f, "let {}=match stk.pop(){{Some((StackItem::_Token(x){}))=>x,_=>{}}};", name, pat, handle_err)?;
           }
         }
         let id = types2id[g.nt[prod.lhs as usize].ty];
-        writeln!(f, "_S{}({{{}}})\n}}", id, prod.act)?;
+        writeln!(f, "StackItem::_{}({{{}}})}}", id, prod.act)?;
       }
       Ok(())
     })
@@ -116,7 +118,7 @@ impl<W: std::io::Write> Config<'_, W> {
         f.write_str("),\n")?;
       }, Ok(())).1),
       parser_type = g.raw.parser_def.unwrap_or("Parser"),
-      parser_act = Self::gen_act(self.log_reduce, g, types2id, false, "return _Fail"),
+      parser_act = Self::gen_act(self.log_reduce, g, types2id, false, "return StackItem::_Fail"),
       res_type = parse_res,
       res_nt_id = g.token_num() - 1,
       res_id = res_id

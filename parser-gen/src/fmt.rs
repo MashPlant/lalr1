@@ -24,16 +24,13 @@ pub fn gather_types<'a>(g: &Grammar<'a>) -> (Vec<&'a str>, HashMap<&'a str, u32>
   (types, types2id)
 }
 
-pub fn acc<'a>(g: &'a Grammar, dfa: &'a Dfa) -> impl Display + 'a {
-  fmt_::fn2display(move |f| {
-    for &(acc, _) in &dfa.nodes {
-      match acc {
-        Some(acc) => write!(f, "{},", g.raw.lexical.get_index(acc as _).unwrap().1)?,
-        None => write!(f, "_Err,")?,
-      }
+pub fn acc<'a>(g: &'a Grammar, dfa: &'a Dfa, namespace: &'a str) -> impl Display + 'a {
+  fmt_::fn2display(move |f| (for &(acc, _) in &dfa.nodes {
+    match acc {
+      Some(acc) => { let _ = write!(f, "{}::{}, ", namespace, g.raw.lexical.get_index(acc as usize).unwrap().1); }
+      None => { let _ = write!(f, "{}::_Err, ", namespace); }
     }
-    Ok(())
-  })
+  }, Ok(())).1)
 }
 
 pub fn dfa_edge<'a>(dfa: &'a Dfa, bracket: (char, char)) -> impl Display + 'a {

@@ -5,8 +5,6 @@
 #[repr(u32)]
 pub enum TokenKind {{ {token_kind} }}
 enum StackItem<'p> {{ _Token(Token<'p>), {stack_item} }}
-use TokenKind::*;
-use StackItem::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Token<'l> {{
@@ -21,11 +19,12 @@ pub struct Lexer<'l> {{
   pub string: &'l [u8],
   pub line: u32,
   pub col: u32,
+  {lexer_field}
 }}
 
 impl<'l> Lexer<'l> {{
   pub fn new(string: &[u8]) -> Lexer {{
-    Lexer {{ string, line: 1, col: 1 }}
+    Lexer {{ string, line: 1, col: 1, ..<_>::default() }}
   }}
 
   pub fn next(&mut self) -> Token<'l> {{
@@ -34,39 +33,42 @@ impl<'l> Lexer<'l> {{
     static DFA_EDGE: [[{u_dfa_size}; {ec_num}]; {dfa_size}] = [{dfa_edge}];
     // line & col is the beginning of this token, self.line & col is the latest char
     let (mut line, mut col) = (self.line, self.col);
-    let mut last_acc = _Err;
+    let mut last_acc = TokenKind::_Err;
     let mut state = 0;
     let mut i = 0;
-    while i < self.string.len() {{
-      let ch = *idx!(self.string, i);
-      let nxt = *idx!(idx!(DFA_EDGE, state), *idx!(EC, ch as usize) as usize) as usize;
+    loop {{
+      let (ch, nxt);
+      if i < self.string.len() {{
+        ch = *idx!(self.string, i) as usize;
+        nxt = *idx!(idx!(DFA_EDGE, state), *idx!(EC, ch) as usize) as usize;
+      }} else {{
+        ch = 0;
+        nxt = 0;
+      }};
       let acc = *idx!(ACC, nxt);
-      if acc != _Err {{ last_acc = acc }};
+      if acc != TokenKind::_Err {{ last_acc = acc }};
       state = nxt;
       if nxt == 0 {{ // dead, should not eat this char
         let piece = idx!(self.string, ..i);
         self.string = idx!(self.string, i..);
-        if last_acc != _Eps {{
-          return Token {{ kind: last_acc, piece, line, col }};
+        if i == 0 || last_acc != TokenKind::_Eps {{
+          {lexer_action}
+          return Token {{ kind: if i == 0 {{ TokenKind::_Eof }} else {{ last_acc }}, piece, line, col }};
         }} else {{
           line = self.line;
           col = self.col;
-          last_acc = _Err;
+          last_acc = TokenKind::_Err;
           state = 0;
           i = 0;
         }}
       }} else {{ // continue, eat this char
-        if ch == b'\n' {{
+        if ch == b'\n' as _ {{
           self.line += 1;
           self.col = 1;
         }} else {{ self.col += 1; }}
         i += 1;
       }}
     }}
-    // end of file
-    let piece = idx!(self.string, ..i);
-    self.string = b"";
-    if last_acc != _Eps && i != 0 {{ Token {{ kind: last_acc, piece, line, col }} }} else {{ Token {{ kind: _Eof, piece: b"", line: self.line, col: self.col }} }}
   }}
 }}
 

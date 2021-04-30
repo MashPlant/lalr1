@@ -9,17 +9,18 @@ using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
 
-enum TokenKind: u32 {{ {token_kind} }} kind;
-
 struct Token {{
-  TokenKind kind;
+  enum Kind: u32 {{ {token_kind} }} kind;
   std::string_view piece;
   u32 line, col;
 }};
 
+using StackItem = std::variant<Token, {stack_item}>;
+
 struct Lexer {{
   std::string_view string;
   u32 line, col;
+  {lexer_field}
   explicit Lexer(std::string_view string) : string(string), line(1), col(1) {{}}
   Token next();
 }};
@@ -27,40 +28,36 @@ struct Lexer {{
 {parser_struct}
 
 Token Lexer::next() {{
-  const static TokenKind ACC[] = {{{acc}}};
+  const static Token::Kind ACC[] = {{{acc}}};
   const static u8 EC[] = {{{ec}}};
   const static {u_dfa_size} DFA_EDGE[][{ec_num}] = {{{dfa_edge}}};
   u32 l = line, c = col;
-  TokenKind last_acc = _Err;
+  Token::Kind last_acc = Token::_Err;
   u32 state = 0, i = 0;
-  while (i < string.size()) {{
-    u8 ch = string[i];
-    {u_dfa_size} nxt = DFA_EDGE[state][EC[ch]];
-    TokenKind acc = ACC[nxt];
-    if (acc != _Err) {{ last_acc = acc; }}
+  while (true) {{
+    u32 ch, nxt;
+    if (i < string.size()) {{ ch = string[i], nxt = DFA_EDGE[state][EC[ch]]; }} else {{ ch = nxt = 0; }}
+    Token::Kind acc = ACC[nxt];
+    if (acc != Token::_Err) {{ last_acc = acc; }}
     state = nxt;
     if (nxt == 0) {{ // dead, should not eat this char
-        // we are not using substr here, because it does range check and may throws exception
-        std::string_view piece(string.data(), i);
-        string = std::string_view(string.data() + i, string.size() - i);
-        if (last_acc != _Eps) {{
-          return Token{{last_acc, piece, l, c}};
-        }} else {{
-          l = line, c = col, last_acc = _Err, state = 0, i = 0;
-        }}
-      }} else {{ // continue, eat this char
-        if (ch == '\n') {{ ++line, col = 1; }} else {{ ++col; }}
-        ++i;
+      // we are not using substr here, because it does range check and may throws exception
+      std::string_view piece(string.data(), i);
+      string = std::string_view(string.data() + i, string.size() - i);
+      if (i == 0 || last_acc != Token::_Eps) {{
+        {lexer_action}
+        return Token{{i == 0 ? Token::_Eof : last_acc, piece, l, c}};
+      }} else {{
+        l = line, c = col, last_acc = Token::_Err, state = 0, i = 0;
       }}
+    }} else {{ // continue, eat this char
+      if (ch == '\n') {{ ++line, col = 1; }} else {{ ++col; }}
+      ++i;
+    }}
   }}
-  // end of file
-  std::string_view piece(string.data(), i);
-  string = "";
-  return last_acc != _Eps && i != 0 ? Token{{last_acc, piece, l, c}} : Token{{_Eof, "", line, col}};
 }}
 
 std::variant<{res_type}, Token> {parser_type}::parse(Lexer &lexer) {{
-  using StackItem = std::variant<Token, {stack_item}>;
   const static {u_lr_fsm_size} PROD[] = {{{prod}}};
   const static {u_act_size} ACTION[][{term_num}] = {{{action}}};
   const static {u_lr_fsm_size} GOTO[][{nt_num}] = {{{goto}}};

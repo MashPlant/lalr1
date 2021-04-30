@@ -21,11 +21,14 @@ pub struct RawGrammar<'a> {
   // so the key may not be a borrow from the input string
   // but we can always avoid escape chars in the value string
   pub lexical: IndexMap<Cow<'a, str>, &'a str>,
-  // this string should contain full field definition, e.g.: "a: u32," for rust, "int a;" for c++
-  #[serde(default)] pub parser_field: Vec<&'a str>,
+  // this string should contain full field definition, e.g.: "a: u32, b: u32,"
+  #[serde(default)] pub lexer_field: &'a str,
+  // run before Lexer::next() returns
+  #[serde(default)] pub lexer_action: &'a str,
+  #[serde(default)] pub parser_field: &'a str,
   pub start: &'a str,
   pub production: Vec<RawProduction<'a>>,
-  // None -> will define a struct Parser<'a> { _p: std::marker::PhantomData<&'a ()>, parser_field_ext }
+  // None -> will define a struct Parser { parser_field }
   // Some -> will not define a struct (the original code has already defined it)
   pub parser_def: Option<&'a str>,
 }

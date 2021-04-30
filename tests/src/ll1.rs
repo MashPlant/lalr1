@@ -104,13 +104,13 @@ impl Parser {
             if (lookahead.kind as u32) == x {
               let token = *lookahead;
               *lookahead = lexer.next();
-              _Token(token)
+              StackItem::_Token(token)
             } else {
               self.error();
-              _Fail
+              StackItem::_Fail
             }
           }
-        }).collect::<Vec<_>>();
+        }).collect();
         self.act(*act, value_stk)
       }
     }

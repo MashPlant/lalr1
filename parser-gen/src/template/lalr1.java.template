@@ -2,6 +2,7 @@ import java.util.ArrayList;
 {include}
 
 public class {parser_type} {{
+  {parser_field}
   public static final class Token {{
     public final int kind;
     public final String piece;
@@ -24,6 +25,7 @@ public class {parser_type} {{
     private final byte[] string;
     private int offset = 0;
     private int line = 1, col = 1;
+    {lexer_field}
 
     Lexer(byte[] string) {{ this.string = string; }}
 
@@ -31,17 +33,21 @@ public class {parser_type} {{
       int l = line, c = col;
       int last_acc = ERR;
       int state = 0, i = offset;
-      while (i < string.length) {{
-        byte ch = string[i];
-        int nxt = DFA_EDGE[state][EC[ch & 0xFF]];
+      while (true) {{
+        int ch, nxt;
+        if (i < string.length) {{
+          ch = string[i];
+          nxt = DFA_EDGE[state][EC[ch & 0xFF]];
+        }} else {{ ch = nxt = 0; }}
         int acc = ACC[nxt];
         if (acc != ERR) {{ last_acc = acc; }}
         state = nxt;
         if (nxt == 0) {{ // dead, should not eat this char
           int old = offset;
           offset = i;
-          if (last_acc != EPS) {{
-            return new Token(last_acc, new String(string, old, i - old), l, c);
+          if (i == old || last_acc != EPS) {{
+            {lexer_action}
+            return new Token(i == old ? EOF : last_acc, new String(string, old, i - old), l, c);
           }} else {{
             l = line;
             c = col;
@@ -57,11 +63,6 @@ public class {parser_type} {{
           ++i;
         }}
       }}
-      // end of file
-      String piece = new String(string, offset, string.length - offset);
-      int old = offset;
-      offset = string.length;
-      return last_acc != EPS && i != old ? new Token(last_acc, piece, l, c) : new Token(EOF, "", line, col);
     }}
 
     void reset() {{

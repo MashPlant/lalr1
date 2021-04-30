@@ -35,6 +35,8 @@ struct RawLexer<'a> {
   #[serde(borrow)]
   priority: Vec<RawPriorityRow<'a>>,
   lexical: IndexMap<std::borrow::Cow<'a, str>, &'a str>,
+  #[serde(default)] lexer_field: &'a str,
+  #[serde(default)] lexer_action: &'a str,
 }
 
 #[derive(FromMeta)]
@@ -59,7 +61,7 @@ fn parse_attrs(attrs: &[Attribute]) -> Vec<NestedMeta> {
 fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
   let parser = syn::parse::<ItemImpl>(input).map_err(E).expect("failed to parse impl block");
   let start = &attr.to_string();
-  let parser_def = Some(parser.self_ty.to_token_stream().to_string());
+  let parser_def = parser.self_ty.to_token_stream().to_string();
 
   let Config { lex, lex_path, verbose, show_fsm, show_dfa, log_token, log_reduce, use_unsafe, expand }
     = Config::from_list(&parse_attrs(&parser.attrs)).expect("failed to read attributes");
@@ -77,7 +79,7 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
     on_conflict: |c| Diagnostic::new(Level::Warning, c).emit(),
     code_output: Vec::new(),
   };
-  let RawLexer { priority, lexical } = toml::from_str(&lex).expect("failed to parse lexer toml");
+  let lex = toml::from_str::<RawLexer>(&lex).expect("failed to parse lexer toml");
 
   let mut production = Vec::new();
   let arena = Arena::new();
@@ -103,8 +105,18 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
     } else { panic!("only support method impl, found {:?}", item); }
   }
 
-  parser_gen::work(RawGrammar { include: "", priority, lexical, parser_field: Vec::new(), start, production, parser_def: parser_def.as_deref() }, algo, &mut cfg)
-    .expect("failed to generate code");
+  let g = RawGrammar {
+    include: "",
+    priority: lex.priority,
+    lexical: lex.lexical,
+    lexer_field: lex.lexer_field,
+    lexer_action: lex.lexer_action,
+    parser_field: "",
+    start,
+    production,
+    parser_def: Some(&parser_def),
+  };
+  parser_gen::work(g, algo, &mut cfg).expect("failed to generate code");
   let code = unsafe { String::from_utf8_unchecked(cfg.code_output) }; // must be valid utf-8
   if expand { println!("{}", code); }
   code.parse().unwrap()

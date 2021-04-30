@@ -9,15 +9,15 @@ impl<W: std::io::Write> Config<'_, W> {
       include = g.raw.include,
       token_kind = fmt::comma_sep(g.terms.iter().map(|x| x.name)),
       stack_item = types.join(","),
-      acc = fmt::acc(g, dfa),
+      lexer_field = g.raw.lexer_field,
+      acc = fmt::acc(g, dfa, "Token"),
       ec = fmt::comma_sep(dfa.ec.iter()),
       u_dfa_size = fmt::min_u(dfa.nodes.len()),
       ec_num = dfa.ec_num,
       dfa_edge = fmt::dfa_edge(dfa, ('{', '}')),
+      lexer_action = g.raw.lexer_action,
       parser_struct = fmt_::fn2display(move |f| if g.raw.parser_def.is_none() {
-        writeln!(f, r"struct Parser{{std::variant<{},Token>parse(Lexer&lexer);", parse_res)?;
-        for &field in &g.raw.parser_field { f.write_str(field)?; }
-        f.write_str("};")
+        writeln!(f, r"struct Parser{{std::variant<{},Token>parse(Lexer&lexer);{}}};", parse_res, g.raw.parser_field)
       } else { Ok(()) }),
       u_lr_fsm_size = fmt::min_u(table.len()),
       u_act_size = fmt::min_u(table.len() * 4),
@@ -29,7 +29,7 @@ impl<W: std::io::Write> Config<'_, W> {
       action = fmt::action(g, table, ('{', '}')),
       goto = fmt::goto(g, table, ('{', '}')),
       parser_act = fmt_::fn2display(|f| (for (i, prod) in g.prod.iter().enumerate() {
-        writeln!(f, "case {}:{{", i)?;
+        write!(f, "case {}:{{", i)?;
         for (j, &x) in prod.rhs.iter().enumerate().rev() {
           let name = fmt_::fn2display(move |f|
             match prod.args { Some(args) => f.write_str(args[j].0), None => write!(f, "_{}", j + 1) });
