@@ -32,9 +32,9 @@ fn parse_lines(s: &str) -> Result<RawGrammar, String> {
 
 fn main() -> io::Result<()> {
   let m = App::new("simple_grammar")
-    .arg(Arg::with_name("input").required(true))
-    .arg(Arg::with_name("output").long("output").short("o").takes_value(true).required(true))
-    .arg(Arg::with_name("grammar").long("grammar").short("g").takes_value(true).possible_values(&["lr0", "lr1", "lalr1", "ll1"]).required(true))
+    .arg(Arg::new("input").required(true))
+    .arg(Arg::new("output").long("output").short('o').takes_value(true).required(true))
+    .arg(Arg::new("grammar").long("grammar").short('g').takes_value(true).possible_values(&["lr0", "lr1", "lalr1", "ll1"]).required(true))
     .get_matches();
   let input = fs::read_to_string(m.value_of("input").unwrap())?;
   let mut raw = parse_lines(&input).expect("invalid input grammar");
