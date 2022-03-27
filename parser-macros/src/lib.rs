@@ -115,6 +115,7 @@ fn work(attr: TokenStream, input: TokenStream, algo: PGAlgo) -> TokenStream {
     start,
     production,
     parser_def: Some(&parser_def),
+    epilogue: Some(""),
   };
   parser_gen::work(g, algo, &mut cfg).expect("failed to generate code");
   let code = unsafe { String::from_utf8_unchecked(cfg.code_output) }; // must be valid utf-8

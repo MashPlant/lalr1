@@ -97,3 +97,5 @@ std::variant<{res_type}, Token> {parser_type}::parse(Lexer &lexer) {{
     }}
   }}
 }}
+
+{epilogue}

@@ -15,6 +15,7 @@ pub enum Assoc { Left, Right, NoAssoc }
 #[derive(Deserialize)]
 pub struct RawGrammar<'a> {
   pub include: &'a str,
+  pub epilogue: Option<&'a str>,
   pub priority: Vec<RawPriorityRow<'a>>,
   // map re to term
   // K must be Cow<str>, because sometimes we have to write escape chars in the key string
