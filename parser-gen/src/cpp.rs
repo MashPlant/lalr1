@@ -36,7 +36,7 @@ impl<W: std::io::Write> Config<'_, W> {
           let ty = if let Some(x) = g.as_nt(x) { g.nt[x].ty } else { "Token" };
           writeln!(f, "[[maybe_unused]]{1} {}(std::move(*std::get_if<{1}>(&stk.back().first)));stk.pop_back();", name, ty)?;
         }
-        writeln!(f, "{}break;}}", if i == g.prod.len() - 1 { "__=_1;" } else { prod.act })?;
+        writeln!(f, "{}break;}}", if i == g.prod.len() - 1 { "__=std::move(_1);" } else { prod.act })?;
       }, Ok(())).1),
       epilogue = g.raw.epilogue.unwrap_or("")
     )
