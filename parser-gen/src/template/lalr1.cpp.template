@@ -19,9 +19,10 @@ using StackItem = std::variant<Token, {stack_item}>;
 
 struct Lexer {{
   std::string_view string;
+  std::string_view fn;
   u32 line, col;
   {lexer_field}
-  explicit Lexer(std::string_view string) : string(string), line(1), col(1) {{}}
+  explicit Lexer(std::string_view string, std::string_view fn="") : string(string), fn(fn), line(1), col(1) {{}}
   Token next();
 }};
 
